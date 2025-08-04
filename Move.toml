@@ -1,0 +1,15 @@
+[package]
+name = "deUSD"
+edition = "2024.beta"
+
+[addresses]
+elixir = "0x0"
+admin = "_"
+
+[dev-addresses]
+
+admin = "0xad"
+
+[dependencies]
+
+[dev-dependencies]
