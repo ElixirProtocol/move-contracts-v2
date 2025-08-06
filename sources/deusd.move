@@ -1,26 +1,25 @@
 module elixir::deusd;
 
+use elixir::admin_cap::{AdminCap};
+use elixir::package_version::{Self, PackageVersion};
 use sui::coin::{Self, TreasuryCap, DenyCapV2, Coin};
 use sui::event;
 
 // === Error codes ===
 
-/// The `sender` is not the admin.
-const ENotAdmin: u64 = 1;
 /// The `sender` is not the minter.
-const ENotMinter: u64 = 2;
+const ENotMinter: u64 = 1;
 /// The address is zero.
-const EZeroAddress: u64 = 3;
+const EZeroAddress: u64 = 2;
 /// The amount is zero.
-const EZeroAmount: u64 = 4;
+const EZeroAmount: u64 = 3;
 
 // === Structs ===
 
 public struct DEUSD has drop {}
 
-public struct Management has key {
+public struct Config has key {
     id: UID,
-    admin: address,
     minter: address,
     treasury_cap: TreasuryCap<DEUSD>,
     deny_cap: DenyCapV2<DEUSD>,
@@ -51,16 +50,15 @@ fun init(witness: DEUSD, ctx: &mut TxContext) {
         6,
         b"deUSD",
         b"Elixir's deUSD",
-        b"DEUSD",
+        b"Elixir's deUSD",
         option::none(),
         true,
         ctx,
     );
     transfer::public_freeze_object(metadata);
 
-    let management = Management {
+    let management = Config {
         id: object::new(ctx),
-        admin: @admin,
         minter: @admin,
         treasury_cap,
         deny_cap,
@@ -72,51 +70,59 @@ fun init(witness: DEUSD, ctx: &mut TxContext) {
 
 /// Set a new minter. This checks that the caller is the administrator.
 public fun set_minter(
-    management: &mut Management,
+    _: &AdminCap,
+    config: &mut Config,
     new_minter: address,
-    ctx: &mut TxContext,
+    package_version: &PackageVersion,
+    _: &mut TxContext,
 ) {
-    assert_is_admin(management, ctx);
+    package_version::check_package_version(package_version);
     assert!(new_minter != @0x0, EZeroAddress);
 
-    let old_minter = management.minter;
+    let old_minter = config.minter;
 
-    management.minter = new_minter;
+    config.minter = new_minter;
 
-    event::emit(MinterUpdated { new_minter, old_minter })
+    event::emit(MinterUpdated { new_minter, old_minter });
 }
 
 /// Mint new tokens to the specified account. This checks that the caller is a minter.
-public fun mint(management: &mut Management, to: address, amount: u64, ctx: &mut TxContext): Coin<DEUSD> {
-    assert_is_minter(management, ctx);
+public fun mint(
+    config: &mut Config,
+    to: address,
+    amount: u64,
+    version: &PackageVersion,
+    ctx: &mut TxContext,
+): Coin<DEUSD> {
+    package_version::check_package_version(version);
+    assert_is_minter(config, ctx);
     assert!(to != @0x0, EZeroAddress);
     assert!(amount > 0, EZeroAmount);
 
     event::emit(Mint { to, amount });
 
-    coin::mint(&mut management.treasury_cap, amount, ctx)
+    coin::mint(&mut config.treasury_cap, amount, ctx)
 }
 
 public fun burn(
-    management: &mut Management,
+    config: &mut Config,
     coin: Coin<DEUSD>,
+    version: &PackageVersion,
     ctx: &mut TxContext,
 ) {
+    package_version::check_package_version(version);
+
     event::emit(Burn {
         from: ctx.sender(),
         amount: coin.value(),
     });
 
-    coin::burn(&mut management.treasury_cap, coin);
+    coin::burn(&mut config.treasury_cap, coin);
 }
 
 // === Private Functions ===
 
-fun assert_is_admin(management: &Management, ctx: &TxContext) {
-    assert!(ctx.sender() == management.admin, ENotAdmin);
-}
-
-fun assert_is_minter(management: &Management, ctx: &TxContext) {
+fun assert_is_minter(management: &Config, ctx: &TxContext) {
     assert!(ctx.sender() == management.minter, ENotMinter);
 }
 
