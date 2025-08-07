@@ -98,3 +98,16 @@ public fun burn(
 public fun init_for_test(ctx: &mut TxContext) {
     init(DEUSD {}, ctx);
 }
+
+#[test_only]
+public fun mint_for_test(
+    config: &mut DeUSDConfig,
+    to: address,
+    amount: u64,
+    ctx: &mut TxContext,
+): Coin<DEUSD> {
+    assert!(to != @0x0, EZeroAddress);
+    assert!(amount > 0, EZeroAmount);
+
+    coin::mint(&mut config.treasury_cap, amount, ctx)
+}
