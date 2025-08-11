@@ -61,10 +61,23 @@ public fun init_for_test(ctx: &mut TxContext) {
 }
 
 #[test_only]
+public fun get_package_version(): u64 {
+    PACKAGE_VERSION
+}
+
+#[test_only]
 public fun create_for_test(ctx: &mut TxContext): PackageVersion {
     PackageVersion {
         id: object::new(ctx),
         version: PACKAGE_VERSION,
+    }
+}
+
+#[test_only]
+public fun create_with_custom_version_for_test(version: u64, ctx: &mut TxContext): PackageVersion {
+    PackageVersion {
+        id: object::new(ctx),
+        version,
     }
 }
 

@@ -3,11 +3,11 @@ name = "deUSD"
 edition = "2024.beta"
 
 [addresses]
-elixir = "0x0"
+elixir = "_"
 admin = "_"
 
 [dev-addresses]
-
+elixir = "0xee"
 admin = "0xad"
 
 [dependencies]
