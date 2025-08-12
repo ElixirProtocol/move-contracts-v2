@@ -1,10 +1,13 @@
 #[test_only]
 module elixir::deusd_minting_tests;
 
+use elixir::test_utils;
 use elixir::deusd_minting::{Self, DeUSDMintingManagement};
 use elixir::admin_cap::{Self, AdminCap};
-use elixir::package_version;
+use elixir::config::{Self, GlobalConfig};
+use elixir::roles;
 use sui::test_scenario;
+use sui::test_utils::assert_eq;
 
 // Test constants
 const ADMIN: address = @0xad;
@@ -15,396 +18,351 @@ const CUSTODIAN2: address = @0xc2;
 const ALICE: address = @0xa11ce;
 const GATEKEEPER: address = @0xfeed;
 
+const MAX_U64: u64 = 18446744073709551615;
+
 public struct ETH has drop {}
+
 public struct USDC has drop {}
 
 #[test]
 fun test_initialization() {
     let mut ts = test_scenario::begin(ADMIN);
-    
-    // Initialize admin cap and deusd_minting
-    admin_cap::init_for_test(ts.ctx());
-    deusd_minting::init_for_test(ts.ctx());
-    
+
+    test_utils::setup_test(ts.ctx());
+
     ts.next_tx(ADMIN);
     let admin_cap = ts.take_from_sender<AdminCap>();
     let mut management = ts.take_shared<DeUSDMintingManagement>();
+    let global_config = ts.take_shared<GlobalConfig>();
 
     // Initialize the management with basic parameters
     let custodians = vector[CUSTODIAN1, CUSTODIAN2];
-    
+
     deusd_minting::initialize(
         &admin_cap,
         &mut management,
+        &global_config,
         custodians,
         1000000,
         1000000,
     );
-    
+
     // Test basic initialization
-    assert!(deusd_minting::get_max_mint_per_block(&management) == 1000000, 0);
-    assert!(deusd_minting::get_max_redeem_per_block(&management) == 1000000, 1);
+    assert_eq(1000000, deusd_minting::get_max_mint_per_block(&management));
+    assert_eq(1000000, deusd_minting::get_max_redeem_per_block(&management));
 
     test_scenario::return_to_sender(&ts, admin_cap);
     test_scenario::return_shared(management);
+    test_scenario::return_shared(global_config);
     ts.end();
 }
 
 #[test]
 fun test_add_supported_asset() {
     let mut ts = test_scenario::begin(ADMIN);
-    
-    admin_cap::init_for_test(ts.ctx());
-    deusd_minting::init_for_test(ts.ctx());
-    
+
+    test_utils::setup_test(ts.ctx());
+
     ts.next_tx(ADMIN);
     let admin_cap = ts.take_from_sender<AdminCap>();
     let mut management = ts.take_shared<DeUSDMintingManagement>();
+    let global_config = ts.take_shared<GlobalConfig>();
 
     // Initialize first
     deusd_minting::initialize(
         &admin_cap,
         &mut management,
+        &global_config,
         vector[CUSTODIAN1],
         1000000,
         500000,
     );
 
     // Test adding supported asset using type parameter
-    deusd_minting::add_supported_asset<ETH>(&admin_cap, &mut management);
+    deusd_minting::add_supported_asset<ETH>(&admin_cap, &mut management, &global_config);
     assert!(deusd_minting::is_supported_asset<ETH>(&management), 0);
 
     test_scenario::return_to_sender(&ts, admin_cap);
     test_scenario::return_shared(management);
+    test_scenario::return_shared(global_config);
     ts.end();
 }
 
 #[test]
 fun test_remove_supported_asset() {
     let mut ts = test_scenario::begin(ADMIN);
-    
-    admin_cap::init_for_test(ts.ctx());
-    deusd_minting::init_for_test(ts.ctx());
-    
+
+    test_utils::setup_test(ts.ctx());
+
     ts.next_tx(ADMIN);
     let admin_cap = ts.take_from_sender<AdminCap>();
     let mut management = ts.take_shared<DeUSDMintingManagement>();
+    let global_config = ts.take_shared<GlobalConfig>();
 
     // Initialize first
     deusd_minting::initialize(
         &admin_cap,
         &mut management,
+        &global_config,
         vector[CUSTODIAN1],
         1000000,
         500000,
     );
 
     // Add then remove asset
-    deusd_minting::add_supported_asset<ETH>(&admin_cap, &mut management);
+    deusd_minting::add_supported_asset<ETH>(&admin_cap, &mut management, &global_config);
     assert!(deusd_minting::is_supported_asset<ETH>(&management), 0);
 
-    deusd_minting::remove_supported_asset<ETH>(&admin_cap, &mut management);
+    deusd_minting::remove_supported_asset<ETH>(&admin_cap, &mut management, &global_config);
     assert!(!deusd_minting::is_supported_asset<ETH>(&management), 1);
 
     test_scenario::return_to_sender(&ts, admin_cap);
     test_scenario::return_shared(management);
+    test_scenario::return_shared(global_config);
     ts.end();
 }
 
 #[test]
 fun test_add_custodian_address() {
     let mut ts = test_scenario::begin(ADMIN);
-    
-    admin_cap::init_for_test(ts.ctx());
-    deusd_minting::init_for_test(ts.ctx());
-    
+
+    test_utils::setup_test(ts.ctx());
+
     ts.next_tx(ADMIN);
     let admin_cap = ts.take_from_sender<AdminCap>();
     let mut management = ts.take_shared<DeUSDMintingManagement>();
+    let global_config = ts.take_shared<GlobalConfig>();
 
     // Initialize first
     deusd_minting::initialize(
         &admin_cap,
         &mut management,
+        &global_config,
         vector[CUSTODIAN1],
         1000000,
         500000,
     );
 
     // Test adding custodian address
-    deusd_minting::add_custodian_address(&admin_cap, &mut management, CUSTODIAN2);
+    deusd_minting::add_custodian_address(&admin_cap, &mut management, &global_config, CUSTODIAN2);
 
     test_scenario::return_to_sender(&ts, admin_cap);
     test_scenario::return_shared(management);
+    test_scenario::return_shared(global_config);
     ts.end();
 }
 
 #[test]
 fun test_remove_custodian_address() {
     let mut ts = test_scenario::begin(ADMIN);
-    
-    admin_cap::init_for_test(ts.ctx());
-    deusd_minting::init_for_test(ts.ctx());
-    
+
+    test_utils::setup_test(ts.ctx());
+
     ts.next_tx(ADMIN);
     let admin_cap = ts.take_from_sender<AdminCap>();
     let mut management = ts.take_shared<DeUSDMintingManagement>();
+    let global_config = ts.take_shared<GlobalConfig>();
 
     // Initialize with custodians
     deusd_minting::initialize(
         &admin_cap,
         &mut management,
+        &global_config,
         vector[CUSTODIAN1, CUSTODIAN2],
         1000000,
         500000,
     );
 
     // Remove custodian
-    deusd_minting::remove_custodian_address(&admin_cap, &mut management, CUSTODIAN2);
+    deusd_minting::remove_custodian_address(&admin_cap, &mut management, &global_config, CUSTODIAN2);
 
     test_scenario::return_to_sender(&ts, admin_cap);
     test_scenario::return_shared(management);
-    ts.end();
-}
-
-#[test]
-fun test_grant_minter_role() {
-    let mut ts = test_scenario::begin(ADMIN);
-    
-    admin_cap::init_for_test(ts.ctx());
-    deusd_minting::init_for_test(ts.ctx());
-    
-    ts.next_tx(ADMIN);
-    let admin_cap = ts.take_from_sender<AdminCap>();
-    let mut management = ts.take_shared<DeUSDMintingManagement>();
-    let version = package_version::create_for_test(ts.ctx());
-
-    // Initialize first
-    deusd_minting::initialize(
-        &admin_cap,
-        &mut management,
-        vector[CUSTODIAN1],
-        1000000,
-        500000,
-    );
-
-    // Grant minter role
-    deusd_minting::grant_minter_role(&admin_cap, &mut management, MINTER, &version);
-
-    package_version::destroy_for_test(version);
-    test_scenario::return_to_sender(&ts, admin_cap);
-    test_scenario::return_shared(management);
-    ts.end();
-}
-
-#[test]
-fun test_grant_redeemer_role() {
-    let mut ts = test_scenario::begin(ADMIN);
-    
-    admin_cap::init_for_test(ts.ctx());
-    deusd_minting::init_for_test(ts.ctx());
-    
-    ts.next_tx(ADMIN);
-    let admin_cap = ts.take_from_sender<AdminCap>();
-    let mut management = ts.take_shared<DeUSDMintingManagement>();
-    let version = package_version::create_for_test(ts.ctx());
-
-    // Initialize first
-    deusd_minting::initialize(
-        &admin_cap,
-        &mut management,
-        vector[CUSTODIAN1],
-        1000000,
-        500000,
-    );
-
-    // Grant redeemer role
-    deusd_minting::grant_redeemer_role(&admin_cap, &mut management, REDEEMER, &version);
-
-    package_version::destroy_for_test(version);
-    test_scenario::return_to_sender(&ts, admin_cap);
-    test_scenario::return_shared(management);
+    test_scenario::return_shared(global_config);
     ts.end();
 }
 
 #[test]
 fun test_set_max_mint_per_second() {
     let mut ts = test_scenario::begin(ADMIN);
-    
-    admin_cap::init_for_test(ts.ctx());
-    deusd_minting::init_for_test(ts.ctx());
-    
+
+    test_utils::setup_test(ts.ctx());
+
     ts.next_tx(ADMIN);
     let admin_cap = ts.take_from_sender<AdminCap>();
     let mut management = ts.take_shared<DeUSDMintingManagement>();
+    let global_config = ts.take_shared<GlobalConfig>();
 
     // Initialize first
     deusd_minting::initialize(
         &admin_cap,
         &mut management,
+        &global_config,
         vector[CUSTODIAN1],
         1000000,
         500000,
     );
 
     // Set new max mint per second
-    deusd_minting::set_max_mint_per_second(&admin_cap, &mut management, 2000000);
-    assert!(deusd_minting::get_max_mint_per_block(&management) == 2000000, 0);
+    deusd_minting::set_max_mint_per_second(&admin_cap, &mut management, &global_config, 2000000);
+    assert_eq(2000000, deusd_minting::get_max_mint_per_block(&management));
 
     test_scenario::return_to_sender(&ts, admin_cap);
     test_scenario::return_shared(management);
+    test_scenario::return_shared(global_config);
     ts.end();
 }
 
 #[test]
 fun test_set_max_redeem_per_second() {
     let mut ts = test_scenario::begin(ADMIN);
-    
-    admin_cap::init_for_test(ts.ctx());
-    deusd_minting::init_for_test(ts.ctx());
-    
+
+    test_utils::setup_test(ts.ctx());
+
     ts.next_tx(ADMIN);
     let admin_cap = ts.take_from_sender<AdminCap>();
     let mut management = ts.take_shared<DeUSDMintingManagement>();
+    let global_config = ts.take_shared<GlobalConfig>();
 
     // Initialize first
     deusd_minting::initialize(
         &admin_cap,
         &mut management,
+        &global_config,
         vector[CUSTODIAN1],
         1000000,
         500000,
     );
 
     // Set new max redeem per second
-    deusd_minting::set_max_redeem_per_second(&admin_cap, &mut management, 1500000);
-    assert!(deusd_minting::get_max_redeem_per_block(&management) == 1500000, 0);
+    deusd_minting::set_max_redeem_per_second(&admin_cap, &mut management, &global_config, 1500000);
+    assert_eq(1500000, deusd_minting::get_max_redeem_per_block(&management));
 
     test_scenario::return_to_sender(&ts, admin_cap);
     test_scenario::return_shared(management);
+    test_scenario::return_shared(global_config);
     ts.end();
 }
 
 #[test]
 fun test_disable_mint_redeem() {
     let mut ts = test_scenario::begin(ADMIN);
-    
-    admin_cap::init_for_test(ts.ctx());
-    deusd_minting::init_for_test(ts.ctx());
-    
+
+    test_utils::setup_test(ts.ctx());
+
     ts.next_tx(ADMIN);
     let admin_cap = ts.take_from_sender<AdminCap>();
     let mut management = ts.take_shared<DeUSDMintingManagement>();
+    let mut global_config = ts.take_shared<GlobalConfig>();
 
     // Initialize first
     deusd_minting::initialize(
         &admin_cap,
         &mut management,
+        &global_config,
         vector[CUSTODIAN1],
         1000000,
         500000,
     );
-    
-    let version = package_version::create_for_test(ts.ctx());
-    // Grant gatekeeper role and disable
-    deusd_minting::grant_gatekeeper_role(&admin_cap, &mut management, GATEKEEPER, &version);
 
-    // Return admin cap before switching transaction
+    // Grant gatekeeper role and disable
+    config::add_role(&admin_cap, &mut global_config, GATEKEEPER, roles::role_gate_keeper());
+
     test_scenario::return_to_sender(&ts, admin_cap);
 
     ts.next_tx(GATEKEEPER);
-    deusd_minting::disable_mint_redeem(&mut management, ts.ctx());
+    deusd_minting::disable_mint_redeem(&mut management, &global_config, ts.ctx());
 
     // Both limits should be set to 0
-    assert!(deusd_minting::get_max_mint_per_block(&management) == 0, 0);
-    assert!(deusd_minting::get_max_redeem_per_block(&management) == 0, 1);
+    assert_eq(0, deusd_minting::get_max_mint_per_block(&management));
+    assert_eq(0, deusd_minting::get_max_redeem_per_block(&management));
 
-    package_version::destroy_for_test(version);
     test_scenario::return_shared(management);
+    test_scenario::return_shared(global_config);
     ts.end();
 }
 
 #[test]
 fun test_set_delegated_signer() {
     let mut ts = test_scenario::begin(ADMIN);
-    
-    admin_cap::init_for_test(ts.ctx());
-    deusd_minting::init_for_test(ts.ctx());
-    
+
+    test_utils::setup_test(ts.ctx());
+
     ts.next_tx(ADMIN);
     let admin_cap = ts.take_from_sender<AdminCap>();
     let mut management = ts.take_shared<DeUSDMintingManagement>();
-    let version = package_version::create_for_test(ts.ctx());
+    let global_config = ts.take_shared<GlobalConfig>();
 
     // Initialize first
     deusd_minting::initialize(
         &admin_cap,
         &mut management,
+        &global_config,
         vector[CUSTODIAN1],
         1000000,
         500000,
     );
 
     // Set delegated signer
-    deusd_minting::set_delegated_signer(&mut management, MINTER, &version, ts.ctx());
+    deusd_minting::set_delegated_signer(&mut management, &global_config, MINTER, ts.ctx());
 
-    package_version::destroy_for_test(version);
     test_scenario::return_to_sender(&ts, admin_cap);
     test_scenario::return_shared(management);
+    test_scenario::return_shared(global_config);
     ts.end();
 }
 
 #[test]
 fun test_confirm_delegated_signer() {
     let mut ts = test_scenario::begin(ADMIN);
-    
-    admin_cap::init_for_test(ts.ctx());
-    deusd_minting::init_for_test(ts.ctx());
-    
+
+    test_utils::setup_test(ts.ctx());
+
     ts.next_tx(ADMIN);
     let admin_cap = ts.take_from_sender<AdminCap>();
     let mut management = ts.take_shared<DeUSDMintingManagement>();
-    let version = package_version::create_for_test(ts.ctx());
+    let global_config = ts.take_shared<GlobalConfig>();
 
     // Initialize first
     deusd_minting::initialize(
         &admin_cap,
         &mut management,
+        &global_config,
         vector[CUSTODIAN1],
         1000000,
         500000,
     );
 
     // Set delegated signer first
-    deusd_minting::set_delegated_signer(&mut management, MINTER, &version, ts.ctx());
+    deusd_minting::set_delegated_signer(&mut management, &global_config, MINTER, ts.ctx());
 
-    // Return admin cap before switching transaction
     test_scenario::return_to_sender(&ts, admin_cap);
 
     ts.next_tx(MINTER);
     // Confirm delegation
-    deusd_minting::confirm_delegated_signer(&mut management, ADMIN, &version, ts.ctx());
+    deusd_minting::confirm_delegated_signer(&mut management, &global_config, ADMIN, ts.ctx());
 
-    package_version::destroy_for_test(version);
     test_scenario::return_shared(management);
+    test_scenario::return_shared(global_config);
     ts.end();
 }
 
 #[test]
 fun test_verify_route() {
     let mut ts = test_scenario::begin(ADMIN);
-    
-    admin_cap::init_for_test(ts.ctx());
-    deusd_minting::init_for_test(ts.ctx());
-    
+
+    test_utils::setup_test(ts.ctx());
+
     ts.next_tx(ADMIN);
     let admin_cap = ts.take_from_sender<AdminCap>();
     let mut management = ts.take_shared<DeUSDMintingManagement>();
+    let global_config = ts.take_shared<GlobalConfig>();
 
     // Initialize with custodians
     deusd_minting::initialize(
         &admin_cap,
         &mut management,
+        &global_config,
         vector[CUSTODIAN1, CUSTODIAN2],
         1000000,
         500000,
@@ -412,13 +370,10 @@ fun test_verify_route() {
 
     // Test valid route
     let _addresses = vector[CUSTODIAN1, CUSTODIAN2];
-    let _ratios = vector[6000, 4000]; // 60-40 split (must add to 10,000)
-
-    // Note: verify_route now requires access to the custodian_addresses from management
-    // This test validates the route format but may need adjustment based on actual implementation
 
     test_scenario::return_to_sender(&ts, admin_cap);
     test_scenario::return_shared(management);
+    test_scenario::return_shared(global_config);
     ts.end();
 }
 
@@ -470,28 +425,30 @@ fun test_hash_order() {
 #[expected_failure(abort_code = deusd_minting::EInvalidCustodianAddress)]
 fun test_add_custodian_address_fail_if_zero_address() {
     let mut ts = test_scenario::begin(ADMIN);
-    
-    admin_cap::init_for_test(ts.ctx());
-    deusd_minting::init_for_test(ts.ctx());
-    
+
+    test_utils::setup_test(ts.ctx());
+
     ts.next_tx(ADMIN);
     let admin_cap = ts.take_from_sender<AdminCap>();
     let mut management = ts.take_shared<DeUSDMintingManagement>();
+    let global_config = ts.take_shared<GlobalConfig>();
 
     // Initialize first
     deusd_minting::initialize(
         &admin_cap,
         &mut management,
+        &global_config,
         vector[CUSTODIAN1],
         1000000,
         500000,
     );
 
     // This should fail because zero address is invalid
-    deusd_minting::add_custodian_address(&admin_cap, &mut management, @0x0);
+    deusd_minting::add_custodian_address(&admin_cap, &mut management, &global_config, @0x0);
 
     test_scenario::return_to_sender(&ts, admin_cap);
     test_scenario::return_shared(management);
+    test_scenario::return_shared(global_config);
     ts.end();
 }
 
@@ -499,19 +456,20 @@ fun test_add_custodian_address_fail_if_zero_address() {
 #[expected_failure(abort_code = deusd_minting::ENotInitialized)]
 fun test_operations_fail_if_not_initialized() {
     let mut ts = test_scenario::begin(ADMIN);
-    
-    admin_cap::init_for_test(ts.ctx());
-    deusd_minting::init_for_test(ts.ctx());
-    
+
+    test_utils::setup_test(ts.ctx());
+
     ts.next_tx(ADMIN);
     let admin_cap = ts.take_from_sender<AdminCap>();
     let mut management = ts.take_shared<DeUSDMintingManagement>();
+    let global_config = ts.take_shared<GlobalConfig>();
 
     // Try to add asset without initialization - should fail
-    deusd_minting::add_supported_asset<ETH>(&admin_cap, &mut management);
+    deusd_minting::add_supported_asset<ETH>(&admin_cap, &mut management, &global_config);
 
     test_scenario::return_to_sender(&ts, admin_cap);
     test_scenario::return_shared(management);
+    test_scenario::return_shared(global_config);
     ts.end();
 }
 
@@ -521,18 +479,19 @@ fun test_operations_fail_if_not_initialized() {
 #[expected_failure(abort_code = deusd_minting::EInitialized)]
 fun test_initialize_twice_fails() {
     let mut ts = test_scenario::begin(ADMIN);
-    
-    admin_cap::init_for_test(ts.ctx());
-    deusd_minting::init_for_test(ts.ctx());
-    
+
+    test_utils::setup_test(ts.ctx());
+
     ts.next_tx(ADMIN);
     let admin_cap = ts.take_from_sender<AdminCap>();
     let mut management = ts.take_shared<DeUSDMintingManagement>();
+    let global_config = ts.take_shared<GlobalConfig>();
 
     // Initialize first time
     deusd_minting::initialize(
         &admin_cap,
         &mut management,
+        &global_config,
         vector[CUSTODIAN1],
         1000000,
         500000,
@@ -542,6 +501,7 @@ fun test_initialize_twice_fails() {
     deusd_minting::initialize(
         &admin_cap,
         &mut management,
+        &global_config,
         vector[CUSTODIAN2],
         2000000,
         1000000,
@@ -549,69 +509,41 @@ fun test_initialize_twice_fails() {
 
     test_scenario::return_to_sender(&ts, admin_cap);
     test_scenario::return_shared(management);
-    ts.end();
-}
-
-#[test]
-fun test_grant_collateral_manager_role() {
-    let mut ts = test_scenario::begin(ADMIN);
-    
-    admin_cap::init_for_test(ts.ctx());
-    deusd_minting::init_for_test(ts.ctx());
-    
-    ts.next_tx(ADMIN);
-    let admin_cap = ts.take_from_sender<AdminCap>();
-    let mut management = ts.take_shared<DeUSDMintingManagement>();
-    let version = package_version::create_for_test(ts.ctx());
-
-    // Initialize first
-    deusd_minting::initialize(
-        &admin_cap,
-        &mut management,
-        vector[CUSTODIAN1],
-        1000000,
-        500000,
-    );
-
-    // Grant collateral manager role
-    deusd_minting::grant_collateral_manager_role(&admin_cap, &mut management, ALICE, &version);
-
-    package_version::destroy_for_test(version);
-    test_scenario::return_to_sender(&ts, admin_cap);
-    test_scenario::return_shared(management);
+    test_scenario::return_shared(global_config);
     ts.end();
 }
 
 #[test]
 fun test_multiple_asset_support() {
     let mut ts = test_scenario::begin(ADMIN);
-    
-    admin_cap::init_for_test(ts.ctx());
-    deusd_minting::init_for_test(ts.ctx());
-    
+
+    test_utils::setup_test(ts.ctx());
+
     ts.next_tx(ADMIN);
     let admin_cap = ts.take_from_sender<AdminCap>();
     let mut management = ts.take_shared<DeUSDMintingManagement>();
+    let global_config = ts.take_shared<GlobalConfig>();
 
     // Initialize first
     deusd_minting::initialize(
         &admin_cap,
         &mut management,
+        &global_config,
         vector[CUSTODIAN1],
         1000000,
         500000,
     );
 
     // Add multiple assets
-    deusd_minting::add_supported_asset<ETH>(&admin_cap, &mut management);
-    deusd_minting::add_supported_asset<USDC>(&admin_cap, &mut management);
+    deusd_minting::add_supported_asset<ETH>(&admin_cap, &mut management, &global_config);
+    deusd_minting::add_supported_asset<USDC>(&admin_cap, &mut management, &global_config);
 
     // Verify both assets are supported
     assert!(deusd_minting::is_supported_asset<ETH>(&management), 0);
     assert!(deusd_minting::is_supported_asset<USDC>(&management), 1);
 
     // Remove one asset
-    deusd_minting::remove_supported_asset<ETH>(&admin_cap, &mut management);
+    deusd_minting::remove_supported_asset<ETH>(&admin_cap, &mut management, &global_config);
 
     // Verify only one asset remains
     assert!(!deusd_minting::is_supported_asset<ETH>(&management), 2);
@@ -619,6 +551,7 @@ fun test_multiple_asset_support() {
 
     test_scenario::return_to_sender(&ts, admin_cap);
     test_scenario::return_shared(management);
+    test_scenario::return_shared(global_config);
     ts.end();
 }
 
@@ -626,19 +559,22 @@ fun test_multiple_asset_support() {
 #[expected_failure(abort_code = deusd_minting::ENotInitialized)]
 fun test_remove_asset_not_initialized() {
     let mut ts = test_scenario::begin(ADMIN);
-    
+
     admin_cap::init_for_test(ts.ctx());
+    config::init_for_test(ts.ctx());
     deusd_minting::init_for_test(ts.ctx());
-    
+
     ts.next_tx(ADMIN);
     let admin_cap = ts.take_from_sender<AdminCap>();
     let mut management = ts.take_shared<DeUSDMintingManagement>();
+    let global_config = ts.take_shared<GlobalConfig>();
 
     // Try to remove asset without initialization - should fail
-    deusd_minting::remove_supported_asset<ETH>(&admin_cap, &mut management);
+    deusd_minting::remove_supported_asset<ETH>(&admin_cap, &mut management, &global_config);
 
     test_scenario::return_to_sender(&ts, admin_cap);
     test_scenario::return_shared(management);
+    test_scenario::return_shared(global_config);
     ts.end();
 }
 
@@ -646,19 +582,20 @@ fun test_remove_asset_not_initialized() {
 #[expected_failure(abort_code = deusd_minting::ENotInitialized)]
 fun test_custodian_operations_not_initialized() {
     let mut ts = test_scenario::begin(ADMIN);
-    
-    admin_cap::init_for_test(ts.ctx());
-    deusd_minting::init_for_test(ts.ctx());
-    
+
+    test_utils::setup_test(ts.ctx());
+
     ts.next_tx(ADMIN);
     let admin_cap = ts.take_from_sender<AdminCap>();
     let mut management = ts.take_shared<DeUSDMintingManagement>();
+    let global_config = ts.take_shared<GlobalConfig>();
 
     // Try to add custodian without initialization - should fail
-    deusd_minting::add_custodian_address(&admin_cap, &mut management, CUSTODIAN1);
+    deusd_minting::add_custodian_address(&admin_cap, &mut management, &global_config, CUSTODIAN1);
 
     test_scenario::return_to_sender(&ts, admin_cap);
     test_scenario::return_shared(management);
+    test_scenario::return_shared(global_config);
     ts.end();
 }
 
@@ -666,19 +603,20 @@ fun test_custodian_operations_not_initialized() {
 #[expected_failure(abort_code = deusd_minting::ENotInitialized)]
 fun test_remove_custodian_not_initialized() {
     let mut ts = test_scenario::begin(ADMIN);
-    
-    admin_cap::init_for_test(ts.ctx());
-    deusd_minting::init_for_test(ts.ctx());
-    
+
+    test_utils::setup_test(ts.ctx());
+
     ts.next_tx(ADMIN);
     let admin_cap = ts.take_from_sender<AdminCap>();
     let mut management = ts.take_shared<DeUSDMintingManagement>();
+    let global_config = ts.take_shared<GlobalConfig>();
 
     // Try to remove custodian without initialization - should fail
-    deusd_minting::remove_custodian_address(&admin_cap, &mut management, CUSTODIAN1);
+    deusd_minting::remove_custodian_address(&admin_cap, &mut management, &global_config, CUSTODIAN1);
 
     test_scenario::return_to_sender(&ts, admin_cap);
     test_scenario::return_shared(management);
+    test_scenario::return_shared(global_config);
     ts.end();
 }
 
@@ -686,19 +624,20 @@ fun test_remove_custodian_not_initialized() {
 #[expected_failure(abort_code = deusd_minting::ENotInitialized)]
 fun test_set_max_mint_not_initialized() {
     let mut ts = test_scenario::begin(ADMIN);
-    
-    admin_cap::init_for_test(ts.ctx());
-    deusd_minting::init_for_test(ts.ctx());
-    
+
+    test_utils::setup_test(ts.ctx());
+
     ts.next_tx(ADMIN);
     let admin_cap = ts.take_from_sender<AdminCap>();
     let mut management = ts.take_shared<DeUSDMintingManagement>();
+    let global_config = ts.take_shared<GlobalConfig>();
 
     // Try to set max mint without initialization - should fail
-    deusd_minting::set_max_mint_per_second(&admin_cap, &mut management, 2000000);
+    deusd_minting::set_max_mint_per_second(&admin_cap, &mut management, &global_config, 2000000);
 
     test_scenario::return_to_sender(&ts, admin_cap);
     test_scenario::return_shared(management);
+    test_scenario::return_shared(global_config);
     ts.end();
 }
 
@@ -706,90 +645,95 @@ fun test_set_max_mint_not_initialized() {
 #[expected_failure(abort_code = deusd_minting::ENotInitialized)]
 fun test_set_max_redeem_not_initialized() {
     let mut ts = test_scenario::begin(ADMIN);
-    
-    admin_cap::init_for_test(ts.ctx());
-    deusd_minting::init_for_test(ts.ctx());
-    
+
+    test_utils::setup_test(ts.ctx());
+
     ts.next_tx(ADMIN);
     let admin_cap = ts.take_from_sender<AdminCap>();
     let mut management = ts.take_shared<DeUSDMintingManagement>();
+    let global_config = ts.take_shared<GlobalConfig>();
 
     // Try to set max redeem without initialization - should fail
-    deusd_minting::set_max_redeem_per_second(&admin_cap, &mut management, 1000000);
+    deusd_minting::set_max_redeem_per_second(&admin_cap, &mut management, &global_config, 1000000);
 
     test_scenario::return_to_sender(&ts, admin_cap);
     test_scenario::return_shared(management);
+    test_scenario::return_shared(global_config);
     ts.end();
 }
 
 #[test]
 fun test_multiple_custodian_management() {
     let mut ts = test_scenario::begin(ADMIN);
-    
-    admin_cap::init_for_test(ts.ctx());
-    deusd_minting::init_for_test(ts.ctx());
-    
+
+    test_utils::setup_test(ts.ctx());
+
     ts.next_tx(ADMIN);
     let admin_cap = ts.take_from_sender<AdminCap>();
     let mut management = ts.take_shared<DeUSDMintingManagement>();
+    let global_config = ts.take_shared<GlobalConfig>();
 
     // Initialize with one custodian
     deusd_minting::initialize(
         &admin_cap,
         &mut management,
+        &global_config,
         vector[CUSTODIAN1],
         1000000,
         500000,
     );
 
     // Add multiple custodians
-    deusd_minting::add_custodian_address(&admin_cap, &mut management, CUSTODIAN2);
-    deusd_minting::add_custodian_address(&admin_cap, &mut management, ALICE);
+    deusd_minting::add_custodian_address(&admin_cap, &mut management, &global_config, CUSTODIAN2);
+    deusd_minting::add_custodian_address(&admin_cap, &mut management, &global_config, ALICE);
 
     // Remove one custodian
-    deusd_minting::remove_custodian_address(&admin_cap, &mut management, ALICE);
+    deusd_minting::remove_custodian_address(&admin_cap, &mut management, &global_config, ALICE);
 
     test_scenario::return_to_sender(&ts, admin_cap);
     test_scenario::return_shared(management);
+    test_scenario::return_shared(global_config);
     ts.end();
 }
 
 #[test]
 fun test_extreme_limit_values() {
     let mut ts = test_scenario::begin(ADMIN);
-    
-    admin_cap::init_for_test(ts.ctx());
-    deusd_minting::init_for_test(ts.ctx());
-    
+
+    test_utils::setup_test(ts.ctx());
+
     ts.next_tx(ADMIN);
     let admin_cap = ts.take_from_sender<AdminCap>();
     let mut management = ts.take_shared<DeUSDMintingManagement>();
+    let global_config = ts.take_shared<GlobalConfig>();
 
     // Initialize first
     deusd_minting::initialize(
         &admin_cap,
         &mut management,
+        &global_config,
         vector[CUSTODIAN1],
         1000000,
         500000,
     );
 
     // Test setting very high limits
-    deusd_minting::set_max_mint_per_second(&admin_cap, &mut management, 18446744073709551615); // Max u64
-    deusd_minting::set_max_redeem_per_second(&admin_cap, &mut management, 18446744073709551615); // Max u64
+    deusd_minting::set_max_mint_per_second(&admin_cap, &mut management, &global_config, MAX_U64);
+    deusd_minting::set_max_redeem_per_second(&admin_cap, &mut management, &global_config, MAX_U64);
 
-    assert!(deusd_minting::get_max_mint_per_block(&management) == 18446744073709551615, 0);
-    assert!(deusd_minting::get_max_redeem_per_block(&management) == 18446744073709551615, 1);
+    assert_eq(MAX_U64, deusd_minting::get_max_mint_per_block(&management));
+    assert_eq(MAX_U64, deusd_minting::get_max_redeem_per_block(&management));
 
     // Test setting to zero
-    deusd_minting::set_max_mint_per_second(&admin_cap, &mut management, 0);
-    deusd_minting::set_max_redeem_per_second(&admin_cap, &mut management, 0);
+    deusd_minting::set_max_mint_per_second(&admin_cap, &mut management, &global_config, 0);
+    deusd_minting::set_max_redeem_per_second(&admin_cap, &mut management, &global_config, 0);
 
-    assert!(deusd_minting::get_max_mint_per_block(&management) == 0, 2);
-    assert!(deusd_minting::get_max_redeem_per_block(&management) == 0, 3);
+    assert_eq(0, deusd_minting::get_max_mint_per_block(&management));
+    assert_eq(0, deusd_minting::get_max_redeem_per_block(&management));
 
     test_scenario::return_to_sender(&ts, admin_cap);
     test_scenario::return_shared(management);
+    test_scenario::return_shared(global_config);
     ts.end();
 }
 
@@ -852,33 +796,32 @@ fun test_hash_order_different_types() {
 #[expected_failure(abort_code = deusd_minting::EDelegationNotInitiated)]
 fun test_confirm_delegated_signer_not_initiated() {
     let mut ts = test_scenario::begin(ADMIN);
-    
-    admin_cap::init_for_test(ts.ctx());
-    deusd_minting::init_for_test(ts.ctx());
-    
+
+    test_utils::setup_test(ts.ctx());
+
     ts.next_tx(ADMIN);
     let admin_cap = ts.take_from_sender<AdminCap>();
     let mut management = ts.take_shared<DeUSDMintingManagement>();
-    let version = package_version::create_for_test(ts.ctx());
+    let global_config = ts.take_shared<GlobalConfig>();
 
     // Initialize first
     deusd_minting::initialize(
         &admin_cap,
         &mut management,
+        &global_config,
         vector[CUSTODIAN1],
         1000000,
         500000,
     );
 
-    // Return admin cap before switching transaction
     test_scenario::return_to_sender(&ts, admin_cap);
 
     ts.next_tx(MINTER);
     // Try to confirm delegation without setting it first - should fail
-    deusd_minting::confirm_delegated_signer(&mut management, ADMIN, &version, ts.ctx());
+    deusd_minting::confirm_delegated_signer(&mut management, &global_config, ADMIN, ts.ctx());
 
-    package_version::destroy_for_test(version);
     test_scenario::return_shared(management);
+    test_scenario::return_shared(global_config);
     ts.end();
 }
 
@@ -886,35 +829,34 @@ fun test_confirm_delegated_signer_not_initiated() {
 #[expected_failure(abort_code = deusd_minting::EDelegationNotInitiated)]
 fun test_confirm_delegated_signer_wrong_delegator() {
     let mut ts = test_scenario::begin(ADMIN);
-    
-    admin_cap::init_for_test(ts.ctx());
-    deusd_minting::init_for_test(ts.ctx());
-    
+
+    test_utils::setup_test(ts.ctx());
+
     ts.next_tx(ADMIN);
     let admin_cap = ts.take_from_sender<AdminCap>();
     let mut management = ts.take_shared<DeUSDMintingManagement>();
-    let version = package_version::create_for_test(ts.ctx());
+    let global_config = ts.take_shared<GlobalConfig>();
 
     // Initialize first
     deusd_minting::initialize(
         &admin_cap,
         &mut management,
+        &global_config,
         vector[CUSTODIAN1],
         1000000,
         500000,
     );
 
     // Set delegated signer from ADMIN to MINTER
-    deusd_minting::set_delegated_signer(&mut management, MINTER, &version, ts.ctx());
+    deusd_minting::set_delegated_signer(&mut management, &global_config, MINTER, ts.ctx());
 
-    // Return admin cap before switching transaction
     test_scenario::return_to_sender(&ts, admin_cap);
 
     ts.next_tx(MINTER);
     // Try to confirm delegation with wrong delegator - should fail
-    deusd_minting::confirm_delegated_signer(&mut management, ALICE, &version, ts.ctx());
+    deusd_minting::confirm_delegated_signer(&mut management, &global_config, ALICE, ts.ctx());
 
-    package_version::destroy_for_test(version);
+    test_scenario::return_shared(global_config);
     test_scenario::return_shared(management);
     ts.end();
 }
@@ -922,65 +864,66 @@ fun test_confirm_delegated_signer_wrong_delegator() {
 #[test]
 fun test_role_grant_comprehensive() {
     let mut ts = test_scenario::begin(ADMIN);
-    
-    admin_cap::init_for_test(ts.ctx());
-    deusd_minting::init_for_test(ts.ctx());
-    
+
+    test_utils::setup_test(ts.ctx());
+
     ts.next_tx(ADMIN);
     let admin_cap = ts.take_from_sender<AdminCap>();
     let mut management = ts.take_shared<DeUSDMintingManagement>();
-    let version = package_version::create_for_test(ts.ctx());
+    let mut global_config = ts.take_shared<GlobalConfig>();
 
     // Initialize first
     deusd_minting::initialize(
         &admin_cap,
         &mut management,
+        &global_config,
         vector[CUSTODIAN1],
         1000000,
         500000,
     );
 
-    // Grant all different roles to different addresses
-    deusd_minting::grant_minter_role(&admin_cap, &mut management, MINTER, &version);
-    deusd_minting::grant_redeemer_role(&admin_cap, &mut management, REDEEMER, &version);
-    deusd_minting::grant_collateral_manager_role(&admin_cap, &mut management, ALICE, &version);
-    deusd_minting::grant_gatekeeper_role(&admin_cap, &mut management, GATEKEEPER, &version);
+    // Grant all different roles to different addresses using ACL
+    config::add_role(&admin_cap, &mut global_config, MINTER, roles::role_minter());
+    config::add_role(&admin_cap, &mut global_config, REDEEMER, roles::role_redeemer());
+    config::add_role(&admin_cap, &mut global_config, ALICE, roles::role_collateral_manager());
+    config::add_role(&admin_cap, &mut global_config, GATEKEEPER, roles::role_gate_keeper());
 
-    package_version::destroy_for_test(version);
     test_scenario::return_to_sender(&ts, admin_cap);
     test_scenario::return_shared(management);
+    test_scenario::return_shared(global_config);
     ts.end();
 }
 
 #[test]
-#[expected_failure(abort_code = deusd_minting::ENotAuthorized)]  
+#[expected_failure(abort_code = deusd_minting::ENotAuthorized)]
 fun test_disable_mint_redeem_unauthorized() {
     let mut ts = test_scenario::begin(ADMIN);
-    
-    admin_cap::init_for_test(ts.ctx());
-    deusd_minting::init_for_test(ts.ctx());
-    
+
+    test_utils::setup_test(ts.ctx());
+
     ts.next_tx(ADMIN);
     let admin_cap = ts.take_from_sender<AdminCap>();
     let mut management = ts.take_shared<DeUSDMintingManagement>();
+    let global_config = ts.take_shared<GlobalConfig>();
 
     // Initialize first
     deusd_minting::initialize(
         &admin_cap,
         &mut management,
+        &global_config,
         vector[CUSTODIAN1],
         1000000,
         500000,
     );
 
-    // Return admin cap before switching transaction
     test_scenario::return_to_sender(&ts, admin_cap);
 
     ts.next_tx(ALICE); // ALICE is not a gatekeeper
     // Try to disable mint/redeem without gatekeeper role - should fail
-    deusd_minting::disable_mint_redeem(&mut management, ts.ctx());
+    deusd_minting::disable_mint_redeem(&mut management, &global_config, ts.ctx());
 
     test_scenario::return_shared(management);
+    test_scenario::return_shared(global_config);
     ts.end();
 }
 
@@ -989,111 +932,108 @@ fun test_disable_mint_redeem_unauthorized() {
 #[test]
 fun test_remove_minter_role() {
     let mut ts = test_scenario::begin(ADMIN);
-    
-    admin_cap::init_for_test(ts.ctx());
-    deusd_minting::init_for_test(ts.ctx());
-    
+
+    test_utils::setup_test(ts.ctx());
+    config::init_for_test(ts.ctx());
+
     ts.next_tx(ADMIN);
     let admin_cap = ts.take_from_sender<AdminCap>();
     let mut management = ts.take_shared<DeUSDMintingManagement>();
-    let version = package_version::create_for_test(ts.ctx());
+    let mut global_config = ts.take_shared<GlobalConfig>();
 
     // Initialize first
     deusd_minting::initialize(
         &admin_cap,
         &mut management,
+        &global_config,
         vector[CUSTODIAN1],
         1000000,
         500000,
     );
 
-    // Grant minter and gatekeeper roles
-    deusd_minting::grant_minter_role(&admin_cap, &mut management, MINTER, &version);
-    deusd_minting::grant_gatekeeper_role(&admin_cap, &mut management, GATEKEEPER, &version);
+    // Grant minter and gatekeeper roles using ACL
+    config::add_role(&admin_cap, &mut global_config, MINTER, roles::role_minter());
+    config::add_role(&admin_cap, &mut global_config, GATEKEEPER, roles::role_gate_keeper());
 
-    // Return admin cap before switching transaction
     test_scenario::return_to_sender(&ts, admin_cap);
 
     ts.next_tx(GATEKEEPER);
     // Remove minter role
-    deusd_minting::remove_minter_role(&mut management, MINTER, &version, ts.ctx());
+    deusd_minting::remove_minter_role(&mut management, &mut global_config, MINTER, ts.ctx());
 
-    package_version::destroy_for_test(version);
     test_scenario::return_shared(management);
+    test_scenario::return_shared(global_config);
     ts.end();
 }
 
 #[test]
 fun test_remove_redeemer_role() {
     let mut ts = test_scenario::begin(ADMIN);
-    
-    admin_cap::init_for_test(ts.ctx());
-    deusd_minting::init_for_test(ts.ctx());
-    
+
+    test_utils::setup_test(ts.ctx());
+
     ts.next_tx(ADMIN);
     let admin_cap = ts.take_from_sender<AdminCap>();
     let mut management = ts.take_shared<DeUSDMintingManagement>();
-    let version = package_version::create_for_test(ts.ctx());
+    let mut global_config = ts.take_shared<GlobalConfig>();
 
     // Initialize first
     deusd_minting::initialize(
         &admin_cap,
         &mut management,
+        &global_config,
         vector[CUSTODIAN1],
         1000000,
         500000,
     );
 
-    // Grant redeemer and gatekeeper roles
-    deusd_minting::grant_redeemer_role(&admin_cap, &mut management, REDEEMER, &version);
-    deusd_minting::grant_gatekeeper_role(&admin_cap, &mut management, GATEKEEPER, &version);
+    // Grant redeemer and gatekeeper roles using ACL
+    config::add_role(&admin_cap, &mut global_config, REDEEMER, roles::role_redeemer());
+    config::add_role(&admin_cap, &mut global_config, GATEKEEPER, roles::role_gate_keeper());
 
-    // Return admin cap before switching transaction
     test_scenario::return_to_sender(&ts, admin_cap);
 
     ts.next_tx(GATEKEEPER);
-    // Remove redeemer role
-    deusd_minting::remove_redeemer_role(&mut management, REDEEMER, &version, ts.ctx());
+    deusd_minting::remove_redeemer_role(&mut management, &mut global_config, REDEEMER, ts.ctx());
 
-    package_version::destroy_for_test(version);
     test_scenario::return_shared(management);
+    test_scenario::return_shared(global_config);
     ts.end();
 }
 
 #[test]
 fun test_remove_collateral_manager_role() {
     let mut ts = test_scenario::begin(ADMIN);
-    
-    admin_cap::init_for_test(ts.ctx());
-    deusd_minting::init_for_test(ts.ctx());
-    
+
+    test_utils::setup_test(ts.ctx());
+
     ts.next_tx(ADMIN);
     let admin_cap = ts.take_from_sender<AdminCap>();
     let mut management = ts.take_shared<DeUSDMintingManagement>();
-    let version = package_version::create_for_test(ts.ctx());
+    let mut global_config = ts.take_shared<GlobalConfig>();
 
     // Initialize first
     deusd_minting::initialize(
         &admin_cap,
         &mut management,
+        &global_config,
         vector[CUSTODIAN1],
         1000000,
         500000,
     );
 
-    // Grant collateral manager and gatekeeper roles
-    deusd_minting::grant_collateral_manager_role(&admin_cap, &mut management, ALICE, &version);
-    deusd_minting::grant_gatekeeper_role(&admin_cap, &mut management, GATEKEEPER, &version);
+    // Grant collateral manager and gatekeeper roles using ACL
+    config::add_role(&admin_cap, &mut global_config, ALICE, roles::role_collateral_manager());
+    config::add_role(&admin_cap, &mut global_config, GATEKEEPER, roles::role_gate_keeper());
 
-    // Return admin cap before switching transaction
     test_scenario::return_to_sender(&ts, admin_cap);
 
     ts.next_tx(GATEKEEPER);
     // Remove collateral manager role
-    deusd_minting::remove_collateral_manager_role(&mut management, ALICE, &version, ts.ctx());
+    deusd_minting::remove_collateral_manager_role(&mut management, &mut global_config, ALICE, ts.ctx());
 
-    package_version::destroy_for_test(version);
     test_scenario::return_shared(management);
+    test_scenario::return_shared(global_config);
     ts.end();
 }
 
@@ -1101,200 +1041,54 @@ fun test_remove_collateral_manager_role() {
 #[expected_failure(abort_code = deusd_minting::ENotAuthorized)]
 fun test_remove_minter_role_unauthorized() {
     let mut ts = test_scenario::begin(ADMIN);
-    
-    admin_cap::init_for_test(ts.ctx());
-    deusd_minting::init_for_test(ts.ctx());
-    
+
+    test_utils::setup_test(ts.ctx());
+
     ts.next_tx(ADMIN);
     let admin_cap = ts.take_from_sender<AdminCap>();
     let mut management = ts.take_shared<DeUSDMintingManagement>();
-    let version = package_version::create_for_test(ts.ctx());
+    let mut global_config = config::create_for_test(ts.ctx());
 
     // Initialize first
     deusd_minting::initialize(
         &admin_cap,
         &mut management,
+        &global_config,
         vector[CUSTODIAN1],
         1000000,
         500000,
     );
 
     // Grant minter role
-    deusd_minting::grant_minter_role(&admin_cap, &mut management, MINTER, &version);
+    config::add_role(&admin_cap, &mut global_config, MINTER, roles::role_minter());
 
-    // Return admin cap before switching transaction
     test_scenario::return_to_sender(&ts, admin_cap);
 
     ts.next_tx(ALICE); // ALICE is not a gatekeeper
     // Try to remove minter role without gatekeeper role - should fail
-    deusd_minting::remove_minter_role(&mut management, MINTER, &version, ts.ctx());
+    deusd_minting::remove_minter_role(&mut management, &mut global_config, MINTER, ts.ctx());
 
-    package_version::destroy_for_test(version);
     test_scenario::return_shared(management);
-    ts.end();
-}
-
-#[test]
-#[expected_failure(abort_code = deusd_minting::ENotInitialized)]
-fun test_grant_minter_role_not_initialized() {
-    let mut ts = test_scenario::begin(ADMIN);
-    
-    admin_cap::init_for_test(ts.ctx());
-    deusd_minting::init_for_test(ts.ctx());
-    
-    ts.next_tx(ADMIN);
-    let admin_cap = ts.take_from_sender<AdminCap>();
-    let mut management = ts.take_shared<DeUSDMintingManagement>();
-    let version = package_version::create_for_test(ts.ctx());
-
-    // Try to grant minter role without initialization - should fail
-    deusd_minting::grant_minter_role(&admin_cap, &mut management, MINTER, &version);
-
-    package_version::destroy_for_test(version);
-    test_scenario::return_to_sender(&ts, admin_cap);
-    test_scenario::return_shared(management);
-    ts.end();
-}
-
-#[test]
-#[expected_failure(abort_code = deusd_minting::EInvalidZeroAddress)]
-fun test_grant_minter_role_zero_address() {
-    let mut ts = test_scenario::begin(ADMIN);
-    
-    admin_cap::init_for_test(ts.ctx());
-    deusd_minting::init_for_test(ts.ctx());
-    
-    ts.next_tx(ADMIN);
-    let admin_cap = ts.take_from_sender<AdminCap>();
-    let mut management = ts.take_shared<DeUSDMintingManagement>();
-    let version = package_version::create_for_test(ts.ctx());
-
-    // Initialize first
-    deusd_minting::initialize(
-        &admin_cap,
-        &mut management,
-        vector[CUSTODIAN1],
-        1000000,
-        500000,
-    );
-
-    // Try to grant minter role to zero address - should fail
-    deusd_minting::grant_minter_role(&admin_cap, &mut management, @0x0, &version);
-
-    package_version::destroy_for_test(version);
-    test_scenario::return_to_sender(&ts, admin_cap);
-    test_scenario::return_shared(management);
-    ts.end();
-}
-
-#[test]
-#[expected_failure(abort_code = deusd_minting::EInvalidZeroAddress)]
-fun test_grant_redeemer_role_zero_address() {
-    let mut ts = test_scenario::begin(ADMIN);
-    
-    admin_cap::init_for_test(ts.ctx());
-    deusd_minting::init_for_test(ts.ctx());
-    
-    ts.next_tx(ADMIN);
-    let admin_cap = ts.take_from_sender<AdminCap>();
-    let mut management = ts.take_shared<DeUSDMintingManagement>();
-    let version = package_version::create_for_test(ts.ctx());
-
-    // Initialize first
-    deusd_minting::initialize(
-        &admin_cap,
-        &mut management,
-        vector[CUSTODIAN1],
-        1000000,
-        500000,
-    );
-
-    // Try to grant redeemer role to zero address - should fail
-    deusd_minting::grant_redeemer_role(&admin_cap, &mut management, @0x0, &version);
-
-    package_version::destroy_for_test(version);
-    test_scenario::return_to_sender(&ts, admin_cap);
-    test_scenario::return_shared(management);
-    ts.end();
-}
-
-#[test]
-#[expected_failure(abort_code = deusd_minting::EInvalidZeroAddress)]
-fun test_grant_collateral_manager_role_zero_address() {
-    let mut ts = test_scenario::begin(ADMIN);
-    
-    admin_cap::init_for_test(ts.ctx());
-    deusd_minting::init_for_test(ts.ctx());
-    
-    ts.next_tx(ADMIN);
-    let admin_cap = ts.take_from_sender<AdminCap>();
-    let mut management = ts.take_shared<DeUSDMintingManagement>();
-    let version = package_version::create_for_test(ts.ctx());
-
-    // Initialize first
-    deusd_minting::initialize(
-        &admin_cap,
-        &mut management,
-        vector[CUSTODIAN1],
-        1000000,
-        500000,
-    );
-
-    // Try to grant collateral manager role to zero address - should fail
-    deusd_minting::grant_collateral_manager_role(&admin_cap, &mut management, @0x0, &version);
-
-    package_version::destroy_for_test(version);
-    test_scenario::return_to_sender(&ts, admin_cap);
-    test_scenario::return_shared(management);
-    ts.end();
-}
-
-#[test]
-#[expected_failure(abort_code = deusd_minting::EInvalidZeroAddress)]
-fun test_grant_gatekeeper_role_zero_address() {
-    let mut ts = test_scenario::begin(ADMIN);
-    
-    admin_cap::init_for_test(ts.ctx());
-    deusd_minting::init_for_test(ts.ctx());
-    
-    ts.next_tx(ADMIN);
-    let admin_cap = ts.take_from_sender<AdminCap>();
-    let mut management = ts.take_shared<DeUSDMintingManagement>();
-    let version = package_version::create_for_test(ts.ctx());
-
-    // Initialize first
-    deusd_minting::initialize(
-        &admin_cap,
-        &mut management,
-        vector[CUSTODIAN1],
-        1000000,
-        500000,
-    );
-
-    // Try to grant gatekeeper role to zero address - should fail
-    deusd_minting::grant_gatekeeper_role(&admin_cap, &mut management, @0x0, &version);
-
-    package_version::destroy_for_test(version);
-    test_scenario::return_to_sender(&ts, admin_cap);
-    test_scenario::return_shared(management);
+    test_scenario::return_shared(global_config);
     ts.end();
 }
 
 #[test]
 fun test_verify_route_invalid_scenarios() {
     let mut ts = test_scenario::begin(ADMIN);
-    
-    admin_cap::init_for_test(ts.ctx());
-    deusd_minting::init_for_test(ts.ctx());
-    
+
+    test_utils::setup_test(ts.ctx());
+
     ts.next_tx(ADMIN);
     let admin_cap = ts.take_from_sender<AdminCap>();
     let mut management = ts.take_shared<DeUSDMintingManagement>();
+    let global_config = ts.take_shared<GlobalConfig>();
 
     // Initialize with custodians
     deusd_minting::initialize(
         &admin_cap,
         &mut management,
+        &global_config,
         vector[CUSTODIAN1, CUSTODIAN2],
         1000000,
         500000,
@@ -1338,24 +1132,26 @@ fun test_verify_route_invalid_scenarios() {
 
     test_scenario::return_to_sender(&ts, admin_cap);
     test_scenario::return_shared(management);
+    test_scenario::return_shared(global_config);
     ts.end();
 }
 
 #[test]
 fun test_is_supported_asset() {
     let mut ts = test_scenario::begin(ADMIN);
-    
-    admin_cap::init_for_test(ts.ctx());
-    deusd_minting::init_for_test(ts.ctx());
-    
+
+    test_utils::setup_test(ts.ctx());
+
     ts.next_tx(ADMIN);
     let admin_cap = ts.take_from_sender<AdminCap>();
     let mut management = ts.take_shared<DeUSDMintingManagement>();
+    let global_config = ts.take_shared<GlobalConfig>();
 
     // Initialize first
     deusd_minting::initialize(
         &admin_cap,
         &mut management,
+        &global_config,
         vector[CUSTODIAN1],
         1000000,
         500000,
@@ -1366,102 +1162,105 @@ fun test_is_supported_asset() {
     assert!(!deusd_minting::is_supported_asset<USDC>(&management), 1);
 
     // Add ETH and verify
-    deusd_minting::add_supported_asset<ETH>(&admin_cap, &mut management);
+    deusd_minting::add_supported_asset<ETH>(&admin_cap, &mut management, &global_config);
     assert!(deusd_minting::is_supported_asset<ETH>(&management), 2);
     assert!(!deusd_minting::is_supported_asset<USDC>(&management), 3);
 
     // Add USDC and verify both
-    deusd_minting::add_supported_asset<USDC>(&admin_cap, &mut management);
+    deusd_minting::add_supported_asset<USDC>(&admin_cap, &mut management, &global_config);
     assert!(deusd_minting::is_supported_asset<ETH>(&management), 4);
     assert!(deusd_minting::is_supported_asset<USDC>(&management), 5);
 
     // Remove ETH and verify
-    deusd_minting::remove_supported_asset<ETH>(&admin_cap, &mut management);
+    deusd_minting::remove_supported_asset<ETH>(&admin_cap, &mut management, &global_config);
     assert!(!deusd_minting::is_supported_asset<ETH>(&management), 6);
     assert!(deusd_minting::is_supported_asset<USDC>(&management), 7);
 
     test_scenario::return_to_sender(&ts, admin_cap);
     test_scenario::return_shared(management);
+    test_scenario::return_shared(global_config);
     ts.end();
 }
 
 #[test]
 fun test_max_limits_getters() {
     let mut ts = test_scenario::begin(ADMIN);
-    
-    admin_cap::init_for_test(ts.ctx());
-    deusd_minting::init_for_test(ts.ctx());
-    
+
+    test_utils::setup_test(ts.ctx());
+
     ts.next_tx(ADMIN);
     let admin_cap = ts.take_from_sender<AdminCap>();
     let mut management = ts.take_shared<DeUSDMintingManagement>();
+    let global_config = ts.take_shared<GlobalConfig>();
 
     // Initialize with specific limits
     deusd_minting::initialize(
         &admin_cap,
         &mut management,
+        &global_config,
         vector[CUSTODIAN1],
         1500000, // max_mint_per_second
-        750000,  // max_redeem_per_second
+        750000, // max_redeem_per_second
     );
 
     // Test getters return correct values
-    assert!(deusd_minting::get_max_mint_per_block(&management) == 1500000, 0);
-    assert!(deusd_minting::get_max_redeem_per_block(&management) == 750000, 1);
+    assert_eq(1500000, deusd_minting::get_max_mint_per_block(&management));
+    assert_eq(750000, deusd_minting::get_max_redeem_per_block(&management));
 
     // Update limits and test again
-    deusd_minting::set_max_mint_per_second(&admin_cap, &mut management, 2000000);
-    deusd_minting::set_max_redeem_per_second(&admin_cap, &mut management, 1000000);
+    deusd_minting::set_max_mint_per_second(&admin_cap, &mut management, &global_config, 2000000);
+    deusd_minting::set_max_redeem_per_second(&admin_cap, &mut management, &global_config, 1000000);
 
-    assert!(deusd_minting::get_max_mint_per_block(&management) == 2000000, 2);
-    assert!(deusd_minting::get_max_redeem_per_block(&management) == 1000000, 3);
+    assert_eq(2000000, deusd_minting::get_max_mint_per_block(&management));
+    assert_eq(1000000, deusd_minting::get_max_redeem_per_block(&management));
 
     test_scenario::return_to_sender(&ts, admin_cap);
     test_scenario::return_shared(management);
+    test_scenario::return_shared(global_config);
     ts.end();
 }
 
 #[test]
 fun test_delegation_workflow_complete() {
     let mut ts = test_scenario::begin(ADMIN);
-    
-    admin_cap::init_for_test(ts.ctx());
-    deusd_minting::init_for_test(ts.ctx());
-    
+
+    test_utils::setup_test(ts.ctx());
+    config::init_for_test(ts.ctx());
+
     ts.next_tx(ADMIN);
     let admin_cap = ts.take_from_sender<AdminCap>();
     let mut management = ts.take_shared<DeUSDMintingManagement>();
-    let version = package_version::create_for_test(ts.ctx());
+    let global_config = ts.take_shared<GlobalConfig>();
 
-    // Initialize first
     deusd_minting::initialize(
         &admin_cap,
         &mut management,
+        &global_config,
         vector[CUSTODIAN1],
         1000000,
         500000,
     );
 
     // ADMIN sets delegated signer to MINTER
-    deusd_minting::set_delegated_signer(&mut management, MINTER, &version, ts.ctx());
+    deusd_minting::set_delegated_signer(&mut management, &global_config, MINTER, ts.ctx());
 
-    // Return admin cap before switching transaction
+
     test_scenario::return_to_sender(&ts, admin_cap);
 
     ts.next_tx(MINTER);
     // MINTER confirms delegation from ADMIN
-    deusd_minting::confirm_delegated_signer(&mut management, ADMIN, &version, ts.ctx());
+    deusd_minting::confirm_delegated_signer(&mut management, &global_config, ADMIN, ts.ctx());
 
     // Test multiple delegators to same delegate
     ts.next_tx(ALICE);
-    deusd_minting::set_delegated_signer(&mut management, MINTER, &version, ts.ctx());
+    deusd_minting::set_delegated_signer(&mut management, &global_config, MINTER, ts.ctx());
 
     ts.next_tx(MINTER);
     // MINTER confirms delegation from ALICE too
-    deusd_minting::confirm_delegated_signer(&mut management, ALICE, &version, ts.ctx());
+    deusd_minting::confirm_delegated_signer(&mut management, &global_config, ALICE, ts.ctx());
 
-    package_version::destroy_for_test(version);
     test_scenario::return_shared(management);
+    test_scenario::return_shared(global_config);
     ts.end();
 }
 
@@ -1469,18 +1268,17 @@ fun test_delegation_workflow_complete() {
 #[expected_failure(abort_code = deusd_minting::ENotInitialized)]
 fun test_set_delegated_signer_not_initialized() {
     let mut ts = test_scenario::begin(ADMIN);
-    
-    admin_cap::init_for_test(ts.ctx());
-    deusd_minting::init_for_test(ts.ctx());
-    
+
+    test_utils::setup_test(ts.ctx());
+
     ts.next_tx(ADMIN);
     let mut management = ts.take_shared<DeUSDMintingManagement>();
-    let version = package_version::create_for_test(ts.ctx());
+    let global_config = config::create_for_test(ts.ctx());
 
     // Try to set delegated signer without initialization - should fail
-    deusd_minting::set_delegated_signer(&mut management, MINTER, &version, ts.ctx());
+    deusd_minting::set_delegated_signer(&mut management, &global_config, MINTER, ts.ctx());
 
-    package_version::destroy_for_test(version);
+    test_scenario::return_shared(global_config);
     test_scenario::return_shared(management);
     ts.end();
 }
@@ -1489,18 +1287,17 @@ fun test_set_delegated_signer_not_initialized() {
 #[expected_failure(abort_code = deusd_minting::ENotInitialized)]
 fun test_confirm_delegated_signer_not_initialized() {
     let mut ts = test_scenario::begin(ADMIN);
-    
-    admin_cap::init_for_test(ts.ctx());
-    deusd_minting::init_for_test(ts.ctx());
-    
+
+    test_utils::setup_test(ts.ctx());
+
     ts.next_tx(ADMIN);
     let mut management = ts.take_shared<DeUSDMintingManagement>();
-    let version = package_version::create_for_test(ts.ctx());
+    let global_config = config::create_for_test(ts.ctx());
 
     // Try to confirm delegated signer without initialization - should fail
-    deusd_minting::confirm_delegated_signer(&mut management, ADMIN, &version, ts.ctx());
+    deusd_minting::confirm_delegated_signer(&mut management, &global_config, ADMIN, ts.ctx());
 
-    package_version::destroy_for_test(version);
+    test_scenario::return_shared(global_config);
     test_scenario::return_shared(management);
     ts.end();
 }
@@ -1553,35 +1350,36 @@ fun test_hash_order_edge_cases() {
 #[test]
 fun test_custodian_edge_cases() {
     let mut ts = test_scenario::begin(ADMIN);
-    
-    admin_cap::init_for_test(ts.ctx());
-    deusd_minting::init_for_test(ts.ctx());
-    
+
+    test_utils::setup_test(ts.ctx());
+
     ts.next_tx(ADMIN);
     let admin_cap = ts.take_from_sender<AdminCap>();
     let mut management = ts.take_shared<DeUSDMintingManagement>();
+    let global_config = ts.take_shared<GlobalConfig>();
 
     // Initialize with many custodians
     let many_custodians = vector[
         CUSTODIAN1, CUSTODIAN2, ALICE, MINTER, REDEEMER, GATEKEEPER,
         @0x111, @0x222, @0x333, @0x444
     ];
-    
+
     deusd_minting::initialize(
         &admin_cap,
         &mut management,
+        &global_config,
         many_custodians,
         1000000,
         500000,
     );
 
     // Add another custodian
-    deusd_minting::add_custodian_address(&admin_cap, &mut management, @0x555);
+    deusd_minting::add_custodian_address(&admin_cap, &mut management, &global_config, @0x555);
 
     // Remove multiple custodians
-    deusd_minting::remove_custodian_address(&admin_cap, &mut management, ALICE);
-    deusd_minting::remove_custodian_address(&admin_cap, &mut management, @0x111);
-    deusd_minting::remove_custodian_address(&admin_cap, &mut management, @0x222);
+    deusd_minting::remove_custodian_address(&admin_cap, &mut management, &global_config, ALICE);
+    deusd_minting::remove_custodian_address(&admin_cap, &mut management, &global_config, @0x111);
+    deusd_minting::remove_custodian_address(&admin_cap, &mut management, &global_config, @0x222);
 
     // Test route with remaining custodians
     let addresses = vector[CUSTODIAN1, CUSTODIAN2, MINTER];
@@ -1591,48 +1389,46 @@ fun test_custodian_edge_cases() {
 
     test_scenario::return_to_sender(&ts, admin_cap);
     test_scenario::return_shared(management);
+    test_scenario::return_shared(global_config);
     ts.end();
 }
-
-// ===== ADDITIONAL TESTS FOR NEW FUNCTIONS =====
 
 #[test]
 fun test_remove_delegated_signer() {
     let mut ts = test_scenario::begin(ADMIN);
-    
-    admin_cap::init_for_test(ts.ctx());
-    deusd_minting::init_for_test(ts.ctx());
-    
+
+    test_utils::setup_test(ts.ctx());
+
     ts.next_tx(ADMIN);
     let admin_cap = ts.take_from_sender<AdminCap>();
     let mut management = ts.take_shared<DeUSDMintingManagement>();
-    let version = package_version::create_for_test(ts.ctx());
+    let global_config = ts.take_shared<GlobalConfig>();
 
     // Initialize first
     deusd_minting::initialize(
         &admin_cap,
         &mut management,
+        &global_config,
         vector[CUSTODIAN1],
         1000000,
         500000,
     );
-
-    // ADMIN sets delegated signer to MINTER
-    deusd_minting::set_delegated_signer(&mut management, MINTER, &version, ts.ctx());
-
-    // Return admin cap before switching transaction
     test_scenario::return_to_sender(&ts, admin_cap);
+
+    ts.next_tx(ALICE);
+    // ALICE sets delegated signer to MINTER
+    deusd_minting::set_delegated_signer(&mut management, &global_config, MINTER, ts.ctx());
 
     ts.next_tx(MINTER);
     // MINTER confirms delegation from ADMIN
-    deusd_minting::confirm_delegated_signer(&mut management, ADMIN, &version, ts.ctx());
+    deusd_minting::confirm_delegated_signer(&mut management, &global_config, ALICE, ts.ctx());
 
-    ts.next_tx(ADMIN);
-    // ADMIN removes delegated signer
-    deusd_minting::remove_delegated_signer(&mut management, MINTER, ts.ctx());
+    ts.next_tx(ALICE);
+    // ALICE removes delegated signer
+    deusd_minting::remove_delegated_signer(&mut management, &global_config, MINTER, ts.ctx());
 
-    package_version::destroy_for_test(version);
     test_scenario::return_shared(management);
+    test_scenario::return_shared(global_config);
     ts.end();
 }
 
@@ -1640,31 +1436,32 @@ fun test_remove_delegated_signer() {
 #[expected_failure(abort_code = deusd_minting::EDelegationNotInitiated)]
 fun test_remove_delegated_signer_not_initiated() {
     let mut ts = test_scenario::begin(ADMIN);
-    
-    admin_cap::init_for_test(ts.ctx());
-    deusd_minting::init_for_test(ts.ctx());
-    
+
+    test_utils::setup_test(ts.ctx());
+
     ts.next_tx(ADMIN);
     let admin_cap = ts.take_from_sender<AdminCap>();
     let mut management = ts.take_shared<DeUSDMintingManagement>();
+    let global_config = ts.take_shared<GlobalConfig>();
 
     // Initialize first
     deusd_minting::initialize(
         &admin_cap,
         &mut management,
+        &global_config,
         vector[CUSTODIAN1],
         1000000,
         500000,
     );
 
-    // Return admin cap before switching transaction
     test_scenario::return_to_sender(&ts, admin_cap);
 
     ts.next_tx(ADMIN);
     // Try to remove delegated signer without setting it first - should fail
-    deusd_minting::remove_delegated_signer(&mut management, MINTER, ts.ctx());
+    deusd_minting::remove_delegated_signer(&mut management, &global_config, MINTER, ts.ctx());
 
     test_scenario::return_shared(management);
+    test_scenario::return_shared(global_config);
     ts.end();
 }
 
@@ -1672,35 +1469,35 @@ fun test_remove_delegated_signer_not_initiated() {
 #[expected_failure(abort_code = deusd_minting::EDelegationNotInitiated)]
 fun test_remove_delegated_signer_wrong_delegator() {
     let mut ts = test_scenario::begin(ADMIN);
-    
-    admin_cap::init_for_test(ts.ctx());
-    deusd_minting::init_for_test(ts.ctx());
-    
+
+    test_utils::setup_test(ts.ctx());
+
     ts.next_tx(ADMIN);
     let admin_cap = ts.take_from_sender<AdminCap>();
     let mut management = ts.take_shared<DeUSDMintingManagement>();
-    let version = package_version::create_for_test(ts.ctx());
+    let global_config = config::create_for_test(ts.ctx());
 
     // Initialize first
     deusd_minting::initialize(
         &admin_cap,
         &mut management,
+        &global_config,
         vector[CUSTODIAN1],
         1000000,
         500000,
     );
 
     // ADMIN sets delegated signer to MINTER
-    deusd_minting::set_delegated_signer(&mut management, MINTER, &version, ts.ctx());
+    deusd_minting::set_delegated_signer(&mut management, &global_config, MINTER, ts.ctx());
 
-    // Return admin cap before switching transaction
+
     test_scenario::return_to_sender(&ts, admin_cap);
 
     ts.next_tx(ALICE); // ALICE did not delegate to MINTER
     // Try to remove delegated signer as wrong delegator - should fail
-    deusd_minting::remove_delegated_signer(&mut management, MINTER, ts.ctx());
+    deusd_minting::remove_delegated_signer(&mut management, &global_config, MINTER, ts.ctx());
 
-    package_version::destroy_for_test(version);
+    test_scenario::return_shared(global_config);
     test_scenario::return_shared(management);
     ts.end();
 }
@@ -1708,39 +1505,35 @@ fun test_remove_delegated_signer_wrong_delegator() {
 #[test]
 fun test_transfer_to_custody() {
     let mut ts = test_scenario::begin(ADMIN);
-    
-    admin_cap::init_for_test(ts.ctx());
-    deusd_minting::init_for_test(ts.ctx());
-    
+
+    test_utils::setup_test(ts.ctx());
+    config::init_for_test(ts.ctx());
+
     ts.next_tx(ADMIN);
     let admin_cap = ts.take_from_sender<AdminCap>();
     let mut management = ts.take_shared<DeUSDMintingManagement>();
-    let version = package_version::create_for_test(ts.ctx());
+    let mut global_config = ts.take_shared<GlobalConfig>();
 
     // Initialize first
     deusd_minting::initialize(
         &admin_cap,
         &mut management,
+        &global_config,
         vector[CUSTODIAN1],
         1000000,
         500000,
     );
 
-    // Grant collateral manager role to ALICE
-    deusd_minting::grant_collateral_manager_role(&admin_cap, &mut management, ALICE, &version);
+    // Grant collateral manager role to ALICE using ACL
+    config::add_role(&admin_cap, &mut global_config, ALICE, roles::role_collateral_manager());
 
     // Add ETH as supported asset
-    deusd_minting::add_supported_asset<ETH>(&admin_cap, &mut management);
+    deusd_minting::add_supported_asset<ETH>(&admin_cap, &mut management, &global_config);
 
-    // Return admin cap before switching transaction
     test_scenario::return_to_sender(&ts, admin_cap);
 
-    // Note: This test cannot fully execute transfer_to_custody because it requires
-    // actual ETH balance in the contract, which would need mock coin creation
-    // and minting flow simulation. This tests the authorization and setup.
-
-    package_version::destroy_for_test(version);
     test_scenario::return_shared(management);
+    test_scenario::return_shared(global_config);
     ts.end();
 }
 
@@ -1748,36 +1541,37 @@ fun test_transfer_to_custody() {
 #[expected_failure(abort_code = deusd_minting::ENotAuthorized)]
 fun test_transfer_to_custody_unauthorized() {
     let mut ts = test_scenario::begin(ADMIN);
-    
-    admin_cap::init_for_test(ts.ctx());
-    deusd_minting::init_for_test(ts.ctx());
-    
+
+    test_utils::setup_test(ts.ctx());
+    config::init_for_test(ts.ctx());
+
     ts.next_tx(ADMIN);
     let admin_cap = ts.take_from_sender<AdminCap>();
     let mut management = ts.take_shared<DeUSDMintingManagement>();
-    let version = package_version::create_for_test(ts.ctx());
+    let global_config = ts.take_shared<GlobalConfig>();
 
     // Initialize first
     deusd_minting::initialize(
         &admin_cap,
         &mut management,
+        &global_config,
         vector[CUSTODIAN1],
         1000000,
         500000,
     );
 
     // Add ETH as supported asset
-    deusd_minting::add_supported_asset<ETH>(&admin_cap, &mut management);
+    deusd_minting::add_supported_asset<ETH>(&admin_cap, &mut management, &global_config);
 
-    // Return admin cap before switching transaction
+
     test_scenario::return_to_sender(&ts, admin_cap);
 
     ts.next_tx(ALICE); // ALICE is not a collateral manager
     // Try to transfer to custody without collateral manager role - should fail
-    deusd_minting::transfer_to_custody<ETH>(&mut management, CUSTODIAN1, 1000, &version, ts.ctx());
+    deusd_minting::transfer_to_custody<ETH>(&mut management, &global_config, CUSTODIAN1, 1000, ts.ctx());
 
-    package_version::destroy_for_test(version);
     test_scenario::return_shared(management);
+    test_scenario::return_shared(global_config);
     ts.end();
 }
 
@@ -1785,38 +1579,37 @@ fun test_transfer_to_custody_unauthorized() {
 #[expected_failure(abort_code = deusd_minting::EInvalidAddress)]
 fun test_transfer_to_custody_zero_address() {
     let mut ts = test_scenario::begin(ADMIN);
-    
-    admin_cap::init_for_test(ts.ctx());
-    deusd_minting::init_for_test(ts.ctx());
-    
+
+    test_utils::setup_test(ts.ctx());
+
     ts.next_tx(ADMIN);
     let admin_cap = ts.take_from_sender<AdminCap>();
     let mut management = ts.take_shared<DeUSDMintingManagement>();
-    let version = package_version::create_for_test(ts.ctx());
+    let mut global_config = config::create_for_test(ts.ctx());
 
     // Initialize first
     deusd_minting::initialize(
         &admin_cap,
         &mut management,
+        &global_config,
         vector[CUSTODIAN1],
         1000000,
         500000,
     );
 
     // Grant collateral manager role to ALICE
-    deusd_minting::grant_collateral_manager_role(&admin_cap, &mut management, ALICE, &version);
+    config::add_role(&admin_cap, &mut global_config, ALICE, roles::role_collateral_manager());
 
     // Add ETH as supported asset
-    deusd_minting::add_supported_asset<ETH>(&admin_cap, &mut management);
+    deusd_minting::add_supported_asset<ETH>(&admin_cap, &mut management, &global_config);
 
-    // Return admin cap before switching transaction
     test_scenario::return_to_sender(&ts, admin_cap);
 
     ts.next_tx(ALICE);
     // Try to transfer to zero address - should fail
-    deusd_minting::transfer_to_custody<ETH>(&mut management, @0x0, 1000, &version, ts.ctx());
+    deusd_minting::transfer_to_custody<ETH>(&mut management, &global_config, @0x0, 1000, ts.ctx());
 
-    package_version::destroy_for_test(version);
+    test_scenario::return_shared(global_config);
     test_scenario::return_shared(management);
     ts.end();
 }
@@ -1825,38 +1618,37 @@ fun test_transfer_to_custody_zero_address() {
 #[expected_failure(abort_code = deusd_minting::EInvalidAddress)]
 fun test_transfer_to_custody_invalid_custodian() {
     let mut ts = test_scenario::begin(ADMIN);
-    
-    admin_cap::init_for_test(ts.ctx());
-    deusd_minting::init_for_test(ts.ctx());
-    
+
+    test_utils::setup_test(ts.ctx());
+
     ts.next_tx(ADMIN);
     let admin_cap = ts.take_from_sender<AdminCap>();
     let mut management = ts.take_shared<DeUSDMintingManagement>();
-    let version = package_version::create_for_test(ts.ctx());
+    let mut global_config = config::create_for_test(ts.ctx());
 
     // Initialize first
     deusd_minting::initialize(
         &admin_cap,
         &mut management,
+        &global_config,
         vector[CUSTODIAN1],
         1000000,
         500000,
     );
 
     // Grant collateral manager role to ALICE
-    deusd_minting::grant_collateral_manager_role(&admin_cap, &mut management, ALICE, &version);
+    config::add_role(&admin_cap, &mut global_config, ALICE, roles::role_collateral_manager());
 
     // Add ETH as supported asset
-    deusd_minting::add_supported_asset<ETH>(&admin_cap, &mut management);
+    deusd_minting::add_supported_asset<ETH>(&admin_cap, &mut management, &global_config);
 
-    // Return admin cap before switching transaction
     test_scenario::return_to_sender(&ts, admin_cap);
 
     ts.next_tx(ALICE);
     // Try to transfer to address that is not a custodian - should fail
-    deusd_minting::transfer_to_custody<ETH>(&mut management, MINTER, 1000, &version, ts.ctx());
+    deusd_minting::transfer_to_custody<ETH>(&mut management, &global_config, MINTER, 1000, ts.ctx());
 
-    package_version::destroy_for_test(version);
+    test_scenario::return_shared(global_config);
     test_scenario::return_shared(management);
     ts.end();
 }
@@ -1865,21 +1657,20 @@ fun test_transfer_to_custody_invalid_custodian() {
 #[expected_failure(abort_code = deusd_minting::ENotInitialized)]
 fun test_transfer_to_custody_not_initialized() {
     let mut ts = test_scenario::begin(ADMIN);
-    
-    admin_cap::init_for_test(ts.ctx());
-    deusd_minting::init_for_test(ts.ctx());
-    
+
+    test_utils::setup_test(ts.ctx());
+
     ts.next_tx(ADMIN);
     let mut management = ts.take_shared<DeUSDMintingManagement>();
-    let version = package_version::create_for_test(ts.ctx());
+    let global_config = config::create_for_test(ts.ctx());
 
     // Don't initialize
 
     ts.next_tx(ALICE);
     // Try to transfer to custody without initialization - should fail
-    deusd_minting::transfer_to_custody<ETH>(&mut management, CUSTODIAN1, 1000, &version, ts.ctx());
+    deusd_minting::transfer_to_custody<ETH>(&mut management, &global_config, CUSTODIAN1, 1000, ts.ctx());
 
-    package_version::destroy_for_test(version);
+    test_scenario::return_shared(global_config);
     test_scenario::return_shared(management);
     ts.end();
 }
@@ -1887,41 +1678,40 @@ fun test_transfer_to_custody_not_initialized() {
 #[test]
 fun test_complete_delegation_lifecycle() {
     let mut ts = test_scenario::begin(ADMIN);
-    
-    admin_cap::init_for_test(ts.ctx());
-    deusd_minting::init_for_test(ts.ctx());
-    
+
+    test_utils::setup_test(ts.ctx());
+
     ts.next_tx(ADMIN);
     let admin_cap = ts.take_from_sender<AdminCap>();
     let mut management = ts.take_shared<DeUSDMintingManagement>();
-    let version = package_version::create_for_test(ts.ctx());
+    let global_config = ts.take_shared<GlobalConfig>();
 
     // Initialize first
     deusd_minting::initialize(
         &admin_cap,
         &mut management,
+        &global_config,
         vector[CUSTODIAN1],
         1000000,
         500000,
     );
 
     // Complete delegation lifecycle: set -> confirm -> remove
-    
-    // Step 1: ADMIN sets delegated signer to MINTER
-    deusd_minting::set_delegated_signer(&mut management, MINTER, &version, ts.ctx());
 
-    // Return admin cap before switching transaction
+    // Step 1: ADMIN sets delegated signer to MINTER
+    deusd_minting::set_delegated_signer(&mut management, &global_config, MINTER, ts.ctx());
+
     test_scenario::return_to_sender(&ts, admin_cap);
 
     // Step 2: MINTER confirms delegation from ADMIN
     ts.next_tx(MINTER);
-    deusd_minting::confirm_delegated_signer(&mut management, ADMIN, &version, ts.ctx());
+    deusd_minting::confirm_delegated_signer(&mut management, &global_config, ADMIN, ts.ctx());
 
     // Step 3: ADMIN removes delegated signer
     ts.next_tx(ADMIN);
-    deusd_minting::remove_delegated_signer(&mut management, MINTER, ts.ctx());
+    deusd_minting::remove_delegated_signer(&mut management, &global_config, MINTER, ts.ctx());
 
-    package_version::destroy_for_test(version);
+    test_scenario::return_shared(global_config);
     test_scenario::return_shared(management);
     ts.end();
 }
@@ -1929,50 +1719,49 @@ fun test_complete_delegation_lifecycle() {
 #[test]
 fun test_multiple_delegation_management() {
     let mut ts = test_scenario::begin(ADMIN);
-    
-    admin_cap::init_for_test(ts.ctx());
-    deusd_minting::init_for_test(ts.ctx());
-    
+
+    test_utils::setup_test(ts.ctx());
+
     ts.next_tx(ADMIN);
     let admin_cap = ts.take_from_sender<AdminCap>();
     let mut management = ts.take_shared<DeUSDMintingManagement>();
-    let version = package_version::create_for_test(ts.ctx());
+    let global_config = ts.take_shared<GlobalConfig>();
 
     // Initialize first
     deusd_minting::initialize(
         &admin_cap,
         &mut management,
+        &global_config,
         vector[CUSTODIAN1],
         1000000,
         500000,
     );
 
     // Test multiple delegations to same signer
-    
-    // ADMIN delegates to MINTER
-    deusd_minting::set_delegated_signer(&mut management, MINTER, &version, ts.ctx());
 
-    // Return admin cap before switching transaction
+    // ADMIN delegates to MINTER
+    deusd_minting::set_delegated_signer(&mut management, &global_config, MINTER, ts.ctx());
+
     test_scenario::return_to_sender(&ts, admin_cap);
 
     ts.next_tx(ALICE);
     // ALICE also delegates to MINTER
-    deusd_minting::set_delegated_signer(&mut management, MINTER, &version, ts.ctx());
+    deusd_minting::set_delegated_signer(&mut management, &global_config, MINTER, ts.ctx());
 
     ts.next_tx(MINTER);
     // MINTER confirms both delegations
-    deusd_minting::confirm_delegated_signer(&mut management, ADMIN, &version, ts.ctx());
-    deusd_minting::confirm_delegated_signer(&mut management, ALICE, &version, ts.ctx());
+    deusd_minting::confirm_delegated_signer(&mut management, &global_config, ADMIN, ts.ctx());
+    deusd_minting::confirm_delegated_signer(&mut management, &global_config, ALICE, ts.ctx());
 
     // Test removing one delegation while keeping the other
     ts.next_tx(ADMIN);
-    deusd_minting::remove_delegated_signer(&mut management, MINTER, ts.ctx());
+    deusd_minting::remove_delegated_signer(&mut management, &global_config, MINTER, ts.ctx());
 
     // ALICE's delegation should still exist and can be removed separately
     ts.next_tx(ALICE);
-    deusd_minting::remove_delegated_signer(&mut management, MINTER, ts.ctx());
+    deusd_minting::remove_delegated_signer(&mut management, &global_config, MINTER, ts.ctx());
 
-    package_version::destroy_for_test(version);
+    test_scenario::return_shared(global_config);
     test_scenario::return_shared(management);
     ts.end();
 }
@@ -1980,46 +1769,42 @@ fun test_multiple_delegation_management() {
 #[test]
 fun test_collateral_manager_authorization() {
     let mut ts = test_scenario::begin(ADMIN);
-    
-    admin_cap::init_for_test(ts.ctx());
-    deusd_minting::init_for_test(ts.ctx());
-    
+
+    test_utils::setup_test(ts.ctx());
+
     ts.next_tx(ADMIN);
     let admin_cap = ts.take_from_sender<AdminCap>();
     let mut management = ts.take_shared<DeUSDMintingManagement>();
-    let version = package_version::create_for_test(ts.ctx());
+    let mut global_config = ts.take_shared<GlobalConfig>();
 
     // Initialize first
     deusd_minting::initialize(
         &admin_cap,
         &mut management,
+        &global_config,
         vector[CUSTODIAN1, CUSTODIAN2],
         1000000,
         500000,
     );
 
     // Grant collateral manager role to multiple addresses
-    deusd_minting::grant_collateral_manager_role(&admin_cap, &mut management, ALICE, &version);
-    deusd_minting::grant_collateral_manager_role(&admin_cap, &mut management, MINTER, &version);
+    config::add_role(&admin_cap, &mut global_config, ALICE, roles::role_collateral_manager());
+    config::add_role(&admin_cap, &mut global_config, MINTER, roles::role_collateral_manager());
 
     // Add assets
-    deusd_minting::add_supported_asset<ETH>(&admin_cap, &mut management);
-    deusd_minting::add_supported_asset<USDC>(&admin_cap, &mut management);
+    deusd_minting::add_supported_asset<ETH>(&admin_cap, &mut management, &global_config);
+    deusd_minting::add_supported_asset<USDC>(&admin_cap, &mut management, &global_config);
 
     // Grant gatekeeper role to remove collateral managers later
-    deusd_minting::grant_gatekeeper_role(&admin_cap, &mut management, GATEKEEPER, &version);
+    config::add_role(&admin_cap, &mut global_config, GATEKEEPER, roles::role_gate_keeper());
 
-    // Return admin cap before switching transaction
     test_scenario::return_to_sender(&ts, admin_cap);
-
-    // Test that both collateral managers can access functions
-    // (Note: actual transfer would require balances, so we test authorization setup)
 
     // Remove one collateral manager
     ts.next_tx(GATEKEEPER);
-    deusd_minting::remove_collateral_manager_role(&mut management, ALICE, &version, ts.ctx());
+    deusd_minting::remove_collateral_manager_role(&mut management, &mut global_config, ALICE, ts.ctx());
 
-    package_version::destroy_for_test(version);
     test_scenario::return_shared(management);
+    test_scenario::return_shared(global_config);
     ts.end();
 }

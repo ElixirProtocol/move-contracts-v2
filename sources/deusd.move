@@ -1,6 +1,6 @@
 module elixir::deusd;
 
-use elixir::package_version::{Self, PackageVersion};
+use elixir::config::GlobalConfig;
 use sui::coin::{Self, TreasuryCap, DenyCapV2, Coin};
 use sui::event;
 
@@ -63,10 +63,11 @@ public(package) fun mint(
     config: &mut DeUSDConfig,
     to: address,
     amount: u64,
-    version: &PackageVersion,
+    global_config: &GlobalConfig,
     ctx: &mut TxContext,
 ) {
-    package_version::check_package_version(version);
+    global_config.check_package_version();
+
     assert!(to != @0x0, EZeroAddress);
     assert!(amount > 0, EZeroAmount);
 
@@ -78,10 +79,10 @@ public(package) fun mint(
 public fun burn(
     config: &mut DeUSDConfig,
     coin: Coin<DEUSD>,
-    version: &PackageVersion,
+    global_config: &GlobalConfig,
     ctx: &mut TxContext,
 ) {
-    package_version::check_package_version(version);
+    global_config.check_package_version();
 
     event::emit(Burn {
         from: ctx.sender(),

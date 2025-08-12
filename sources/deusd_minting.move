@@ -8,8 +8,6 @@ use std::type_name;
 use std::type_name::TypeName;
 use sui::balance;
 use sui::balance::Balance;
-use elixir::set::{Self, Set};
-use elixir::clock_utils;
 use sui::bcs;
 use sui::clock::Clock;
 use sui::coin::{Self, Coin};
@@ -18,11 +16,14 @@ use sui::ed25519;
 use sui::event;
 use sui::hash;
 use sui::table::{Self, Table};
-
 use elixir::admin_cap::AdminCap;
+use elixir::clock_utils;
+use elixir::config;
+use elixir::config::GlobalConfig;
 use elixir::deusd::{Self, DEUSD, DeUSDConfig};
 use elixir::math_u64;
-use elixir::package_version::PackageVersion;
+use elixir::roles;
+use elixir::set::{Self, Set};
 
 // === Error codes ===
 
@@ -30,32 +31,30 @@ use elixir::package_version::PackageVersion;
 const EInitialized: u64 = 0;
 /// The module is not initialized.
 const ENotInitialized: u64 = 1;
-/// Invalid zero address.
-const EInvalidZeroAddress: u64 = 2;
 /// Invalid route.
-const EInvalidRoute: u64 = 3;
+const EInvalidRoute: u64 = 2;
 /// Max mint per block exceeded.
-const EMaxMintPerBlockExceeded: u64 = 4;
+const EMaxMintPerBlockExceeded: u64 = 3;
 /// Max redeem per block exceeded.
-const EMaxRedeemPerBlockExceeded: u64 = 5;
+const EMaxRedeemPerBlockExceeded: u64 = 4;
 /// Invalid address.
-const EInvalidAddress: u64 = 6;
+const EInvalidAddress: u64 = 5;
 /// Invalid amount.
-const EInvalidAmount: u64 = 7;
+const EInvalidAmount: u64 = 6;
 /// Signature expired.
-const ESignatureExpired: u64 = 8;
+const ESignatureExpired: u64 = 7;
 /// Unsupported asset.
-const EUnsupportedAsset: u64 = 9;
+const EUnsupportedAsset: u64 = 8;
 /// Invalid custodian address.
-const EInvalidCustodianAddress: u64 = 10;
+const EInvalidCustodianAddress: u64 = 9;
 /// Invalid nonce.
-const EInvalidNonce: u64 = 11;
+const EInvalidNonce: u64 = 10;
 /// Delegation not initiated.
-const EDelegationNotInitiated: u64 = 12;
+const EDelegationNotInitiated: u64 = 11;
 /// Not authorized.
-const ENotAuthorized: u64 = 13;
+const ENotAuthorized: u64 = 12;
 /// Invalid signature.
-const EInvalidSignature: u64 = 14;
+const EInvalidSignature: u64 = 13;
 
 // === Constants ===
 
@@ -66,11 +65,6 @@ const ORDER_TYPE_REDEEM: u8 = 1;
 const ROUTE_REQUIRED_RATIO: u64 = 10_000;
 
 const MAX_U64: u64 = 18446744073709551615;
-
-const ROLE_MINTER: u8 = 0;
-const ROLE_REDEEMER: u8 = 1;
-const ROLE_COLLATERAL_MANAGER: u8 = 2;
-const ROLE_GATEKEEPER: u8 = 3;
 
 const DELEGATED_SIGNER_STATUS_PENDING: u8 = 1;
 const DELEGATED_SIGNER_STATUS_ACCEPTED: u8 = 2;
@@ -97,11 +91,6 @@ public struct DeUSDMintingManagement has key {
     max_mint_per_second: u64,
     /// Max redeem per second
     max_redeem_per_second: u64,
-    /// Role assignments
-    minters: Set<address>,
-    redeemers: Set<address>,
-    collateral_managers: Set<address>,
-    gatekeepers: Set<address>,
     initialized: bool,
 }
 
@@ -168,16 +157,6 @@ public struct DelegatedSignerRemoved has copy, drop, store {
     delegator: address,
 }
 
-public struct RoleGranted has copy, drop, store {
-    role: u8,
-    address: address,
-}
-
-public struct RoleRemoved has copy, drop, store {
-    role: u8,
-    address: address,
-}
-
 public struct CustodyTransfer has copy, drop, store {
     wallet: address,
     asset: TypeName,
@@ -198,10 +177,6 @@ fun init(ctx: &mut TxContext) {
         delegated_signers: table::new(ctx),
         max_mint_per_second: 0,
         max_redeem_per_second: 0,
-        minters: set::new(ctx),
-        redeemers: set::new(ctx),
-        collateral_managers: set::new(ctx),
-        gatekeepers: set::new(ctx),
         initialized: false,
     };
     transfer::share_object(management);
@@ -211,12 +186,14 @@ fun init(ctx: &mut TxContext) {
 
 /// Initialize the deUSD minting contract
 public fun initialize(
-    admin_cap: &AdminCap,
+    _: &AdminCap,
     management: &mut DeUSDMintingManagement,
+    global_config: &GlobalConfig,
     custodians: vector<address>,
     max_mint_per_second: u64,
     max_redeem_per_second: u64,
 ) {
+    global_config.check_package_version();
     assert!(!management.initialized, EInitialized);
 
     management.initialized = true;
@@ -224,36 +201,38 @@ public fun initialize(
     let mut j = 0;
     let custodians_length = vector::length(&custodians);
     while (j < custodians_length) {
-        add_custodian_address(admin_cap, management, custodians[j]);
+        add_custodian_address_internal(management, custodians[j]);
         j = j + 1;
     };
 
-    set_max_mint_per_second(admin_cap, management, max_mint_per_second);
-    set_max_redeem_per_second(admin_cap, management, max_redeem_per_second);
+    set_max_mint_per_second_internal(management, max_mint_per_second);
+    set_max_redeem_per_second_internal(management, max_redeem_per_second);
 }
 
 /// Mint deUSDs from assets
 public fun mint<T>(
     management: &mut DeUSDMintingManagement,
     deusd_management: &mut DeUSDConfig,
-    version: &PackageVersion,
+    global_config: &GlobalConfig,
     expiry: u64,
     nonce: u64,
     benefactor: address,
     beneficiary: address,
-    collateral_amount: u64,
+    collateral: Coin<T>,
     deusd_amount: u64,
     // Route parameters
     route_addresses: vector<address>,
     route_ratios: vector<u64>,
     public_key: vector<u8>,
     signature: vector<u8>,
-    collateral: Coin<T>,
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
-    assert_is_initialized(management);
-    assert_is_minter(management, ctx);
+    assert_package_version_and_initialized(management, global_config);
+
+    assert_is_minter(global_config, ctx);
+
+    let collateral_amount = collateral.value();
 
     verify_order<T>(
         ORDER_TYPE_MINT,
@@ -281,7 +260,7 @@ public fun mint<T>(
 
     transfer_collateral(management, collateral, benefactor, route_addresses, route_ratios, ctx);
 
-    deusd::mint(deusd_management, beneficiary, deusd_amount, version, ctx);
+    deusd::mint(deusd_management, beneficiary, deusd_amount, global_config, ctx);
 
     event::emit(Mint {
         minter: ctx.sender(),
@@ -297,22 +276,24 @@ public fun mint<T>(
 public fun redeem<T>(
     management: &mut DeUSDMintingManagement,
     deusd_config: &mut DeUSDConfig,
-    version: &PackageVersion,
+    global_config: &GlobalConfig,
     // Order parameters
     expiry: u64,
     nonce: u64,
     benefactor: address,
     beneficiary: address,
     collateral_amount: u64,
-    deusd_amount: u64,
     deusd_coins: Coin<DEUSD>,
     public_key: vector<u8>,
     signature: vector<u8>,
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
-    assert_is_initialized(management);
-    assert_is_redeemer(management, ctx);
+    assert_package_version_and_initialized(management, global_config);
+
+    assert_is_redeemer(global_config, ctx);
+
+    let deusd_amount = deusd_coins.value();
 
     verify_order<T>(
         ORDER_TYPE_REDEEM,
@@ -336,7 +317,7 @@ public fun redeem<T>(
 
     update_redeemed_per_second(management, now_seconds, deusd_amount);
 
-    deusd::burn(deusd_config, deusd_coins, version, ctx);
+    deusd::burn(deusd_config, deusd_coins, global_config, ctx);
 
     transfer_to_beneficiary<T>(management, beneficiary, collateral_amount, ctx);
 
@@ -354,8 +335,9 @@ public fun redeem<T>(
 public fun add_supported_asset<T>(
     _: &AdminCap,
     management: &mut DeUSDMintingManagement,
+    global_config: &GlobalConfig,
 ) {
-    assert_is_initialized(management);
+    assert_package_version_and_initialized(management, global_config);
 
     let asset = type_name::get<T>();
     management.supported_assets.add(asset);
@@ -367,8 +349,9 @@ public fun add_supported_asset<T>(
 public fun remove_supported_asset<T>(
     _: &AdminCap,
     management: &mut DeUSDMintingManagement,
+    global_config: &GlobalConfig,
 ) {
-    assert_is_initialized(management);
+    assert_package_version_and_initialized(management, global_config);
 
     let asset = type_name::get<T>();
     management.supported_assets.remove(asset);
@@ -380,23 +363,22 @@ public fun remove_supported_asset<T>(
 public fun add_custodian_address(
     _: &AdminCap,
     management: &mut DeUSDMintingManagement,
+    global_config: &GlobalConfig,
     custodian: address,
 ) {
-    assert_is_initialized(management);
+    assert_package_version_and_initialized(management, global_config);
 
-    assert!(custodian != @0x0, EInvalidCustodianAddress);
-    management.custodian_addresses.add(custodian);
-
-    event::emit(CustodianAddressAdded { custodian });
+    add_custodian_address_internal(management, custodian);
 }
 
 /// Remove custodian address
 public fun remove_custodian_address(
     _: &AdminCap,
     management: &mut DeUSDMintingManagement,
+    global_config: &GlobalConfig,
     custodian: address,
 ) {
-    assert_is_initialized(management);
+    assert_package_version_and_initialized(management, global_config);
 
     management.custodian_addresses.remove(custodian);
 
@@ -407,184 +389,86 @@ public fun remove_custodian_address(
 public fun set_max_mint_per_second(
     _: &AdminCap,
     management: &mut DeUSDMintingManagement,
+    global_config: &GlobalConfig,
     max_mint: u64,
 ) {
-    assert_is_initialized(management);
+    assert_package_version_and_initialized(management, global_config);
 
-    let old_max = management.max_mint_per_second;
-    management.max_mint_per_second = max_mint;
-
-    event::emit(MaxMintPerSecondChanged {
-        old_max,
-        new_max: max_mint,
-    });
+    set_max_mint_per_second_internal(management, max_mint);
 }
 
 /// Set max redeem per second
 public fun set_max_redeem_per_second(
     _: &AdminCap,
     management: &mut DeUSDMintingManagement,
+    global_config: &GlobalConfig,
     max_redeem: u64,
 ) {
-    assert_is_initialized(management);
-    let old_max = management.max_redeem_per_second;
-    management.max_redeem_per_second = max_redeem;
+    assert_package_version_and_initialized(management, global_config);
 
-    event::emit(MaxRedeemPerBlockChanged {
-        old_max,
-        new_max: max_redeem,
-    });
+    set_max_redeem_per_second_internal(management, max_redeem);
 }
 
 /// Disable mint and redeem (emergency function)
 public fun disable_mint_redeem(
     management: &mut DeUSDMintingManagement,
+    global_config: &GlobalConfig,
     ctx: &TxContext,
 ) {
-    assert_is_gatekeeper(management, ctx);
+    assert_package_version_and_initialized(management, global_config);
+    assert_is_gatekeeper(global_config, ctx);
+
     management.max_mint_per_second = 0;
     management.max_redeem_per_second = 0;
-}
-
-/// Grant minter role
-public fun grant_minter_role(
-    _: &AdminCap,
-    management: &mut DeUSDMintingManagement,
-    minter: address,
-    package_version: &PackageVersion,
-) {
-    package_version.check_package_version();
-    assert_is_initialized(management);
-    assert!(minter != @0x0, EInvalidZeroAddress);
-
-    management.minters.add(minter);
-
-    event::emit(RoleGranted {
-        role: ROLE_MINTER,
-        address: minter,
-    });
-}
-
-/// Grant redeemer role
-public fun grant_redeemer_role(
-    _: &AdminCap,
-    management: &mut DeUSDMintingManagement,
-    redeemer: address,
-    package_version: &PackageVersion,
-) {
-    package_version.check_package_version();
-    assert_is_initialized(management);
-    assert!(redeemer != @0x0, EInvalidZeroAddress);
-
-    management.redeemers.add(redeemer);
-
-    event::emit(RoleGranted {
-        role: ROLE_REDEEMER,
-        address: redeemer,
-    });
-}
-
-/// Grant collateral manager role
-public fun grant_collateral_manager_role(
-    _: &AdminCap,
-    management: &mut DeUSDMintingManagement,
-    manager: address,
-    package_version: &PackageVersion,
-) {
-    package_version.check_package_version();
-    assert_is_initialized(management);
-    assert!(manager != @0x0, EInvalidZeroAddress);
-
-    management.collateral_managers.add(manager);
-
-    event::emit(RoleGranted {
-        role: ROLE_COLLATERAL_MANAGER,
-        address: manager,
-    });
-}
-
-/// Grant gatekeeper role
-public fun grant_gatekeeper_role(
-    _: &AdminCap,
-    management: &mut DeUSDMintingManagement,
-    gatekeeper: address,
-    package_version: &PackageVersion,
-) {
-    package_version.check_package_version();
-    assert_is_initialized(management);
-    assert!(gatekeeper != @0x0, EInvalidZeroAddress);
-
-    management.gatekeepers.add(gatekeeper);
-
-    event::emit(RoleGranted {
-        role: ROLE_GATEKEEPER,
-        address: gatekeeper,
-    });
 }
 
 /// Removes the minter role from an account, can ONLY be executed by the gatekeeper role
 public fun remove_minter_role(
     management: &mut DeUSDMintingManagement,
+    global_config: &mut GlobalConfig,
     minter: address,
-    package_version: &PackageVersion,
     ctx: &TxContext,
 ) {
-    package_version.check_package_version();
-    assert_is_gatekeeper(management, ctx);
+    assert_package_version_and_initialized(management, global_config);
+    assert_is_gatekeeper(global_config, ctx);
 
-    management.minters.remove(minter);
-
-    event::emit(RoleRemoved {
-        role: ROLE_MINTER,
-        address: minter,
-    });
+    config::remove_role_internal(global_config, minter, roles::role_minter());
 }
 
 /// Removes the redeemer role from an account, can ONLY be executed by the gatekeeper role
 public fun remove_redeemer_role(
     management: &mut DeUSDMintingManagement,
+    global_config: &mut GlobalConfig,
     redeemer: address,
-    package_version: &PackageVersion,
     ctx: &TxContext,
 ) {
-    package_version.check_package_version();
-    assert_is_gatekeeper(management, ctx);
+    assert_package_version_and_initialized(management, global_config);
+    assert_is_gatekeeper(global_config, ctx);
 
-    management.redeemers.remove(redeemer);
-
-    event::emit(RoleRemoved {
-        role: ROLE_REDEEMER,
-        address: redeemer,
-    });
+    config::remove_role_internal(global_config, redeemer, roles::role_redeemer());
 }
 
 /// Removes the collateral manager role from an account, can ONLY be executed by the gatekeeper role
 public fun remove_collateral_manager_role(
     management: &mut DeUSDMintingManagement,
+    global_config: &mut GlobalConfig,
     collateral_manager: address,
-    package_version: &PackageVersion,
     ctx: &TxContext,
 ) {
-    package_version.check_package_version();
-    assert_is_gatekeeper(management, ctx);
+    assert_package_version_and_initialized(management, global_config);
+    assert_is_gatekeeper(global_config, ctx);
 
-    management.collateral_managers.remove(collateral_manager);
-
-    event::emit(RoleRemoved {
-        role: ROLE_COLLATERAL_MANAGER,
-        address: collateral_manager,
-    });
+    config::remove_role_internal(global_config, collateral_manager, roles::role_collateral_manager());
 }
 
 /// Set delegated signer
 public fun set_delegated_signer(
     management: &mut DeUSDMintingManagement,
+    global_config: &GlobalConfig,
     delegate_to: address,
-    package_version: &PackageVersion,
     ctx: &mut TxContext,
 ) {
-    package_version.check_package_version();
-    assert_is_initialized(management);
+   assert_package_version_and_initialized(management, global_config);
 
     let sender = ctx.sender();
     if (!management.delegated_signers.contains(delegate_to)) {
@@ -602,12 +486,11 @@ public fun set_delegated_signer(
 /// Confirm delegated signer
 public fun confirm_delegated_signer(
     management: &mut DeUSDMintingManagement,
+    global_config: &GlobalConfig,
     delegated_by: address,
-    package_version: &PackageVersion,
     ctx: &TxContext,
 ) {
-    package_version.check_package_version();
-    assert_is_initialized(management);
+    assert_package_version_and_initialized(management, global_config);
 
     let sender = ctx.sender();
     assert!(management.delegated_signers.contains(sender), EDelegationNotInitiated);
@@ -628,9 +511,12 @@ public fun confirm_delegated_signer(
 /// Removes a delegated signer mapping (undelegates an address for signing)
 public fun remove_delegated_signer(
     management: &mut DeUSDMintingManagement,
+    global_config: &GlobalConfig,
     removed_signer: address,
     ctx: &mut TxContext,
 ) {
+    assert_package_version_and_initialized(management, global_config);
+    
     let sender = ctx.sender();
     assert!(management.delegated_signers.contains(removed_signer), EDelegationNotInitiated);
     let delegate_map = management.delegated_signers.borrow_mut(removed_signer);
@@ -646,15 +532,14 @@ public fun remove_delegated_signer(
 /// Transfers an asset to a custody wallet.
 public fun transfer_to_custody<T>(
     management: &mut DeUSDMintingManagement,
+    global_config: &GlobalConfig,
     wallet: address,
     amount: u64,
-    package_version: &PackageVersion,
     ctx: &mut TxContext,
 ) {
-    package_version.check_package_version();
-    assert_is_initialized(management);
+    assert_package_version_and_initialized(management, global_config);
 
-    assert_is_collateral_manager(management, ctx);
+    assert_is_collateral_manager(global_config, ctx);
     assert!(wallet != @0x0, EInvalidAddress);
     assert!(management.custodian_addresses.contains(wallet), EInvalidAddress);
 
@@ -748,24 +633,28 @@ public fun verify_route(
 
 // === Helper Functions ===
 
-fun assert_is_initialized(management: &DeUSDMintingManagement) {
+fun assert_package_version_and_initialized(
+    management: &DeUSDMintingManagement,
+    global_config: &GlobalConfig,
+) {
+    global_config.check_package_version();
     assert!(management.initialized, ENotInitialized);
 }
 
-fun assert_is_minter(management: &DeUSDMintingManagement, ctx: &TxContext) {
-    assert!(management.minters.contains(ctx.sender()), ENotAuthorized);
+fun assert_is_minter(config: &GlobalConfig, ctx: &TxContext) {
+    assert!(config::has_role(config, ctx.sender(), roles::role_minter()), ENotAuthorized);
 }
 
-fun assert_is_redeemer(management: &DeUSDMintingManagement, ctx: &TxContext) {
-    assert!(management.redeemers.contains(ctx.sender()), ENotAuthorized);
+fun assert_is_redeemer(config: &GlobalConfig, ctx: &TxContext) {
+    assert!(config::has_role(config, ctx.sender(), roles::role_redeemer()), ENotAuthorized);
 }
 
-fun assert_is_gatekeeper(management: &DeUSDMintingManagement, ctx: &TxContext) {
-    assert!(management.gatekeepers.contains(ctx.sender()), ENotAuthorized);
+fun assert_is_gatekeeper(config: &GlobalConfig, ctx: &TxContext) {
+    assert!(config::has_role(config, ctx.sender(), roles::role_gate_keeper()), ENotAuthorized);
 }
 
-fun assert_is_collateral_manager(management: &DeUSDMintingManagement, ctx: &TxContext) {
-    assert!(management.collateral_managers.contains(ctx.sender()), ENotAuthorized);
+fun assert_is_collateral_manager(config: &GlobalConfig, ctx: &TxContext) {
+    assert!(config::has_role(config, ctx.sender(), roles::role_collateral_manager()), ENotAuthorized);
 }
 
 fun verify_order<Collateral>(
@@ -869,6 +758,42 @@ fun get_or_create_balance_store<T>(
     };
 
     df::borrow_mut(&mut management.id, BalanceStoreKey<T> {})
+}
+
+fun add_custodian_address_internal(
+    management: &mut DeUSDMintingManagement,
+    custodian: address,
+) {
+    assert!(custodian != @0x0, EInvalidCustodianAddress);
+    management.custodian_addresses.add(custodian);
+
+    event::emit(CustodianAddressAdded { custodian });
+}
+
+fun set_max_mint_per_second_internal(
+    management: &mut DeUSDMintingManagement,
+    max_mint: u64,
+) {
+    let old_max = management.max_mint_per_second;
+    management.max_mint_per_second = max_mint;
+
+    event::emit(MaxMintPerSecondChanged {
+        old_max,
+        new_max: max_mint,
+    });
+}
+
+fun set_max_redeem_per_second_internal(
+    management: &mut DeUSDMintingManagement,
+    max_redeem: u64,
+) {
+    let old_max = management.max_redeem_per_second;
+    management.max_redeem_per_second = max_redeem;
+
+    event::emit(MaxRedeemPerBlockChanged {
+        old_max,
+        new_max: max_redeem,
+    });
 }
 
 /// Transfer supported asset to vector of custody addresses per defined ratio
