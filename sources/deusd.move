@@ -1,36 +1,27 @@
 module elixir::deusd;
 
-use elixir::admin_cap::{AdminCap};
-use elixir::package_version::{Self, PackageVersion};
+use elixir::config::GlobalConfig;
 use sui::coin::{Self, TreasuryCap, DenyCapV2, Coin};
 use sui::event;
 
 // === Error codes ===
 
-/// The `sender` is not the minter.
-const ENotMinter: u64 = 1;
 /// The address is zero.
-const EZeroAddress: u64 = 2;
+const EZeroAddress: u64 = 1;
 /// The amount is zero.
-const EZeroAmount: u64 = 3;
+const EZeroAmount: u64 = 2;
 
 // === Structs ===
 
 public struct DEUSD has drop {}
 
-public struct Config has key {
+public struct DeUSDConfig has key {
     id: UID,
-    minter: address,
     treasury_cap: TreasuryCap<DEUSD>,
     deny_cap: DenyCapV2<DEUSD>,
 }
 
 // === Events ===
-
-public struct MinterUpdated has copy, drop, store {
-    new_minter: address,
-    old_minter: address,
-}
 
 public struct Mint has copy, drop, store {
     to: address,
@@ -57,9 +48,8 @@ fun init(witness: DEUSD, ctx: &mut TxContext) {
     );
     transfer::public_freeze_object(metadata);
 
-    let management = Config {
+    let management = DeUSDConfig {
         id: object::new(ctx),
-        minter: @admin,
         treasury_cap,
         deny_cap,
     };
@@ -68,49 +58,31 @@ fun init(witness: DEUSD, ctx: &mut TxContext) {
 
 // === Public Functions ===
 
-/// Set a new minter. This checks that the caller is the administrator.
-public fun set_minter(
-    _: &AdminCap,
-    config: &mut Config,
-    new_minter: address,
-    package_version: &PackageVersion,
-    _: &mut TxContext,
-) {
-    package_version::check_package_version(package_version);
-    assert!(new_minter != @0x0, EZeroAddress);
-
-    let old_minter = config.minter;
-
-    config.minter = new_minter;
-
-    event::emit(MinterUpdated { new_minter, old_minter });
-}
-
 /// Mint new tokens to the specified account. This checks that the caller is a minter.
-public fun mint(
-    config: &mut Config,
+public(package) fun mint(
+    config: &mut DeUSDConfig,
     to: address,
     amount: u64,
-    version: &PackageVersion,
+    global_config: &GlobalConfig,
     ctx: &mut TxContext,
-): Coin<DEUSD> {
-    package_version::check_package_version(version);
-    assert_is_minter(config, ctx);
+) {
+    global_config.check_package_version();
+
     assert!(to != @0x0, EZeroAddress);
     assert!(amount > 0, EZeroAmount);
 
     event::emit(Mint { to, amount });
 
-    coin::mint(&mut config.treasury_cap, amount, ctx)
+    transfer::public_transfer(coin::mint(&mut config.treasury_cap, amount, ctx), to);
 }
 
 public fun burn(
-    config: &mut Config,
+    config: &mut DeUSDConfig,
     coin: Coin<DEUSD>,
-    version: &PackageVersion,
+    global_config: &GlobalConfig,
     ctx: &mut TxContext,
 ) {
-    package_version::check_package_version(version);
+    global_config.check_package_version();
 
     event::emit(Burn {
         from: ctx.sender(),
@@ -118,12 +90,6 @@ public fun burn(
     });
 
     coin::burn(&mut config.treasury_cap, coin);
-}
-
-// === Private Functions ===
-
-fun assert_is_minter(management: &Config, ctx: &TxContext) {
-    assert!(ctx.sender() == management.minter, ENotMinter);
 }
 
 // === Tests ===

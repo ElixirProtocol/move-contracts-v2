@@ -3,7 +3,7 @@ module elixir::init_module_tests;
 
 use elixir::package_version::PackageVersion;
 use elixir::admin_cap::AdminCap;
-use elixir::deusd::{Config as DeusdConfig};
+use elixir::deusd::{DeUSDConfig};
 use sui::test_scenario;
 
 #[test]
@@ -19,7 +19,7 @@ fun test_init_modules_success() {
 
     ts.next_tx(@elixir);
     let package_version: PackageVersion = ts.take_shared();
-    let deusd_config: DeusdConfig = ts.take_shared();
+    let deusd_config: DeUSDConfig = ts.take_shared();
 
 
     test_scenario::return_to_address(@admin, admin_cap);
