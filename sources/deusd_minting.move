@@ -18,8 +18,8 @@ use sui::hash;
 use sui::table::{Self, Table};
 use elixir::admin_cap::AdminCap;
 use elixir::clock_utils;
-use elixir::config;
-use elixir::config::GlobalConfig;
+use elixir::config::{Self, GlobalConfig};
+use elixir::cryptography;
 use elixir::deusd::{Self, DEUSD, DeUSDConfig};
 use elixir::math_u64;
 use elixir::roles;
@@ -64,8 +64,7 @@ const ORDER_TYPE_REDEEM: u8 = 1;
 /// Required ratio for route (10000 = 100%)
 const ROUTE_REQUIRED_RATIO: u64 = 10_000;
 
-const MAX_U64: u64 = 18446744073709551615;
-
+const DELEGATED_SIGNER_STATUS_NO_STATUS: u8 = 0;
 const DELEGATED_SIGNER_STATUS_PENDING: u8 = 1;
 const DELEGATED_SIGNER_STATUS_ACCEPTED: u8 = 2;
 const DELEGATED_SIGNER_STATUS_REJECTED: u8 = 3;
@@ -80,7 +79,7 @@ public struct DeUSDMintingManagement has key {
     /// Custodian addresses
     custodian_addresses: Set<address>,
     /// Order nonce tracking per user
-    order_bitmaps: Table<address, Table<u64, u64>>,
+    order_bitmaps: Table<address, Table<u64, u256>>,
     /// deUSD minted per second
     minted_per_second: Table<u64, u64>,
     /// deUSD redeemed per second
@@ -235,6 +234,7 @@ public fun mint<T>(
     let collateral_amount = collateral.value();
 
     verify_order<T>(
+        management,
         ORDER_TYPE_MINT,
         expiry,
         nonce,
@@ -296,6 +296,7 @@ public fun redeem<T>(
     let deusd_amount = deusd_coins.value();
 
     verify_order<T>(
+        management,
         ORDER_TYPE_REDEEM,
         expiry,
         nonce,
@@ -468,7 +469,7 @@ public fun set_delegated_signer(
     delegate_to: address,
     ctx: &mut TxContext,
 ) {
-   assert_package_version_and_initialized(management, global_config);
+    assert_package_version_and_initialized(management, global_config);
 
     let sender = ctx.sender();
     if (!management.delegated_signers.contains(delegate_to)) {
@@ -516,7 +517,7 @@ public fun remove_delegated_signer(
     ctx: &mut TxContext,
 ) {
     assert_package_version_and_initialized(management, global_config);
-    
+
     let sender = ctx.sender();
     assert!(management.delegated_signers.contains(removed_signer), EDelegationNotInitiated);
     let delegate_map = management.delegated_signers.borrow_mut(removed_signer);
@@ -543,7 +544,7 @@ public fun transfer_to_custody<T>(
     assert!(wallet != @0x0, EInvalidAddress);
     assert!(management.custodian_addresses.contains(wallet), EInvalidAddress);
 
-    let contract_balance = get_or_create_balance_store<T>(management);
+    let contract_balance = get_or_create_balance_store_mut<T>(management);
     assert!(contract_balance.value() >= amount, EInvalidAmount);
 
     transfer::public_transfer(coin::from_balance(contract_balance.split(amount), ctx), wallet);
@@ -567,12 +568,6 @@ public fun get_max_mint_per_block(management: &DeUSDMintingManagement): u64 {
 /// Get max redeem per block
 public fun get_max_redeem_per_block(management: &DeUSDMintingManagement): u64 {
     management.max_redeem_per_second
-}
-
-/// Get custodian addresses for testing purposes
-#[test_only]
-public fun get_custodian_addresses(management: &DeUSDMintingManagement): &Set<address> {
-    &management.custodian_addresses
 }
 
 /// Hash order for verification using individual parameters
@@ -631,6 +626,47 @@ public fun verify_route(
     total_ratio == ROUTE_REQUIRED_RATIO
 }
 
+// === View Functions ===
+
+public fun get_minted_per_second(management: &DeUSDMintingManagement, timestamp_seconds: u64): u64 {
+    if (management.minted_per_second.contains(timestamp_seconds)) {
+        *management.minted_per_second.borrow(timestamp_seconds)
+    } else {
+        0
+    }
+}
+
+public fun get_redeemed_per_second(management: &DeUSDMintingManagement, timestamp_seconds: u64): u64 {
+    if (management.redeemed_per_second.contains(timestamp_seconds)) {
+        *management.redeemed_per_second.borrow(timestamp_seconds)
+    } else {
+        0
+    }
+}
+
+public fun get_delegated_signer_status(management: &DeUSDMintingManagement, signer: address, delegator: address): u8 {
+    if (management.delegated_signers.contains(signer)) {
+        let delegate_map = management.delegated_signers.borrow(signer);
+        if (delegate_map.contains(delegator)) {
+            return *delegate_map.borrow(delegator)
+        };
+    };
+
+    DELEGATED_SIGNER_STATUS_NO_STATUS
+}
+
+public fun get_balance<T>(
+    management: &DeUSDMintingManagement,
+): u64 {
+    let balance_key = BalanceStoreKey<T> {};
+    if (!df::exists_(&management.id, balance_key)) {
+        return 0
+    };
+
+    let balance = df::borrow<BalanceStoreKey<T>, Balance<T>>(&management.id, BalanceStoreKey<T> {});
+    balance.value()
+}
+
 // === Helper Functions ===
 
 fun assert_package_version_and_initialized(
@@ -658,6 +694,7 @@ fun assert_is_collateral_manager(config: &GlobalConfig, ctx: &TxContext) {
 }
 
 fun verify_order<Collateral>(
+    management: &DeUSDMintingManagement,
     order_type: u8,
     expiry: u64,
     nonce: u64,
@@ -680,6 +717,13 @@ fun verify_order<Collateral>(
     );
     assert!(ed25519::ed25519_verify(&signature, &public_key, &order_hash), EInvalidSignature);
 
+    let signer = cryptography::ed25519_public_key_to_address(public_key);
+    assert!(
+        signer == benefactor ||
+            get_delegated_signer_status(management, signer, benefactor) == DELEGATED_SIGNER_STATUS_ACCEPTED,
+        EInvalidSignature,
+    );
+
     assert!(beneficiary != @0x0, EInvalidAddress);
     assert!(collateral_amount > 0, EInvalidAmount);
     assert!(deusd_amount > 0, EInvalidAmount);
@@ -692,10 +736,10 @@ fun deduplicate_order(
     nonce: u64,
     ctx: &mut TxContext,
 ) {
-    assert!(nonce > 0 && nonce <= MAX_U64, EInvalidNonce);
+    assert!(nonce > 0, EInvalidNonce);
 
     let invalidator_slot = nonce >> 8;
-    let invalidator_bit = 1 << ((nonce & 255) as u8);
+    let invalidator_bit: u256 = 1 << ((nonce & 255) as u8);
 
     if (!management.order_bitmaps.contains(sender)) {
         management.order_bitmaps.add(sender, table::new(ctx));
@@ -712,28 +756,12 @@ fun deduplicate_order(
     *invalidator = *invalidator | invalidator_bit;
 }
 
-fun get_minted_per_second(management: &DeUSDMintingManagement, block: u64): u64 {
-    if (management.minted_per_second.contains(block)) {
-        *management.minted_per_second.borrow(block)
-    } else {
-        0
-    }
-}
-
 fun update_minted_per_second(management: &mut DeUSDMintingManagement, block: u64, amount: u64) {
     if (management.minted_per_second.contains(block)) {
         let current = management.minted_per_second.borrow_mut(block);
         *current = *current + amount;
     } else {
         management.minted_per_second.add(block, amount);
-    }
-}
-
-fun get_redeemed_per_second(management: &DeUSDMintingManagement, second: u64): u64 {
-    if (management.redeemed_per_second.contains(second)) {
-        *management.redeemed_per_second.borrow(second)
-    } else {
-        0
     }
 }
 
@@ -746,18 +774,15 @@ fun update_redeemed_per_second(management: &mut DeUSDMintingManagement, second: 
     }
 }
 
-fun get_or_create_balance_store<T>(
+fun get_or_create_balance_store_mut<T>(
     management: &mut DeUSDMintingManagement,
 ): &mut Balance<T> {
-    if (!df::exists_(&management.id, type_name::get<T>())) {
-        df::add(
-            &mut management.id,
-            BalanceStoreKey<T> {},
-            balance::zero<T>(),
-        );
+    let balance_key = BalanceStoreKey<T> {};
+    if (!df::exists_(&management.id, balance_key)) {
+        df::add(&mut management.id, balance_key, balance::zero<T>());
     };
 
-    df::borrow_mut(&mut management.id, BalanceStoreKey<T> {})
+    df::borrow_mut(&mut management.id, balance_key)
 }
 
 fun add_custodian_address_internal(
@@ -814,12 +839,12 @@ fun transfer_collateral<T>(
     let addresses_length = vector::length(&addresses);
     while (i < addresses_length) {
         let ratio = ratios[i];
-        let amount_to_transfer = math_u64::mul_div(total_asset_amount, ratio, ROUTE_REQUIRED_RATIO);
+        let amount_to_transfer = math_u64::mul_div(total_asset_amount, ratio, ROUTE_REQUIRED_RATIO, false);
         let asset_to_transfer = collateral.split(amount_to_transfer, ctx);
 
         let recipient = addresses[i];
         if (recipient == management.address) {
-            let contract_balance = get_or_create_balance_store<T>(management);
+            let contract_balance = get_or_create_balance_store_mut<T>(management);
             contract_balance.join(coin::into_balance(asset_to_transfer));
         } else {
             transfer::public_transfer(asset_to_transfer, addresses[i]);
@@ -845,7 +870,7 @@ fun transfer_to_beneficiary<T>(
     let asset = type_name::get<T>();
     assert!(management.supported_assets.contains(asset), EUnsupportedAsset);
 
-    let contract_balance = get_or_create_balance_store<T>(management);
+    let contract_balance = get_or_create_balance_store_mut<T>(management);
 
     transfer::public_transfer(coin::from_balance(contract_balance.split(amount), ctx), beneficiary);
 }
@@ -855,4 +880,24 @@ fun transfer_to_beneficiary<T>(
 #[test_only]
 public fun init_for_test(ctx: &mut TxContext) {
     init(ctx);
+}
+
+#[test_only]
+public fun set_delegated_signer_for_test(
+    management: &mut DeUSDMintingManagement,
+    signer: address,
+    delegator: address,
+    status: u8,
+    ctx: &mut TxContext,
+) {
+    if (!management.delegated_signers.contains(signer)) {
+        management.delegated_signers.add(signer, table::new(ctx));
+    };
+    let delegate_map = management.delegated_signers.borrow_mut(signer);
+    delegate_map.add(delegator, status);
+}
+
+#[test_only]
+public fun get_custodian_addresses_for_test(management: &DeUSDMintingManagement): &Set<address> {
+    &management.custodian_addresses
 }

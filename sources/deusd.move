@@ -58,7 +58,7 @@ fun init(witness: DEUSD, ctx: &mut TxContext) {
 
 // === Public Functions ===
 
-/// Mint new tokens to the specified account. This checks that the caller is a minter.
+/// Mint new tokens to the specified account.
 public(package) fun mint(
     config: &mut DeUSDConfig,
     to: address,

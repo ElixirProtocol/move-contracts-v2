@@ -1,1019 +1,630 @@
 #[test_only]
 module elixir::staking_rewards_distributor_tests;
 
+use elixir::test_utils;
 use elixir::staking_rewards_distributor::{Self, StakingRewardsDistributor};
-use elixir::deusd;
+use elixir::deusd::{Self, DEUSD, DeUSDConfig};
+use elixir::admin_cap::{Self, AdminCap};
+use elixir::config::{Self, GlobalConfig};
+use elixir::sdeusd::SdeUSDManagement;
+use elixir::roles;
 use sui::test_scenario;
 use sui::coin;
+use sui::clock;
 
-// Test constants
+// === Test Constants ===
+
 const ADMIN: address = @0xad;
-const OPERATOR: address = @0x123;
-const USER1: address = @0xa11ce;
-const STAKING_VAULT: address = @0x456;
+const OPERATOR: address = @0x01234;
+const USER: address = @0xa11ce;
+const NEW_OPERATOR: address = @0xb0b;
 
-// Test token types
-public struct TestToken has drop {}
+// === Initialization Tests ===
 
 #[test]
 fun test_initialization() {
-    let mut ts = test_scenario::begin(ADMIN);
+    let (ts, admin_cap, deusd_config, distributor, global_config, sdeusd_management) = setup_test();
     
-    staking_rewards_distributor::init_for_test(ts.ctx());
+    // Test initial state
+    assert!(staking_rewards_distributor::get_operator(&distributor) == @0x0);
+    assert!(staking_rewards_distributor::get_deusd_balance(&distributor) == 0);
     
-    ts.next_tx(ADMIN);
-    let distributor = ts.take_shared<StakingRewardsDistributor>();
-    
-    // Test basic initialization
-    assert!(staking_rewards_distributor::get_admin(&distributor) == ADMIN, 0);
-    assert!(staking_rewards_distributor::get_operator(&distributor) == @0x0, 1);
-    assert!(staking_rewards_distributor::get_deusd_balance(&distributor) == 0, 2);
-    
-    test_scenario::return_shared(distributor);
-    ts.end();
+    clean_test(ts, admin_cap, deusd_config, distributor, global_config, sdeusd_management);
 }
+
+// === Operator Management Tests ===
 
 #[test]
-fun test_create_distributor() {
-    let mut ts = test_scenario::begin(ADMIN);
+fun test_set_operator_success() {
+    let (mut ts, admin_cap, deusd_config, mut distributor, global_config, sdeusd_management) = setup_test();
     
-    let assets = vector[@0x123, @0x456];
+    // Set new operator
+    staking_rewards_distributor::set_operator(&admin_cap, &mut distributor, &global_config, OPERATOR, ts.ctx());
     
-    staking_rewards_distributor::create_distributor(
-        STAKING_VAULT,
-        assets,
-        ADMIN,
-        OPERATOR,
-        ts.ctx()
-    );
+    // Verify operator was set
+    assert!(staking_rewards_distributor::get_operator(&distributor) == OPERATOR);
     
-    ts.next_tx(ADMIN);
-    let distributor = ts.take_shared<StakingRewardsDistributor>();
-    
-    // Verify initialization
-    assert!(staking_rewards_distributor::get_admin(&distributor) == ADMIN, 0);
-    assert!(staking_rewards_distributor::get_operator(&distributor) == OPERATOR, 1);
-    assert!(staking_rewards_distributor::get_staking_vault(&distributor) == STAKING_VAULT, 2);
-    assert!(vector::length(staking_rewards_distributor::get_approved_assets(&distributor)) == 2, 3);
-    
-    test_scenario::return_shared(distributor);
-    ts.end();
+    clean_test(ts, admin_cap, deusd_config, distributor, global_config, sdeusd_management);
 }
-
-#[test]
-fun test_set_operator() {
-    let mut ts = test_scenario::begin(ADMIN);
-    
-    staking_rewards_distributor::init_for_test(ts.ctx());
-    
-    ts.next_tx(ADMIN);
-    let mut distributor = ts.take_shared<StakingRewardsDistributor>();
-    
-    // Set operator
-    staking_rewards_distributor::set_operator(&mut distributor, OPERATOR, ts.ctx());
-    assert!(staking_rewards_distributor::get_operator(&distributor) == OPERATOR, 0);
-    
-    test_scenario::return_shared(distributor);
-    ts.end();
-}
-
-#[test]
-fun test_set_staking_vault() {
-    let mut ts = test_scenario::begin(ADMIN);
-    
-    staking_rewards_distributor::init_for_test(ts.ctx());
-    
-    ts.next_tx(ADMIN);
-    let mut distributor = ts.take_shared<StakingRewardsDistributor>();
-    
-    // Set staking vault
-    staking_rewards_distributor::set_staking_vault(&mut distributor, STAKING_VAULT, ts.ctx());
-    assert!(staking_rewards_distributor::get_staking_vault(&distributor) == STAKING_VAULT, 0);
-    
-    test_scenario::return_shared(distributor);
-    ts.end();
-}
-
-#[test]
-fun test_add_deusd_balance_and_transfer_rewards() {
-    let mut ts = test_scenario::begin(ADMIN);
-    
-    // Initialize deUSD first
-    deusd::init_for_test(ts.ctx());
-    
-    ts.next_tx(ADMIN);
-    let mut management = ts.take_shared<deusd::Management>();
-    
-    // Mint some deUSD
-    let deusd_coin = deusd::mint(&mut management, USER1, 1000, ts.ctx());
-    
-    // Initialize distributor
-    staking_rewards_distributor::init_for_test(ts.ctx());
-    
-    ts.next_tx(ADMIN);
-    let mut distributor = ts.take_shared<StakingRewardsDistributor>();
-    
-    // Set operator and staking vault
-    staking_rewards_distributor::set_operator(&mut distributor, OPERATOR, ts.ctx());
-    staking_rewards_distributor::set_staking_vault(&mut distributor, STAKING_VAULT, ts.ctx());
-    
-    // Add deUSD balance to distributor
-    staking_rewards_distributor::add_deusd_balance(&mut distributor, deusd_coin);
-    assert!(staking_rewards_distributor::get_deusd_balance(&distributor) == 1000, 0);
-    
-    ts.next_tx(OPERATOR);
-    
-    // Transfer rewards as operator
-    let reward_coin = staking_rewards_distributor::transfer_in_rewards(
-        &mut distributor, 500, ts.ctx()
-    );
-    
-    assert!(coin::value(&reward_coin) == 500, 1);
-    assert!(staking_rewards_distributor::get_deusd_balance(&distributor) == 500, 2);
-    
-    coin::burn_for_testing(reward_coin);
-    test_scenario::return_shared(distributor);
-    test_scenario::return_shared(management);
-    ts.end();
-}
-
-#[test]
-fun test_rescue_deusd_tokens() {
-    let mut ts = test_scenario::begin(ADMIN);
-    
-    // Initialize deUSD first
-    deusd::init_for_test(ts.ctx());
-    
-    ts.next_tx(ADMIN);
-    let mut management = ts.take_shared<deusd::Management>();
-    
-    // Mint some deUSD
-    let deusd_coin = deusd::mint(&mut management, USER1, 1000, ts.ctx());
-    
-    // Initialize distributor
-    staking_rewards_distributor::init_for_test(ts.ctx());
-    
-    ts.next_tx(ADMIN);
-    let mut distributor = ts.take_shared<StakingRewardsDistributor>();
-    
-    // Add deUSD balance to distributor
-    staking_rewards_distributor::add_deusd_balance(&mut distributor, deusd_coin);
-    
-    // Rescue tokens as admin
-    let rescued_coin = staking_rewards_distributor::rescue_deusd_tokens(
-        &mut distributor, 300, USER1, ts.ctx()
-    );
-    
-    assert!(coin::value(&rescued_coin) == 300, 0);
-    assert!(staking_rewards_distributor::get_deusd_balance(&distributor) == 700, 1);
-    
-    coin::burn_for_testing(rescued_coin);
-    test_scenario::return_shared(distributor);
-    test_scenario::return_shared(management);
-    ts.end();
-}
-
-#[test]
-fun test_token_balance_operations() {
-    let mut ts = test_scenario::begin(ADMIN);
-    
-    staking_rewards_distributor::init_for_test(ts.ctx());
-    
-    ts.next_tx(ADMIN);
-    let distributor = ts.take_shared<StakingRewardsDistributor>();
-    
-    // Create token balance using the public function
-    let mut token_balance = staking_rewards_distributor::create_token_balance<TestToken>(ts.ctx());
-    
-    // Add token balance
-    let test_coin = coin::mint_for_testing<TestToken>(500, ts.ctx());
-    staking_rewards_distributor::add_token_balance(&mut token_balance, test_coin);
-    
-    assert!(staking_rewards_distributor::get_token_balance(&token_balance) == 500, 0);
-    
-    // Rescue tokens
-    let rescued_coin = staking_rewards_distributor::rescue_tokens(
-        &distributor, &mut token_balance, 200, USER1, ts.ctx()
-    );
-    
-    assert!(coin::value(&rescued_coin) == 200, 1);
-    assert!(staking_rewards_distributor::get_token_balance(&token_balance) == 300, 2);
-    
-    coin::burn_for_testing(rescued_coin);
-    transfer::public_transfer(token_balance, ADMIN);
-    test_scenario::return_shared(distributor);
-    ts.end();
-}
-
-#[test]
-fun test_approve_and_revoke_assets() {
-    let mut ts = test_scenario::begin(ADMIN);
-    
-    staking_rewards_distributor::init_for_test(ts.ctx());
-    
-    ts.next_tx(ADMIN);
-    let mut distributor = ts.take_shared<StakingRewardsDistributor>();
-    
-    // Approve assets
-    let assets = vector[@0x123, @0x456, @0x789];
-    staking_rewards_distributor::approve_assets(&mut distributor, assets, ts.ctx());
-    
-    assert!(vector::length(staking_rewards_distributor::get_approved_assets(&distributor)) == 3, 0);
-    
-    // Revoke approvals from self
-    let revoke_assets = vector[@0x123, @0x456];
-    let distributor_id = staking_rewards_distributor::get_distributor_id(&distributor);
-    staking_rewards_distributor::revoke_approvals(
-        &mut distributor, 
-        revoke_assets, 
-        distributor_id,
-        ts.ctx()
-    );
-    
-    assert!(vector::length(staking_rewards_distributor::get_approved_assets(&distributor)) == 1, 1);
-    
-    test_scenario::return_shared(distributor);
-    ts.end();
-}
-
-#[test]
-fun test_transfer_admin() {
-    let mut ts = test_scenario::begin(ADMIN);
-    
-    staking_rewards_distributor::init_for_test(ts.ctx());
-    
-    ts.next_tx(ADMIN);
-    let mut distributor = ts.take_shared<StakingRewardsDistributor>();
-    
-    // Transfer admin
-    staking_rewards_distributor::transfer_admin(&mut distributor, USER1, ts.ctx());
-    assert!(staking_rewards_distributor::get_admin(&distributor) == USER1, 0);
-    
-    test_scenario::return_shared(distributor);
-    ts.end();
-}
-
-// ==================== FAILURE CASE TESTS ====================
-
-#[test]
-#[expected_failure(abort_code = elixir::staking_rewards_distributor::EInvalidZeroAddress)]
-fun test_create_distributor_invalid_staking_vault() {
-    let mut ts = test_scenario::begin(ADMIN);
-    
-    let assets = vector[@0x123];
-    
-    staking_rewards_distributor::create_distributor(
-        @0x0, // Invalid staking vault
-        assets,
-        ADMIN,
-        OPERATOR,
-        ts.ctx()
-    );
-    
-    ts.end();
-}
-
-#[test]
-#[expected_failure(abort_code = elixir::staking_rewards_distributor::ENoAssetsProvided)]
-fun test_create_distributor_no_assets() {
-    let mut ts = test_scenario::begin(ADMIN);
-    
-    staking_rewards_distributor::create_distributor(
-        STAKING_VAULT,
-        vector::empty<address>(), // No assets
-        ADMIN,
-        OPERATOR,
-        ts.ctx()
-    );
-    
-    ts.end();
-}
-
-#[test]
-#[expected_failure(abort_code = elixir::staking_rewards_distributor::EInvalidZeroAddress)]
-fun test_create_distributor_invalid_admin() {
-    let mut ts = test_scenario::begin(ADMIN);
-    
-    let assets = vector[@0x123];
-    
-    staking_rewards_distributor::create_distributor(
-        STAKING_VAULT,
-        assets,
-        @0x0, // Invalid admin
-        OPERATOR,
-        ts.ctx()
-    );
-    
-    ts.end();
-}
-
-#[test]
-#[expected_failure(abort_code = elixir::staking_rewards_distributor::EInvalidZeroAddress)]
-fun test_create_distributor_invalid_operator() {
-    let mut ts = test_scenario::begin(ADMIN);
-    
-    let assets = vector[@0x123];
-    
-    staking_rewards_distributor::create_distributor(
-        STAKING_VAULT,
-        assets,
-        ADMIN,
-        @0x0, // Invalid operator
-        ts.ctx()
-    );
-    
-    ts.end();
-}
-
-#[test]
-#[expected_failure(abort_code = elixir::staking_rewards_distributor::ENotOwner)]
-fun test_set_operator_unauthorized() {
-    let mut ts = test_scenario::begin(ADMIN);
-    
-    staking_rewards_distributor::init_for_test(ts.ctx());
-    
-    ts.next_tx(USER1); // Switch to unauthorized user
-    let mut distributor = ts.take_shared<StakingRewardsDistributor>();
-    
-    // Should fail - USER1 is not admin
-    staking_rewards_distributor::set_operator(&mut distributor, OPERATOR, ts.ctx());
-    
-    test_scenario::return_shared(distributor);
-    ts.end();
-}
-
-#[test]
-#[expected_failure(abort_code = elixir::staking_rewards_distributor::EOnlyOperator)]
-fun test_transfer_rewards_unauthorized() {
-    let mut ts = test_scenario::begin(ADMIN);
-    
-    staking_rewards_distributor::init_for_test(ts.ctx());
-    
-    ts.next_tx(ADMIN);
-    let mut distributor = ts.take_shared<StakingRewardsDistributor>();
-    
-    ts.next_tx(USER1); // Switch to unauthorized user
-    
-    // Should fail - USER1 is not operator
-    let _reward_coin = staking_rewards_distributor::transfer_in_rewards(
-        &mut distributor, 500, ts.ctx()
-    );
-    
-    coin::burn_for_testing(_reward_coin);
-    test_scenario::return_shared(distributor);
-    ts.end();
-}
-
-#[test]
-#[expected_failure(abort_code = elixir::staking_rewards_distributor::EInsufficientFunds)]
-fun test_transfer_rewards_insufficient_funds() {
-    let mut ts = test_scenario::begin(ADMIN);
-    
-    staking_rewards_distributor::init_for_test(ts.ctx());
-    
-    ts.next_tx(ADMIN);
-    let mut distributor = ts.take_shared<StakingRewardsDistributor>();
-    
-    // Set operator
-    staking_rewards_distributor::set_operator(&mut distributor, OPERATOR, ts.ctx());
-    
-    ts.next_tx(OPERATOR);
-    
-    // Should fail - no deUSD balance in distributor
-    let _reward_coin = staking_rewards_distributor::transfer_in_rewards(
-        &mut distributor, 500, ts.ctx()
-    );
-    
-    coin::burn_for_testing(_reward_coin);
-    test_scenario::return_shared(distributor);
-    ts.end();
-}
-
-#[test]
-#[expected_failure(abort_code = elixir::staking_rewards_distributor::ENotOwner)]
-fun test_rescue_tokens_unauthorized() {
-    let mut ts = test_scenario::begin(ADMIN);
-    
-    staking_rewards_distributor::init_for_test(ts.ctx());
-    
-    ts.next_tx(ADMIN);
-    let mut distributor = ts.take_shared<StakingRewardsDistributor>();
-    
-    ts.next_tx(USER1); // Switch to unauthorized user
-    
-    // Should fail - USER1 is not admin
-    let _rescued_coin = staking_rewards_distributor::rescue_deusd_tokens(
-        &mut distributor, 100, USER1, ts.ctx()
-    );
-    
-    coin::burn_for_testing(_rescued_coin);
-    test_scenario::return_shared(distributor);
-    ts.end();
-}
-
-#[test]
-#[expected_failure(abort_code = elixir::staking_rewards_distributor::EInvalidZeroAddress)]
-fun test_rescue_tokens_invalid_recipient() {
-    let mut ts = test_scenario::begin(ADMIN);
-    
-    staking_rewards_distributor::init_for_test(ts.ctx());
-    
-    ts.next_tx(ADMIN);
-    let mut distributor = ts.take_shared<StakingRewardsDistributor>();
-    
-    // Should fail - invalid recipient address
-    let _rescued_coin = staking_rewards_distributor::rescue_deusd_tokens(
-        &mut distributor, 100, @0x0, ts.ctx()
-    );
-    
-    coin::burn_for_testing(_rescued_coin);
-    test_scenario::return_shared(distributor);
-    ts.end();
-}
-
-#[test]
-#[expected_failure(abort_code = elixir::staking_rewards_distributor::EInvalidAmount)]
-fun test_rescue_tokens_zero_amount() {
-    let mut ts = test_scenario::begin(ADMIN);
-    
-    staking_rewards_distributor::init_for_test(ts.ctx());
-    
-    ts.next_tx(ADMIN);
-    let mut distributor = ts.take_shared<StakingRewardsDistributor>();
-    
-    // Should fail - zero amount
-    let _rescued_coin = staking_rewards_distributor::rescue_deusd_tokens(
-        &mut distributor, 0, USER1, ts.ctx()
-    );
-    
-    coin::burn_for_testing(_rescued_coin);
-    test_scenario::return_shared(distributor);
-    ts.end();
-}
-
-#[test]
-#[expected_failure(abort_code = elixir::staking_rewards_distributor::ENotOwner)]
-fun test_transfer_admin_unauthorized() {
-    let mut ts = test_scenario::begin(ADMIN);
-    
-    staking_rewards_distributor::init_for_test(ts.ctx());
-    
-    ts.next_tx(USER1); // Switch to unauthorized user
-    let mut distributor = ts.take_shared<StakingRewardsDistributor>();
-    
-    // Should fail - USER1 is not admin
-    staking_rewards_distributor::transfer_admin(&mut distributor, USER1, ts.ctx());
-    
-    test_scenario::return_shared(distributor);
-    ts.end();
-}
-
-// ==================== ADDITIONAL COMPREHENSIVE TESTS ====================
 
 #[test]
 fun test_set_operator_to_zero_address() {
-    let mut ts = test_scenario::begin(ADMIN);
+    let (mut ts, admin_cap, deusd_config, mut distributor, global_config, sdeusd_management) = setup_test();
     
-    staking_rewards_distributor::init_for_test(ts.ctx());
+    // First set a real operator
+    staking_rewards_distributor::set_operator(&admin_cap, &mut distributor, &global_config, OPERATOR, ts.ctx());
+    assert!(staking_rewards_distributor::get_operator(&distributor) == OPERATOR);
     
-    ts.next_tx(ADMIN);
-    let mut distributor = ts.take_shared<StakingRewardsDistributor>();
+    // Then set to zero address (should be allowed for emergency removal)
+    staking_rewards_distributor::set_operator(&admin_cap, &mut distributor, &global_config, @0x0, ts.ctx());
+    assert!(staking_rewards_distributor::get_operator(&distributor) == @0x0);
     
-    // First set a valid operator
-    staking_rewards_distributor::set_operator(&mut distributor, OPERATOR, ts.ctx());
-    assert!(staking_rewards_distributor::get_operator(&distributor) == OPERATOR, 0);
-    
-    // Set operator to zero address (allowed for emergency situations)
-    staking_rewards_distributor::set_operator(&mut distributor, @0x0, ts.ctx());
-    assert!(staking_rewards_distributor::get_operator(&distributor) == @0x0, 1);
-    
-    test_scenario::return_shared(distributor);
-    ts.end();
+    clean_test(ts, admin_cap, deusd_config, distributor, global_config, sdeusd_management);
 }
 
 #[test]
-fun test_multiple_deusd_balance_additions() {
-    let mut ts = test_scenario::begin(ADMIN);
+fun test_replace_operator() {
+    let (mut ts, admin_cap, deusd_config, mut distributor, global_config, sdeusd_management) = setup_test();
     
-    // Initialize deUSD first
-    deusd::init_for_test(ts.ctx());
+    // Set initial operator
+    staking_rewards_distributor::set_operator(&admin_cap, &mut distributor, &global_config, OPERATOR, ts.ctx());
+    assert!(staking_rewards_distributor::get_operator(&distributor) == OPERATOR);
     
-    ts.next_tx(ADMIN);
-    let mut management = ts.take_shared<deusd::Management>();
+    // Replace with new operator
+    staking_rewards_distributor::set_operator(&admin_cap, &mut distributor, &global_config, NEW_OPERATOR, ts.ctx());
+    assert!(staking_rewards_distributor::get_operator(&distributor) == NEW_OPERATOR);
     
-    // Initialize distributor
-    staking_rewards_distributor::init_for_test(ts.ctx());
+    // Test multiple operator changes for state consistency
+    staking_rewards_distributor::set_operator(&admin_cap, &mut distributor, &global_config, ADMIN, ts.ctx());
+    assert!(staking_rewards_distributor::get_operator(&distributor) == ADMIN);
     
-    ts.next_tx(ADMIN);
-    let mut distributor = ts.take_shared<StakingRewardsDistributor>();
+    // Set back to zero address
+    staking_rewards_distributor::set_operator(&admin_cap, &mut distributor, &global_config, @0x0, ts.ctx());
+    assert!(staking_rewards_distributor::get_operator(&distributor) == @0x0);
     
-    // Add multiple deUSD balances
-    let deusd_coin1 = deusd::mint(&mut management, USER1, 1000, ts.ctx());
-    let deusd_coin2 = deusd::mint(&mut management, USER1, 500, ts.ctx());
-    let deusd_coin3 = deusd::mint(&mut management, USER1, 250, ts.ctx());
+    // Set back to original operator
+    staking_rewards_distributor::set_operator(&admin_cap, &mut distributor, &global_config, OPERATOR, ts.ctx());
+    assert!(staking_rewards_distributor::get_operator(&distributor) == OPERATOR);
     
-    staking_rewards_distributor::add_deusd_balance(&mut distributor, deusd_coin1);
-    assert!(staking_rewards_distributor::get_deusd_balance(&distributor) == 1000, 0);
-    
-    staking_rewards_distributor::add_deusd_balance(&mut distributor, deusd_coin2);
-    assert!(staking_rewards_distributor::get_deusd_balance(&distributor) == 1500, 1);
-    
-    staking_rewards_distributor::add_deusd_balance(&mut distributor, deusd_coin3);
-    assert!(staking_rewards_distributor::get_deusd_balance(&distributor) == 1750, 2);
-    
-    test_scenario::return_shared(distributor);
-    test_scenario::return_shared(management);
-    ts.end();
+    clean_test(ts, admin_cap, deusd_config, distributor, global_config, sdeusd_management);
 }
 
+// === Deposit Tests ===
+
 #[test]
-fun test_partial_reward_transfers() {
-    let mut ts = test_scenario::begin(ADMIN);
+fun test_deposit_deusd_success() {
+    let (mut ts, admin_cap, mut deusd_config, mut distributor, global_config, sdeusd_management) = setup_test();
     
-    // Initialize deUSD first
-    deusd::init_for_test(ts.ctx());
-    
-    ts.next_tx(ADMIN);
-    let mut management = ts.take_shared<deusd::Management>();
+    ts.next_tx(USER);
     
     // Mint some deUSD
-    let deusd_coin = deusd::mint(&mut management, USER1, 1000, ts.ctx());
+    let deusd_coin = mint_deusd(&mut deusd_config, USER, 1000_000_000, &mut ts);
     
-    // Initialize distributor
-    staking_rewards_distributor::init_for_test(ts.ctx());
+    // Deposit to distributor
+    staking_rewards_distributor::deposit_deusd(&mut distributor, &global_config, deusd_coin, ts.ctx());
     
+    // Verify balance was updated
+    assert!(staking_rewards_distributor::get_deusd_balance(&distributor) == 1000_000_000);
+    
+    // Test state consistency - balance should persist across transactions
     ts.next_tx(ADMIN);
-    let mut distributor = ts.take_shared<StakingRewardsDistributor>();
+    assert!(staking_rewards_distributor::get_deusd_balance(&distributor) == 1000_000_000);
     
-    // Set operator and add balance
-    staking_rewards_distributor::set_operator(&mut distributor, OPERATOR, ts.ctx());
-    staking_rewards_distributor::add_deusd_balance(&mut distributor, deusd_coin);
+    clean_test(ts, admin_cap, deusd_config, distributor, global_config, sdeusd_management);
+}
+
+#[test]
+fun test_deposit_multiple_times() {
+    let (mut ts, admin_cap, mut deusd_config, mut distributor, global_config, sdeusd_management) = setup_test();
     
+    ts.next_tx(USER);
+    
+    // First deposit
+    let deusd_coin1 = mint_deusd(&mut deusd_config, USER, 500_000_000, &mut ts);
+    staking_rewards_distributor::deposit_deusd(&mut distributor, &global_config, deusd_coin1, ts.ctx());
+    assert!(staking_rewards_distributor::get_deusd_balance(&distributor) == 500_000_000);
+    
+    // Second deposit
+    let deusd_coin2 = mint_deusd(&mut deusd_config, USER, 500_000_000, &mut ts);
+    staking_rewards_distributor::deposit_deusd(&mut distributor, &global_config, deusd_coin2, ts.ctx());
+    assert!(staking_rewards_distributor::get_deusd_balance(&distributor) == 1000_000_000);
+    
+    // Test deposits from different users
+    ts.next_tx(ADMIN);
+    let admin_coin = mint_deusd(&mut deusd_config, ADMIN, 100_000_000, &mut ts);
+    staking_rewards_distributor::deposit_deusd(&mut distributor, &global_config, admin_coin, ts.ctx());
+    
+    // Verify total balance includes all deposits
+    assert!(staking_rewards_distributor::get_deusd_balance(&distributor) == 1000_000_000 + 100_000_000);
+    
+    clean_test(ts, admin_cap, deusd_config, distributor, global_config, sdeusd_management);
+}
+
+#[test]
+fun test_deposit_zero_amount() {
+    let (mut ts, admin_cap, deusd_config, mut distributor, global_config, sdeusd_management) = setup_test();
+    
+    ts.next_tx(USER);
+    
+    // Deposit zero amount (should work but have no effect)
+    let zero_coin = coin::zero<DEUSD>(ts.ctx());
+    staking_rewards_distributor::deposit_deusd(&mut distributor, &global_config, zero_coin, ts.ctx());
+    
+    // Balance should remain zero
+    assert!(staking_rewards_distributor::get_deusd_balance(&distributor) == 0);
+    
+    clean_test(ts, admin_cap, deusd_config, distributor, global_config, sdeusd_management);
+}
+
+#[test]
+fun test_deposit_minimum_amount() {
+    let (mut ts, admin_cap, mut deusd_config, mut distributor, global_config, sdeusd_management) = setup_test();
+    
+    ts.next_tx(USER);
+    let min_coin = mint_deusd(&mut deusd_config, USER, 1, &mut ts); // 1 unit (smallest possible)
+    
+    staking_rewards_distributor::deposit_deusd(&mut distributor, &global_config, min_coin, ts.ctx());
+    
+    assert!(staking_rewards_distributor::get_deusd_balance(&distributor) == 1);
+    
+    clean_test(ts, admin_cap, deusd_config, distributor, global_config, sdeusd_management);
+}
+
+// === Withdraw Tests ===
+
+#[test]
+fun test_withdraw_deusd_success() {
+    let (mut ts, admin_cap, mut deusd_config, mut distributor, global_config, sdeusd_management) = setup_test();
+    
+    // First deposit some funds
+    ts.next_tx(USER);
+    let deusd_coin = mint_deusd(&mut deusd_config, USER, 1000_000_000, &mut ts);
+    staking_rewards_distributor::deposit_deusd(&mut distributor, &global_config, deusd_coin, ts.ctx());
+    
+    // Admin withdraws half
+    ts.next_tx(ADMIN);
+    staking_rewards_distributor::withdraw_deusd(&admin_cap, &mut distributor, &global_config, 500_000_000, USER, ts.ctx());
+    
+    // Check remaining balance
+    assert!(staking_rewards_distributor::get_deusd_balance(&distributor) == 500_000_000);
+    
+    // Check that USER received the withdrawn amount
+    ts.next_tx(USER);
+    let received_coin = ts.take_from_address<coin::Coin<DEUSD>>(USER);
+    assert!(received_coin.value() == 500_000_000);
+    coin::burn_for_testing(received_coin);
+    
+    clean_test(ts, admin_cap, deusd_config, distributor, global_config, sdeusd_management);
+}
+
+#[test]
+#[expected_failure(abort_code = staking_rewards_distributor::EInvalidAmount)]
+fun test_withdraw_zero_amount() {
+    let (mut ts, admin_cap, deusd_config, mut distributor, global_config, sdeusd_management) = setup_test();
+    
+    staking_rewards_distributor::withdraw_deusd(&admin_cap, &mut distributor, &global_config, 0, USER, ts.ctx());
+    
+    clean_test(ts, admin_cap, deusd_config, distributor, global_config, sdeusd_management);
+}
+
+#[test]
+#[expected_failure]
+fun test_withdraw_insufficient_balance() {
+    let (mut ts, admin_cap, deusd_config, mut distributor, global_config, sdeusd_management) = setup_test();
+    
+    // Try to withdraw more than available (distributor has 0 balance)
+    staking_rewards_distributor::withdraw_deusd(&admin_cap, &mut distributor, &global_config, 100_000_000, USER, ts.ctx());
+    
+    clean_test(ts, admin_cap, deusd_config, distributor, global_config, sdeusd_management);
+}
+
+#[test]
+fun test_withdraw_minimum_amount() {
+    let (mut ts, admin_cap, mut deusd_config, mut distributor, global_config, sdeusd_management) = setup_test();
+    
+    // Deposit some funds first
+    ts.next_tx(USER);
+    let deusd_coin = mint_deusd(&mut deusd_config, USER, 100_000_000, &mut ts);
+    staking_rewards_distributor::deposit_deusd(&mut distributor, &global_config, deusd_coin, ts.ctx());
+    
+    // Withdraw minimum amount
+    ts.next_tx(ADMIN);
+    staking_rewards_distributor::withdraw_deusd(&admin_cap, &mut distributor, &global_config, 1, USER, ts.ctx());
+    
+    assert!(staking_rewards_distributor::get_deusd_balance(&distributor) == 100_000_000 - 1);
+    
+    clean_test(ts, admin_cap, deusd_config, distributor, global_config, sdeusd_management);
+}
+
+// === Transfer Rewards Tests ===
+
+#[test]
+fun test_transfer_in_rewards_success() {
+    let (mut ts, admin_cap, mut deusd_config, mut distributor, global_config, mut sdeusd_management) = setup_test();
+    
+    // Set operator
+    staking_rewards_distributor::set_operator(&admin_cap, &mut distributor, &global_config, OPERATOR, ts.ctx());
+    
+    // Deposit funds
+    ts.next_tx(USER);
+    let deusd_coin = mint_deusd(&mut deusd_config, USER, 1000_000_000, &mut ts);
+    staking_rewards_distributor::deposit_deusd(&mut distributor, &global_config, deusd_coin, ts.ctx());
+    
+    // Operator transfers rewards
     ts.next_tx(OPERATOR);
+    let mut clock = clock::create_for_testing(ts.ctx());
     
-    // Multiple partial transfers
-    let reward1 = staking_rewards_distributor::transfer_in_rewards(&mut distributor, 300, ts.ctx());
-    assert!(coin::value(&reward1) == 300, 0);
-    assert!(staking_rewards_distributor::get_deusd_balance(&distributor) == 700, 1);
+    staking_rewards_distributor::transfer_in_rewards(
+        &mut distributor,
+        &mut sdeusd_management,
+        &global_config,
+        500_000_000,
+        &clock,
+        ts.ctx()
+    );
     
-    let reward2 = staking_rewards_distributor::transfer_in_rewards(&mut distributor, 200, ts.ctx());
-    assert!(coin::value(&reward2) == 200, 2);
-    assert!(staking_rewards_distributor::get_deusd_balance(&distributor) == 500, 3);
+    // Check remaining balance in distributor
+    assert!(staking_rewards_distributor::get_deusd_balance(&distributor) == 500_000_000);
     
-    let reward3 = staking_rewards_distributor::transfer_in_rewards(&mut distributor, 500, ts.ctx());
-    assert!(coin::value(&reward3) == 500, 4);
-    assert!(staking_rewards_distributor::get_deusd_balance(&distributor) == 0, 5);
+    // Test transferring exact remaining balance
+    clock::increment_for_testing(&mut clock, 8 * 3600 * 1000); // Advance vesting period
     
-    coin::burn_for_testing(reward1);
-    coin::burn_for_testing(reward2);
-    coin::burn_for_testing(reward3);
-    test_scenario::return_shared(distributor);
-    test_scenario::return_shared(management);
-    ts.end();
+    staking_rewards_distributor::transfer_in_rewards(
+        &mut distributor,
+        &mut sdeusd_management,
+        &global_config,
+        500_000_000,
+        &clock,
+        ts.ctx()
+    );
+    
+    // Balance should now be exactly zero
+    assert!(staking_rewards_distributor::get_deusd_balance(&distributor) == 0);
+    
+    clock::destroy_for_testing(clock);
+    clean_test(ts, admin_cap, deusd_config, distributor, global_config, sdeusd_management);
 }
 
 #[test]
-fun test_approve_duplicate_assets() {
-    let mut ts = test_scenario::begin(ADMIN);
+fun test_transfer_in_rewards_multiple_times() {
+    let (mut ts, admin_cap, mut deusd_config, mut distributor, global_config, mut sdeusd_management) = setup_test();
     
-    staking_rewards_distributor::init_for_test(ts.ctx());
+    // Set operator
+    staking_rewards_distributor::set_operator(&admin_cap, &mut distributor, &global_config, OPERATOR, ts.ctx());
     
-    ts.next_tx(ADMIN);
-    let mut distributor = ts.take_shared<StakingRewardsDistributor>();
+    // Deposit funds
+    ts.next_tx(USER);
+    let deusd_coin = mint_deusd(&mut deusd_config, USER, 1000_000_000, &mut ts);
+    staking_rewards_distributor::deposit_deusd(&mut distributor, &global_config, deusd_coin, ts.ctx());
     
-    // Approve initial assets
-    let assets1 = vector[@0x123, @0x456];
-    staking_rewards_distributor::approve_assets(&mut distributor, assets1, ts.ctx());
-    assert!(vector::length(staking_rewards_distributor::get_approved_assets(&distributor)) == 2, 0);
-    
-    // Approve overlapping assets (should not duplicate)
-    let assets2 = vector[@0x456, @0x789]; // @0x456 is duplicate
-    staking_rewards_distributor::approve_assets(&mut distributor, assets2, ts.ctx());
-    assert!(vector::length(staking_rewards_distributor::get_approved_assets(&distributor)) == 3, 1);
-    
-    // Verify specific assets are present
-    let approved = staking_rewards_distributor::get_approved_assets(&distributor);
-    assert!(vector::contains(approved, &@0x123), 2);
-    assert!(vector::contains(approved, &@0x456), 3);
-    assert!(vector::contains(approved, &@0x789), 4);
-    
-    test_scenario::return_shared(distributor);
-    ts.end();
-}
-
-#[test]
-fun test_revoke_nonexistent_assets() {
-    let mut ts = test_scenario::begin(ADMIN);
-    
-    staking_rewards_distributor::init_for_test(ts.ctx());
-    
-    ts.next_tx(ADMIN);
-    let mut distributor = ts.take_shared<StakingRewardsDistributor>();
-    
-    // Approve some assets
-    let assets = vector[@0x123, @0x456];
-    staking_rewards_distributor::approve_assets(&mut distributor, assets, ts.ctx());
-    assert!(vector::length(staking_rewards_distributor::get_approved_assets(&distributor)) == 2, 0);
-    
-    // Try to revoke assets that don't exist (should not fail, just no-op)
-    let revoke_assets = vector[@0x999, @0x888]; // Non-existent assets
-    let distributor_id = staking_rewards_distributor::get_distributor_id(&distributor);
-    staking_rewards_distributor::revoke_approvals(&mut distributor, revoke_assets, distributor_id, ts.ctx());
-    
-    // Should still have original 2 assets
-    assert!(vector::length(staking_rewards_distributor::get_approved_assets(&distributor)) == 2, 1);
-    
-    test_scenario::return_shared(distributor);
-    ts.end();
-}
-
-#[test]
-fun test_revoke_from_external_target() {
-    let mut ts = test_scenario::begin(ADMIN);
-    
-    staking_rewards_distributor::init_for_test(ts.ctx());
-    
-    ts.next_tx(ADMIN);
-    let mut distributor = ts.take_shared<StakingRewardsDistributor>();
-    
-    // Approve some assets
-    let assets = vector[@0x123, @0x456, @0x789];
-    staking_rewards_distributor::approve_assets(&mut distributor, assets, ts.ctx());
-    assert!(vector::length(staking_rewards_distributor::get_approved_assets(&distributor)) == 3, 0);
-    
-    // Revoke from external target (should not affect our approved list)
-    let revoke_assets = vector[@0x123, @0x456];
-    staking_rewards_distributor::revoke_approvals(&mut distributor, revoke_assets, @0x999, ts.ctx());
-    
-    // Should still have all 3 assets since we revoked from external target
-    assert!(vector::length(staking_rewards_distributor::get_approved_assets(&distributor)) == 3, 1);
-    
-    test_scenario::return_shared(distributor);
-    ts.end();
-}
-
-#[test]
-fun test_multiple_token_balance_operations() {
-    let mut ts = test_scenario::begin(ADMIN);
-    
-    staking_rewards_distributor::init_for_test(ts.ctx());
-    
-    ts.next_tx(ADMIN);
-    let distributor = ts.take_shared<StakingRewardsDistributor>();
-    
-    // Create multiple token balance objects
-    let mut token_balance1 = staking_rewards_distributor::create_token_balance<TestToken>(ts.ctx());
-    let mut token_balance2 = staking_rewards_distributor::create_token_balance<TestToken>(ts.ctx());
-    
-    // Add tokens to both balances
-    let test_coin1 = coin::mint_for_testing<TestToken>(1000, ts.ctx());
-    let test_coin2 = coin::mint_for_testing<TestToken>(500, ts.ctx());
-    let test_coin3 = coin::mint_for_testing<TestToken>(300, ts.ctx());
-    
-    staking_rewards_distributor::add_token_balance(&mut token_balance1, test_coin1);
-    staking_rewards_distributor::add_token_balance(&mut token_balance1, test_coin2);
-    staking_rewards_distributor::add_token_balance(&mut token_balance2, test_coin3);
-    
-    assert!(staking_rewards_distributor::get_token_balance(&token_balance1) == 1500, 0);
-    assert!(staking_rewards_distributor::get_token_balance(&token_balance2) == 300, 1);
-    
-    // Rescue from both balances
-    let rescued1 = staking_rewards_distributor::rescue_tokens(&distributor, &mut token_balance1, 600, USER1, ts.ctx());
-    let rescued2 = staking_rewards_distributor::rescue_tokens(&distributor, &mut token_balance2, 100, USER1, ts.ctx());
-    
-    assert!(coin::value(&rescued1) == 600, 2);
-    assert!(coin::value(&rescued2) == 100, 3);
-    assert!(staking_rewards_distributor::get_token_balance(&token_balance1) == 900, 4);
-    assert!(staking_rewards_distributor::get_token_balance(&token_balance2) == 200, 5);
-    
-    coin::burn_for_testing(rescued1);
-    coin::burn_for_testing(rescued2);
-    transfer::public_transfer(token_balance1, ADMIN);
-    transfer::public_transfer(token_balance2, ADMIN);
-    test_scenario::return_shared(distributor);
-    ts.end();
-}
-
-#[test]
-fun test_admin_transfer_chain() {
-    let mut ts = test_scenario::begin(ADMIN);
-    
-    staking_rewards_distributor::init_for_test(ts.ctx());
-    
-    ts.next_tx(ADMIN);
-    let mut distributor = ts.take_shared<StakingRewardsDistributor>();
-    
-    // Transfer admin from ADMIN to USER1
-    staking_rewards_distributor::transfer_admin(&mut distributor, USER1, ts.ctx());
-    assert!(staking_rewards_distributor::get_admin(&distributor) == USER1, 0);
-    
-    ts.next_tx(USER1);
-    
-    // Transfer admin from USER1 to OPERATOR
-    staking_rewards_distributor::transfer_admin(&mut distributor, OPERATOR, ts.ctx());
-    assert!(staking_rewards_distributor::get_admin(&distributor) == OPERATOR, 1);
-    
+    // First transfer
     ts.next_tx(OPERATOR);
+    let mut clock = clock::create_for_testing(ts.ctx());
     
-    // OPERATOR should now be able to perform admin actions
-    staking_rewards_distributor::set_staking_vault(&mut distributor, STAKING_VAULT, ts.ctx());
-    assert!(staking_rewards_distributor::get_staking_vault(&distributor) == STAKING_VAULT, 2);
+    staking_rewards_distributor::transfer_in_rewards(
+        &mut distributor,
+        &mut sdeusd_management,
+        &global_config,
+        100_000_000,
+        &clock,
+        ts.ctx()
+    );
+    assert!(staking_rewards_distributor::get_deusd_balance(&distributor) == 1000_000_000 - 100_000_000);
     
-    test_scenario::return_shared(distributor);
-    ts.end();
+    // Advance clock by vesting period (8 hours in milliseconds) before second transfer
+    let vesting_period = 8 * 3600 * 1000; // 8 hours
+    clock::increment_for_testing(&mut clock, vesting_period);
+    
+    // Second transfer
+    staking_rewards_distributor::transfer_in_rewards(
+        &mut distributor,
+        &mut sdeusd_management,
+        &global_config,
+        50_000_000,
+        &clock,
+        ts.ctx()
+    );
+    assert!(staking_rewards_distributor::get_deusd_balance(&distributor) == 1000_000_000 - 100_000_000 - 50_000_000);
+    
+    clock::destroy_for_testing(clock);
+    clean_test(ts, admin_cap, deusd_config, distributor, global_config, sdeusd_management);
 }
 
 #[test]
-fun test_edge_case_rescue_all_deusd_balance() {
-    let mut ts = test_scenario::begin(ADMIN);
+#[expected_failure(abort_code = staking_rewards_distributor::EOnlyOperator)]
+fun test_transfer_in_rewards_unauthorized() {
+    let (mut ts, admin_cap, mut deusd_config, mut distributor, global_config, mut sdeusd_management) = setup_test();
     
-    // Initialize deUSD first
-    deusd::init_for_test(ts.ctx());
+    // Set operator (not USER)
+    staking_rewards_distributor::set_operator(&admin_cap, &mut distributor, &global_config, OPERATOR, ts.ctx());
     
-    ts.next_tx(ADMIN);
-    let mut management = ts.take_shared<deusd::Management>();
+    // Deposit funds
+    ts.next_tx(USER);
+    let deusd_coin = mint_deusd(&mut deusd_config, USER, 1000_000_000, &mut ts);
+    staking_rewards_distributor::deposit_deusd(&mut distributor, &global_config, deusd_coin, ts.ctx());
     
-    // Mint some deUSD
-    let deusd_coin = deusd::mint(&mut management, USER1, 1000, ts.ctx());
+    // USER (not operator) tries to transfer rewards
+    let clock = clock::create_for_testing(ts.ctx());
     
-    // Initialize distributor
-    staking_rewards_distributor::init_for_test(ts.ctx());
-    
-    ts.next_tx(ADMIN);
-    let mut distributor = ts.take_shared<StakingRewardsDistributor>();
-    
-    // Add deUSD balance to distributor
-    staking_rewards_distributor::add_deusd_balance(&mut distributor, deusd_coin);
-    assert!(staking_rewards_distributor::get_deusd_balance(&distributor) == 1000, 0);
-    
-    // Rescue all balance
-    let rescued_coin = staking_rewards_distributor::rescue_deusd_tokens(
-        &mut distributor, 1000, USER1, ts.ctx()
+    staking_rewards_distributor::transfer_in_rewards(
+        &mut distributor,
+        &mut sdeusd_management,
+        &global_config,
+        500_000_000,
+        &clock,
+        ts.ctx()
     );
     
-    assert!(coin::value(&rescued_coin) == 1000, 1);
-    assert!(staking_rewards_distributor::get_deusd_balance(&distributor) == 0, 2);
-    
-    coin::burn_for_testing(rescued_coin);
-    test_scenario::return_shared(distributor);
-    test_scenario::return_shared(management);
-    ts.end();
-}
-
-// ==================== ADDITIONAL FAILURE CASE TESTS ====================
-
-#[test]
-#[expected_failure(abort_code = elixir::staking_rewards_distributor::ENotOwner)]
-fun test_set_staking_vault_unauthorized() {
-    let mut ts = test_scenario::begin(ADMIN);
-    
-    staking_rewards_distributor::init_for_test(ts.ctx());
-    
-    ts.next_tx(USER1); // Switch to unauthorized user
-    let mut distributor = ts.take_shared<StakingRewardsDistributor>();
-    
-    // Should fail - USER1 is not admin
-    staking_rewards_distributor::set_staking_vault(&mut distributor, STAKING_VAULT, ts.ctx());
-    
-    test_scenario::return_shared(distributor);
-    ts.end();
+    clock::destroy_for_testing(clock);
+    clean_test(ts, admin_cap, deusd_config, distributor, global_config, sdeusd_management);
 }
 
 #[test]
-#[expected_failure(abort_code = elixir::staking_rewards_distributor::EInvalidZeroAddress)]
-fun test_set_staking_vault_zero_address() {
-    let mut ts = test_scenario::begin(ADMIN);
+#[expected_failure(abort_code = staking_rewards_distributor::EInsufficientFunds)]
+fun test_transfer_in_rewards_insufficient_balance() {
+    let (mut ts, admin_cap, mut deusd_config, mut distributor, global_config, mut sdeusd_management) = setup_test();
     
-    staking_rewards_distributor::init_for_test(ts.ctx());
+    // Set operator
+    staking_rewards_distributor::set_operator(&admin_cap, &mut distributor, &global_config, OPERATOR, ts.ctx());
     
-    ts.next_tx(ADMIN);
-    let mut distributor = ts.take_shared<StakingRewardsDistributor>();
+    // Deposit smaller amount
+    ts.next_tx(USER);
+    let deusd_coin = mint_deusd(&mut deusd_config, USER, 100_000_000, &mut ts);
+    staking_rewards_distributor::deposit_deusd(&mut distributor, &global_config, deusd_coin, ts.ctx());
     
-    // Should fail - zero address not allowed
-    staking_rewards_distributor::set_staking_vault(&mut distributor, @0x0, ts.ctx());
-    
-    test_scenario::return_shared(distributor);
-    ts.end();
-}
-
-#[test]
-#[expected_failure(abort_code = elixir::staking_rewards_distributor::ENotOwner)]
-fun test_approve_assets_unauthorized() {
-    let mut ts = test_scenario::begin(ADMIN);
-    
-    staking_rewards_distributor::init_for_test(ts.ctx());
-    
-    ts.next_tx(USER1); // Switch to unauthorized user
-    let mut distributor = ts.take_shared<StakingRewardsDistributor>();
-    
-    let assets = vector[@0x123];
-    
-    // Should fail - USER1 is not admin
-    staking_rewards_distributor::approve_assets(&mut distributor, assets, ts.ctx());
-    
-    test_scenario::return_shared(distributor);
-    ts.end();
-}
-
-#[test]
-#[expected_failure(abort_code = elixir::staking_rewards_distributor::ENoAssetsProvided)]
-fun test_approve_empty_assets() {
-    let mut ts = test_scenario::begin(ADMIN);
-    
-    staking_rewards_distributor::init_for_test(ts.ctx());
-    
-    ts.next_tx(ADMIN);
-    let mut distributor = ts.take_shared<StakingRewardsDistributor>();
-    
-    // Should fail - empty assets vector
-    staking_rewards_distributor::approve_assets(&mut distributor, vector::empty<address>(), ts.ctx());
-    
-    test_scenario::return_shared(distributor);
-    ts.end();
-}
-
-#[test]
-#[expected_failure(abort_code = elixir::staking_rewards_distributor::ENotOwner)]
-fun test_revoke_approvals_unauthorized() {
-    let mut ts = test_scenario::begin(ADMIN);
-    
-    staking_rewards_distributor::init_for_test(ts.ctx());
-    
-    ts.next_tx(USER1); // Switch to unauthorized user
-    let mut distributor = ts.take_shared<StakingRewardsDistributor>();
-    
-    let assets = vector[@0x123];
-    
-    // Should fail - USER1 is not admin
-    staking_rewards_distributor::revoke_approvals(&mut distributor, assets, @0x456, ts.ctx());
-    
-    test_scenario::return_shared(distributor);
-    ts.end();
-}
-
-#[test]
-#[expected_failure(abort_code = elixir::staking_rewards_distributor::ENoAssetsProvided)]
-fun test_revoke_empty_assets() {
-    let mut ts = test_scenario::begin(ADMIN);
-    
-    staking_rewards_distributor::init_for_test(ts.ctx());
-    
-    ts.next_tx(ADMIN);
-    let mut distributor = ts.take_shared<StakingRewardsDistributor>();
-    
-    // Should fail - empty assets vector
-    staking_rewards_distributor::revoke_approvals(&mut distributor, vector::empty<address>(), @0x456, ts.ctx());
-    
-    test_scenario::return_shared(distributor);
-    ts.end();
-}
-
-#[test]
-#[expected_failure(abort_code = elixir::staking_rewards_distributor::EInvalidZeroAddress)]
-fun test_revoke_approvals_zero_target() {
-    let mut ts = test_scenario::begin(ADMIN);
-    
-    staking_rewards_distributor::init_for_test(ts.ctx());
-    
-    ts.next_tx(ADMIN);
-    let mut distributor = ts.take_shared<StakingRewardsDistributor>();
-    
-    let assets = vector[@0x123];
-    
-    // Should fail - zero target address
-    staking_rewards_distributor::revoke_approvals(&mut distributor, assets, @0x0, ts.ctx());
-    
-    test_scenario::return_shared(distributor);
-    ts.end();
-}
-
-#[test]
-#[expected_failure(abort_code = elixir::staking_rewards_distributor::EInvalidZeroAddress)]
-fun test_transfer_admin_zero_address() {
-    let mut ts = test_scenario::begin(ADMIN);
-    
-    staking_rewards_distributor::init_for_test(ts.ctx());
-    
-    ts.next_tx(ADMIN);
-    let mut distributor = ts.take_shared<StakingRewardsDistributor>();
-    
-    // Should fail - zero address not allowed as new admin
-    staking_rewards_distributor::transfer_admin(&mut distributor, @0x0, ts.ctx());
-    
-    test_scenario::return_shared(distributor);
-    ts.end();
-}
-
-#[test]
-#[expected_failure(abort_code = elixir::staking_rewards_distributor::ENotOwner)]
-fun test_rescue_generic_tokens_unauthorized() {
-    let mut ts = test_scenario::begin(ADMIN);
-    
-    staking_rewards_distributor::init_for_test(ts.ctx());
-    
-    ts.next_tx(ADMIN);
-    let distributor = ts.take_shared<StakingRewardsDistributor>();
-    let mut token_balance = staking_rewards_distributor::create_token_balance<TestToken>(ts.ctx());
-    
-    let test_coin = coin::mint_for_testing<TestToken>(500, ts.ctx());
-    staking_rewards_distributor::add_token_balance(&mut token_balance, test_coin);
-    
-    ts.next_tx(USER1); // Switch to unauthorized user
-    
-    // Should fail - USER1 is not admin
-    let _rescued_coin = staking_rewards_distributor::rescue_tokens(
-        &distributor, &mut token_balance, 100, USER1, ts.ctx()
-    );
-    
-    coin::burn_for_testing(_rescued_coin);
-    transfer::public_transfer(token_balance, ADMIN);
-    test_scenario::return_shared(distributor);
-    ts.end();
-}
-
-#[test]
-#[expected_failure(abort_code = elixir::staking_rewards_distributor::EInvalidZeroAddress)]
-fun test_rescue_generic_tokens_zero_recipient() {
-    let mut ts = test_scenario::begin(ADMIN);
-    
-    staking_rewards_distributor::init_for_test(ts.ctx());
-    
-    ts.next_tx(ADMIN);
-    let distributor = ts.take_shared<StakingRewardsDistributor>();
-    let mut token_balance = staking_rewards_distributor::create_token_balance<TestToken>(ts.ctx());
-    
-    let test_coin = coin::mint_for_testing<TestToken>(500, ts.ctx());
-    staking_rewards_distributor::add_token_balance(&mut token_balance, test_coin);
-    
-    // Should fail - zero recipient address
-    let _rescued_coin = staking_rewards_distributor::rescue_tokens(
-        &distributor, &mut token_balance, 100, @0x0, ts.ctx()
-    );
-    
-    coin::burn_for_testing(_rescued_coin);
-    transfer::public_transfer(token_balance, ADMIN);
-    test_scenario::return_shared(distributor);
-    ts.end();
-}
-
-#[test]
-#[expected_failure(abort_code = elixir::staking_rewards_distributor::EInvalidAmount)]
-fun test_rescue_generic_tokens_zero_amount() {
-    let mut ts = test_scenario::begin(ADMIN);
-    
-    staking_rewards_distributor::init_for_test(ts.ctx());
-    
-    ts.next_tx(ADMIN);
-    let distributor = ts.take_shared<StakingRewardsDistributor>();
-    let mut token_balance = staking_rewards_distributor::create_token_balance<TestToken>(ts.ctx());
-    
-    let test_coin = coin::mint_for_testing<TestToken>(500, ts.ctx());
-    staking_rewards_distributor::add_token_balance(&mut token_balance, test_coin);
-    
-    // Should fail - zero amount
-    let _rescued_coin = staking_rewards_distributor::rescue_tokens(
-        &distributor, &mut token_balance, 0, USER1, ts.ctx()
-    );
-    
-    coin::burn_for_testing(_rescued_coin);
-    transfer::public_transfer(token_balance, ADMIN);
-    test_scenario::return_shared(distributor);
-    ts.end();
-}
-
-#[test]
-fun test_transfer_rewards_exact_balance() {
-    let mut ts = test_scenario::begin(ADMIN);
-    
-    // Initialize deUSD first
-    deusd::init_for_test(ts.ctx());
-    
-    ts.next_tx(ADMIN);
-    let mut management = ts.take_shared<deusd::Management>();
-    
-    // Mint exact amount
-    let deusd_coin = deusd::mint(&mut management, USER1, 500, ts.ctx());
-    
-    // Initialize distributor
-    staking_rewards_distributor::init_for_test(ts.ctx());
-    
-    ts.next_tx(ADMIN);
-    let mut distributor = ts.take_shared<StakingRewardsDistributor>();
-    
-    // Set operator and add balance
-    staking_rewards_distributor::set_operator(&mut distributor, OPERATOR, ts.ctx());
-    staking_rewards_distributor::add_deusd_balance(&mut distributor, deusd_coin);
-    
+    // Try to transfer more than available
     ts.next_tx(OPERATOR);
+    let clock = clock::create_for_testing(ts.ctx());
     
-    // Transfer exact balance
-    let reward_coin = staking_rewards_distributor::transfer_in_rewards(&mut distributor, 500, ts.ctx());
+    staking_rewards_distributor::transfer_in_rewards(
+        &mut distributor,
+        &mut sdeusd_management,
+        &global_config,
+        500_000_000,
+        &clock,
+        ts.ctx()
+    );
     
-    assert!(coin::value(&reward_coin) == 500, 0);
-    assert!(staking_rewards_distributor::get_deusd_balance(&distributor) == 0, 1);
+    clock::destroy_for_testing(clock);
+    clean_test(ts, admin_cap, deusd_config, distributor, global_config, sdeusd_management);
+}
+
+#[test]
+#[expected_failure(abort_code = staking_rewards_distributor::EOnlyOperator)]
+fun test_transfer_in_rewards_if_not_operator() {
+    let (mut ts, admin_cap, mut deusd_config, mut distributor, global_config, mut sdeusd_management) = setup_test();
     
-    coin::burn_for_testing(reward_coin);
+    // Don't set operator (remains @0x0)
+    
+    // Deposit funds
+    ts.next_tx(USER);
+    let deusd_coin = mint_deusd(&mut deusd_config, USER, 1000_000_000, &mut ts);
+    staking_rewards_distributor::deposit_deusd(&mut distributor, &global_config, deusd_coin, ts.ctx());
+    
+    // Try to transfer rewards without being operator
+    let clock = clock::create_for_testing(ts.ctx());
+    
+    staking_rewards_distributor::transfer_in_rewards(
+        &mut distributor,
+        &mut sdeusd_management,
+        &global_config,
+        500_000_000,
+        &clock,
+        ts.ctx()
+    );
+    
+    clock::destroy_for_testing(clock);
+    clean_test(ts, admin_cap, deusd_config, distributor, global_config, sdeusd_management);
+}
+
+#[test]
+fun test_transfer_in_rewards_minimum_amount() {
+    let (mut ts, admin_cap, mut deusd_config, mut distributor, global_config, mut sdeusd_management) = setup_test();
+    
+    // Set operator
+    staking_rewards_distributor::set_operator(&admin_cap, &mut distributor, &global_config, OPERATOR, ts.ctx());
+    
+    // Deposit funds
+    ts.next_tx(USER);
+    let deusd_coin = mint_deusd(&mut deusd_config, USER, 100_000_000, &mut ts);
+    staking_rewards_distributor::deposit_deusd(&mut distributor, &global_config, deusd_coin, ts.ctx());
+    
+    // Transfer minimum amount
+    ts.next_tx(OPERATOR);
+    let clock = clock::create_for_testing(ts.ctx());
+    
+    staking_rewards_distributor::transfer_in_rewards(
+        &mut distributor,
+        &mut sdeusd_management,
+        &global_config,
+        1, // Minimum amount
+        &clock,
+        ts.ctx()
+    );
+    
+    assert!(staking_rewards_distributor::get_deusd_balance(&distributor) == 100_000_000 - 1);
+    
+    clock::destroy_for_testing(clock);
+    clean_test(ts, admin_cap, deusd_config, distributor, global_config, sdeusd_management);
+}
+
+// === Integration Tests ===
+
+#[test]
+fun test_full_workflow() {
+    let (mut ts, admin_cap, mut deusd_config, mut distributor, global_config, mut sdeusd_management) = setup_test();
+    
+    // 1. Admin sets operator
+    staking_rewards_distributor::set_operator(&admin_cap, &mut distributor, &global_config, OPERATOR, ts.ctx());
+    assert!(staking_rewards_distributor::get_operator(&distributor) == OPERATOR);
+    
+    // 2. Users deposit deUSD
+    ts.next_tx(USER);
+    let deusd_coin1 = mint_deusd(&mut deusd_config, USER, 500_000_000, &mut ts);
+    staking_rewards_distributor::deposit_deusd(&mut distributor, &global_config, deusd_coin1, ts.ctx());
+    
+    ts.next_tx(ADMIN);
+    let deusd_coin2 = mint_deusd(&mut deusd_config, ADMIN, 500_000_000, &mut ts);
+    staking_rewards_distributor::deposit_deusd(&mut distributor, &global_config, deusd_coin2, ts.ctx());
+    
+    assert!(staking_rewards_distributor::get_deusd_balance(&distributor) == 1000_000_000);
+    
+    // 3. Operator transfers rewards multiple times
+    ts.next_tx(OPERATOR);
+    let mut clock = clock::create_for_testing(ts.ctx());
+    
+    staking_rewards_distributor::transfer_in_rewards(
+        &mut distributor,
+        &mut sdeusd_management,
+        &global_config,
+        100_000_000,
+        &clock,
+        ts.ctx()
+    );
+    
+    // Advance clock by vesting period before second transfer
+    let vesting_period = 8 * 3600 * 1000; // 8 hours
+    clock::increment_for_testing(&mut clock, vesting_period);
+    
+    staking_rewards_distributor::transfer_in_rewards(
+        &mut distributor,
+        &mut sdeusd_management,
+        &global_config,
+        50_000_000,
+        &clock,
+        ts.ctx()
+    );
+    
+    assert!(staking_rewards_distributor::get_deusd_balance(&distributor) == 1000_000_000 - 100_000_000 - 50_000_000);
+    
+    // 4. Admin withdraws some funds
+    ts.next_tx(ADMIN);
+    staking_rewards_distributor::withdraw_deusd(&admin_cap, &mut distributor, &global_config, 100_000_000, ADMIN, ts.ctx());
+    assert!(staking_rewards_distributor::get_deusd_balance(&distributor) == 1000_000_000 - 100_000_000 - 50_000_000 - 100_000_000);
+    
+    // 5. Admin changes operator
+    staking_rewards_distributor::set_operator(&admin_cap, &mut distributor, &global_config, NEW_OPERATOR, ts.ctx());
+    assert!(staking_rewards_distributor::get_operator(&distributor) == NEW_OPERATOR);
+    
+    // 6. New operator can transfer rewards
+    ts.next_tx(NEW_OPERATOR);
+    
+    // Advance clock by vesting period before new operator transfer
+    clock::increment_for_testing(&mut clock, vesting_period);
+    
+    staking_rewards_distributor::transfer_in_rewards(
+        &mut distributor,
+        &mut sdeusd_management,
+        &global_config,
+        50_000_000,
+        &clock,
+        ts.ctx()
+    );
+    
+    // 7. Old operator can no longer transfer rewards (would fail)
+    // ts.next_tx(OPERATOR);
+    // This would fail: staking_rewards_distributor::transfer_in_rewards(...)
+    
+    clock::destroy_for_testing(clock);
+    
+    // Clean up withdrawn coins
+    ts.next_tx(ADMIN);
+    let withdrawn_coin = ts.take_from_address<coin::Coin<DEUSD>>(ADMIN);
+    coin::burn_for_testing(withdrawn_coin);
+    
+    clean_test(ts, admin_cap, deusd_config, distributor, global_config, sdeusd_management);
+}
+
+// === Edge Cases ===
+
+#[test]
+fun test_operator_can_be_set_to_admin() {
+    let (mut ts, admin_cap, deusd_config, mut distributor, global_config, sdeusd_management) = setup_test();
+    
+    // Admin sets themselves as operator
+    staking_rewards_distributor::set_operator(&admin_cap, &mut distributor, &global_config, ADMIN, ts.ctx());
+    assert!(staking_rewards_distributor::get_operator(&distributor) == ADMIN);
+    
+    clean_test(ts, admin_cap, deusd_config, distributor, global_config, sdeusd_management);
+}
+
+#[test]
+fun test_zero_balance_operations() {
+    let (mut ts, admin_cap, deusd_config, mut distributor, global_config, sdeusd_management) = setup_test();
+    
+    // Set operator
+    staking_rewards_distributor::set_operator(&admin_cap, &mut distributor, &global_config, OPERATOR, ts.ctx());
+    
+    // Try to transfer with zero balance - should fail
+    ts.next_tx(OPERATOR);
+    // This would fail: staking_rewards_distributor::transfer_in_rewards(&mut distributor, ...)
+    
+    // Check balance is still zero
+    assert!(staking_rewards_distributor::get_deusd_balance(&distributor) == 0);
+    
+    clean_test(ts, admin_cap, deusd_config, distributor, global_config, sdeusd_management);
+}
+
+#[test]
+fun test_large_amounts() {
+    let (mut ts, admin_cap, mut deusd_config, mut distributor, global_config, mut sdeusd_management) = setup_test();
+    
+    // Set operator
+    staking_rewards_distributor::set_operator(&admin_cap, &mut distributor, &global_config, OPERATOR, ts.ctx());
+    
+    // Use maximum reasonable amounts
+    let large_amount = 1_000_000_000_000_000; // 1 billion tokens
+    
+    ts.next_tx(USER);
+    let large_coin = mint_deusd(&mut deusd_config, USER, large_amount, &mut ts);
+    staking_rewards_distributor::deposit_deusd(&mut distributor, &global_config, large_coin, ts.ctx());
+    
+    assert!(staking_rewards_distributor::get_deusd_balance(&distributor) == large_amount);
+    
+    // Transfer half
+    ts.next_tx(OPERATOR);
+    let clock = clock::create_for_testing(ts.ctx());
+    
+    staking_rewards_distributor::transfer_in_rewards(
+        &mut distributor,
+        &mut sdeusd_management,
+        &global_config,
+        large_amount / 2,
+        &clock,
+        ts.ctx()
+    );
+    
+    assert!(staking_rewards_distributor::get_deusd_balance(&distributor) == large_amount / 2);
+    
+    clock::destroy_for_testing(clock);
+    clean_test(ts, admin_cap, deusd_config, distributor, global_config, sdeusd_management);
+}
+
+// === Test Setup Helper Functions ===
+
+fun mint_deusd(deusd_config: &mut DeUSDConfig, to: address, amount: u64, ts: &mut test_scenario::Scenario): coin::Coin<DEUSD> {
+    deusd::mint_for_test(deusd_config, to, amount, ts.ctx())
+}
+
+fun setup_test(): (test_scenario::Scenario, AdminCap, DeUSDConfig, StakingRewardsDistributor, GlobalConfig, SdeUSDManagement) {
+    let mut ts = test_scenario::begin(ADMIN);
+    let (mut global_config, admin_cap) = test_utils::setup_global_config(&mut ts, ADMIN);
+    let deusd_config = test_utils::setup_deusd(&mut ts, ADMIN);
+    let distributor = test_utils::setup_staking_rewards_distributor(&mut ts, ADMIN);
+    let sdeusd_management = test_utils::setup_sdeusd(&mut ts, ADMIN);
+
+    // Grant rewarder role to OPERATOR and NEW_OPERATOR so they can call transfer_in_rewards
+    config::add_role(&admin_cap, &mut global_config, OPERATOR, roles::role_rewarder());
+    config::add_role(&admin_cap, &mut global_config, NEW_OPERATOR, roles::role_rewarder());
+
+    (ts, admin_cap, deusd_config, distributor, global_config, sdeusd_management)
+}
+
+fun clean_test(ts: test_scenario::Scenario, admin_cap: AdminCap, deusd_config: DeUSDConfig, distributor: StakingRewardsDistributor, global_config: GlobalConfig, sdeusd_management: SdeUSDManagement) {
+    test_scenario::return_shared(deusd_config);
     test_scenario::return_shared(distributor);
-    test_scenario::return_shared(management);
-    ts.end();
+    test_scenario::return_shared(global_config);
+    test_scenario::return_shared(sdeusd_management);
+    admin_cap::destroy_for_test(admin_cap);
+    test_scenario::end(ts);
 }
