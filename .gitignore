@@ -2,3 +2,5 @@ build
 .idea
 .vscode
 *.mvcov
+.trace
+node_modules
