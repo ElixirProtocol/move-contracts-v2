@@ -7,6 +7,7 @@ module elixir::sdeusd;
 
 // === Imports ===
 
+use elixir::clock_utils;
 use sui::clock::{Self, Clock};
 use sui::coin::{Self, Coin, TreasuryCap, DenyCapV2};
 use sui::balance::{Self, Balance};
@@ -47,12 +48,12 @@ const EInvalidZeroAddress: u64 = 11;
 
 // === Constants ===
 
-/// The vesting period over which rewards become available to stakers (8 hours in milliseconds)
-const VESTING_PERIOD: u64 = 8 * 3600 * 1000;
+/// The vesting period over which rewards become available to stakers (8 hours in seconds)
+const VESTING_PERIOD: u64 = 8 * 3600;
 /// Minimum non-zero shares amount to prevent donation attack
 const MIN_SHARES: u64 = 1_000_000; // 1 token with 6 decimals
-/// Maximum staking cooldown duration (90 days in milliseconds)
-const MAX_COOLDOWN_DURATION: u64 = 90 * 86400 * 1000;
+/// Maximum staking cooldown duration (90 days in seconds)
+const MAX_COOLDOWN_DURATION: u64 = 90 * 86400;
 
 // === Structs ===
 
@@ -513,7 +514,7 @@ public fun total_assets(management: &SdeUSDManagement, clock: &Clock): u64 {
 
 /// Returns the amount of deUSD tokens that are unvested in the contract.
 public fun get_unvested_amount(management: &SdeUSDManagement, clock: &Clock): u64 {
-    let current_time = clock::timestamp_ms(clock);
+    let current_time = clock_utils::timestamp_seconds(clock);
     let time_since_last_distribution = current_time - management.last_distribution_timestamp;
 
     if (time_since_last_distribution >= VESTING_PERIOD) {
@@ -638,7 +639,7 @@ fun update_vesting_amount(management: &mut SdeUSDManagement, new_vesting_amount:
     assert!(get_unvested_amount(management, clock) == 0, EStillVesting);
 
     management.vesting_amount = new_vesting_amount;
-    management.last_distribution_timestamp = clock::timestamp_ms(clock);
+    management.last_distribution_timestamp = clock_utils::timestamp_seconds(clock);
 }
 
 fun check_min_shares(management: &mut SdeUSDManagement) {
@@ -724,11 +725,11 @@ fun update_user_cooldown(
 ) {
     if (management.cooldowns.contains(user)) {
         let cooldown = management.cooldowns.borrow_mut(user);
-        cooldown.cooldown_end = clock::timestamp_ms(clock) + management.cooldown_duration;
+        cooldown.cooldown_end = clock_utils::timestamp_seconds(clock) + management.cooldown_duration;
         cooldown.underlying_amount = cooldown.underlying_amount + amount;
     } else {
         management.cooldowns.add(user, UserCooldown {
-            cooldown_end: clock::timestamp_ms(clock) + management.cooldown_duration,
+            cooldown_end: clock_utils::timestamp_seconds(clock) + management.cooldown_duration,
             underlying_amount: amount,
         })
     };
