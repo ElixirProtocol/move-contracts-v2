@@ -28,7 +28,7 @@ fun test_initialization() {
     // Test that initial state is correct
     assert!(sdeusd::get_unvested_amount(&management, &clock) == 0);
     assert!(sdeusd::total_supply(&mut management) == 0);
-    assert!(sdeusd::cooldown_duration(&management) == 90 * 86400 * 1000); // 90 days
+    assert!(sdeusd::cooldown_duration(&management) == 90 * 86400); // 90 days
     assert!(sdeusd::total_assets(&management, &clock) == 0);
     
     clock::destroy_for_testing(clock);
@@ -193,7 +193,7 @@ fun test_cooldown_duration_setting() {
     ts.next_tx(ADMIN);
     
     // Set cooldown duration to 7 days
-    let new_duration = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
+    let new_duration = 7 * 24 * 60 * 60; // 7 days in seconds
     sdeusd::set_cooldown_duration(&admin_cap, &mut management, &global_config, new_duration);
     
     // Verify the duration was set
@@ -232,7 +232,7 @@ fun test_transfer_in_rewards_success() {
     let clock = clock::create_for_testing(ts.ctx());
 
     // Mint rewards
-    let rewards_coin = mint_deusd(&mut deusd_config, ALICE, 100_000_000, &mut ts);
+    let rewards_coin = mint_deusd(&mut deusd_config, 100_000_000, &mut ts);
 
     // Transfer rewards
     sdeusd::transfer_in_rewards(
@@ -260,7 +260,7 @@ fun test_transfer_in_rewards_unauthorized_fails() {
     let clock = clock::create_for_testing(ts.ctx());
 
     // Mint rewards
-    let rewards_coin = mint_deusd(&mut deusd_config, ALICE, 100_000_000, &mut ts);
+    let rewards_coin = mint_deusd(&mut deusd_config, 100_000_000, &mut ts);
 
     // Try to transfer rewards without rewarder role
     sdeusd::transfer_in_rewards(
@@ -315,7 +315,7 @@ fun test_transfer_in_rewards_while_vesting_fails() {
     clock::set_for_testing(&mut clock, start_time);
 
     // First rewards transfer
-    let rewards_coin1 = mint_deusd(&mut deusd_config, ADMIN, 100_000_000, &mut ts);
+    let rewards_coin1 = mint_deusd(&mut deusd_config, 100_000_000, &mut ts);
     sdeusd::transfer_in_rewards(
         &mut management,
         &global_config,
@@ -329,7 +329,7 @@ fun test_transfer_in_rewards_while_vesting_fails() {
     clock::set_for_testing(&mut clock, mid_vesting_time);
 
     // Try to transfer more rewards while still vesting - should fail
-    let rewards_coin2 = mint_deusd(&mut deusd_config, ADMIN, 50_000_000, &mut ts);
+    let rewards_coin2 = mint_deusd(&mut deusd_config, 50_000_000, &mut ts);
     sdeusd::transfer_in_rewards(
         &mut management,
         &global_config,
@@ -355,7 +355,7 @@ fun test_transfer_in_rewards_after_vesting_period_succeeds() {
     clock::set_for_testing(&mut clock, start_time);
 
     // First rewards transfer
-    let rewards_coin1 = mint_deusd(&mut deusd_config, ADMIN, 100_000_000, &mut ts);
+    let rewards_coin1 = mint_deusd(&mut deusd_config, 100_000_000, &mut ts);
     sdeusd::transfer_in_rewards(
         &mut management,
         &global_config,
@@ -376,7 +376,7 @@ fun test_transfer_in_rewards_after_vesting_period_succeeds() {
     assert_eq(sdeusd::total_assets(&management, &clock), 100_000_000);
 
     // Second rewards transfer should succeed
-    let rewards_coin2 = mint_deusd(&mut deusd_config, ADMIN, 50_000_000, &mut ts);
+    let rewards_coin2 = mint_deusd(&mut deusd_config, 50_000_000, &mut ts);
     sdeusd::transfer_in_rewards(
         &mut management,
         &global_config,
@@ -406,7 +406,7 @@ fun test_transfer_in_rewards_exactly_at_vesting_end() {
     clock::set_for_testing(&mut clock, start_time);
 
     // First rewards transfer
-    let rewards_coin1 = mint_deusd(&mut deusd_config, ADMIN, 100_000_000, &mut ts);
+    let rewards_coin1 = mint_deusd(&mut deusd_config, 100_000_000, &mut ts);
     sdeusd::transfer_in_rewards(
         &mut management,
         &global_config,
@@ -423,7 +423,7 @@ fun test_transfer_in_rewards_exactly_at_vesting_end() {
     assert_eq(sdeusd::get_unvested_amount(&management, &clock), 0);
 
     // Second rewards transfer should succeed at exact vesting end
-    let rewards_coin2 = mint_deusd(&mut deusd_config, ADMIN, 75_000_000, &mut ts);
+    let rewards_coin2 = mint_deusd(&mut deusd_config, 75_000_000, &mut ts);
     sdeusd::transfer_in_rewards(
         &mut management,
         &global_config,
@@ -452,7 +452,7 @@ fun test_transfer_in_rewards_multiple_cycles() {
     clock::set_for_testing(&mut clock, start_time);
 
     // First cycle: 100 tokens
-    let rewards_coin1 = mint_deusd(&mut deusd_config, ADMIN, 100_000_000, &mut ts);
+    let rewards_coin1 = mint_deusd(&mut deusd_config, 100_000_000, &mut ts);
     sdeusd::transfer_in_rewards(
         &mut management,
         &global_config,
@@ -469,7 +469,7 @@ fun test_transfer_in_rewards_multiple_cycles() {
     clock::set_for_testing(&mut clock, time1);
 
     // Second cycle: 200 tokens
-    let rewards_coin2 = mint_deusd(&mut deusd_config, ADMIN, 200_000_000, &mut ts);
+    let rewards_coin2 = mint_deusd(&mut deusd_config, 200_000_000, &mut ts);
     sdeusd::transfer_in_rewards(
         &mut management,
         &global_config,
@@ -487,7 +487,7 @@ fun test_transfer_in_rewards_multiple_cycles() {
     clock::set_for_testing(&mut clock, time2);
 
     // Third cycle: 50 tokens
-    let rewards_coin3 = mint_deusd(&mut deusd_config, ADMIN, 50_000_000, &mut ts);
+    let rewards_coin3 = mint_deusd(&mut deusd_config, 50_000_000, &mut ts);
     sdeusd::transfer_in_rewards(
         &mut management,
         &global_config,
@@ -520,7 +520,7 @@ fun test_transfer_in_rewards_vesting_state_updates() {
     assert_eq(sdeusd::get_unvested_amount(&management, &clock), 0);
 
     // Transfer rewards
-    let rewards_coin = mint_deusd(&mut deusd_config, ADMIN, 120_000_000, &mut ts);
+    let rewards_coin = mint_deusd(&mut deusd_config, 120_000_000, &mut ts);
     sdeusd::transfer_in_rewards(
         &mut management,
         &global_config,
@@ -565,7 +565,7 @@ fun test_mint_success() {
     let clock = clock::create_for_testing(ts.ctx());
 
     // Mint some deUSD for ALICE to cover the mint cost
-    let mut deusd_coin = mint_deusd(&mut deusd_config, ALICE, 1000_000_000, &mut ts);
+    let mut deusd_coin = mint_deusd(&mut deusd_config, 1000_000_000, &mut ts);
 
     // Mint 1000 shares directly
     let shares = 1000_000_000;
@@ -600,7 +600,7 @@ fun test_mint_zero_shares_fails() {
     ts.next_tx(ALICE);
     let clock = clock::create_for_testing(ts.ctx());
 
-    let mut deusd_coin = mint_deusd(&mut deusd_config, ALICE, 1000_000_000, &mut ts);
+    let mut deusd_coin = mint_deusd(&mut deusd_config, 1000_000_000, &mut ts);
 
     // Try to mint zero shares
     sdeusd::mint(
@@ -660,7 +660,7 @@ fun test_mint_soft_restricted_sender_fails() {
     ts.next_tx(ALICE);
     let clock = clock::create_for_testing(ts.ctx());
 
-    let mut deusd_coin = mint_deusd(&mut deusd_config, ALICE, 1000_000_000, &mut ts);
+    let mut deusd_coin = mint_deusd(&mut deusd_config, 1000_000_000, &mut ts);
 
     // Try to mint as soft restricted user
     sdeusd::mint(
@@ -694,7 +694,7 @@ fun test_mint_soft_restricted_receiver_fails() {
     ts.next_tx(ALICE);
     let clock = clock::create_for_testing(ts.ctx());
 
-    let mut deusd_coin = mint_deusd(&mut deusd_config, ALICE, 1000_000_000, &mut ts);
+    let mut deusd_coin = mint_deusd(&mut deusd_config, 1000_000_000, &mut ts);
 
     // Try to mint to soft restricted receiver
     sdeusd::mint(
@@ -720,7 +720,7 @@ fun test_mint_with_different_receiver() {
     ts.next_tx(ALICE);
     let clock = clock::create_for_testing(ts.ctx());
 
-    let mut deusd_coin = mint_deusd(&mut deusd_config, ALICE, 1000_000_000, &mut ts);
+    let mut deusd_coin = mint_deusd(&mut deusd_config, 1000_000_000, &mut ts);
     let initial_balance = deusd_coin.value();
 
     // Alice mints shares for BOB
@@ -760,7 +760,7 @@ fun test_mint_insufficient_assets_fails() {
     let clock = clock::create_for_testing(ts.ctx());
 
     // Create coin with small amount
-    let mut deusd_coin = mint_deusd(&mut deusd_config, ALICE, 100_000_000, &mut ts); // 100 tokens
+    let mut deusd_coin = mint_deusd(&mut deusd_config, 100_000_000, &mut ts); // 100 tokens
 
     // Try to mint more shares than assets available
     // This should fail when trying to split more than available
@@ -792,7 +792,7 @@ fun test_mint_with_existing_supply_and_rewards() {
 
     // First, make an initial deposit to establish supply
     ts.next_tx(ALICE);
-    let initial_deposit = mint_deusd(&mut deusd_config, ALICE, 1000_000_000, &mut ts);
+    let initial_deposit = mint_deusd(&mut deusd_config, 1000_000_000, &mut ts);
     sdeusd::deposit(
         &mut management,
         &global_config,
@@ -804,7 +804,7 @@ fun test_mint_with_existing_supply_and_rewards() {
 
     // Add rewards to change the ratio
     ts.next_tx(ADMIN);
-    let rewards = mint_deusd(&mut deusd_config, ADMIN, 100_000_000, &mut ts); // 100 deUSD rewards
+    let rewards = mint_deusd(&mut deusd_config, 100_000_000, &mut ts); // 100 deUSD rewards
     sdeusd::transfer_in_rewards(
         &mut management,
         &global_config,
@@ -815,7 +815,7 @@ fun test_mint_with_existing_supply_and_rewards() {
 
     // Now BOB mints shares when ratio is not 1:1
     ts.next_tx(BOB);
-    let mut deusd_coin = mint_deusd(&mut deusd_config, BOB, 1100_000_000, &mut ts);
+    let mut deusd_coin = mint_deusd(&mut deusd_config, 1100_000_000, &mut ts);
     let assets_before = deusd_coin.value();
 
     let shares_to_mint = 500_000_000; // 500 shares
@@ -861,7 +861,7 @@ fun test_deposit_success() {
     let clock = clock::create_for_testing(ts.ctx());
 
     // Mint some deUSD for ALICE
-    let deusd_coin = mint_deusd(&mut deusd_config, ALICE, 1000_000_000, &mut ts);
+    let deusd_coin = mint_deusd(&mut deusd_config, 1000_000_000, &mut ts);
 
     ts.next_tx(ALICE);
     // Deposit deUSD tokens
@@ -925,7 +925,7 @@ fun test_deposit_soft_restricted_caller_fails() {
     let clock = clock::create_for_testing(ts.ctx());
 
     // Mint deUSD for restricted user
-    let deusd_coin = mint_deusd(&mut deusd_config, ALICE, 1000_000_000, &mut ts);
+    let deusd_coin = mint_deusd(&mut deusd_config, 1000_000_000, &mut ts);
 
     // Try to deposit as soft restricted user
     sdeusd::deposit(
@@ -958,7 +958,7 @@ fun test_deposit_soft_restricted_receiver_fails() {
     let clock = clock::create_for_testing(ts.ctx());
 
     // Mint deUSD for normal user
-    let deusd_coin = mint_deusd(&mut deusd_config, ALICE, 1000_000_000, &mut ts);
+    let deusd_coin = mint_deusd(&mut deusd_config, 1000_000_000, &mut ts);
 
     // Try to deposit to soft restricted receiver
     sdeusd::deposit(
@@ -985,7 +985,7 @@ fun test_deposit_with_receiver_different_from_sender() {
     let clock = clock::create_for_testing(ts.ctx());
 
     // Alice deposits but sends shares to Bob
-    let deusd_coin = mint_deusd(&mut deusd_config, ALICE, 1000_000_000, &mut ts);
+    let deusd_coin = mint_deusd(&mut deusd_config, 1000_000_000, &mut ts);
     sdeusd::deposit(
         &mut management,
         &global_config,
@@ -1025,7 +1025,7 @@ fun test_withdraw_success_when_no_cooldown() {
     let clock = clock::create_for_testing(ts.ctx());
 
     // First deposit
-    let deusd_coin = mint_deusd(&mut deusd_config, ALICE, 1000_000_000, &mut ts);
+    let deusd_coin = mint_deusd(&mut deusd_config, 1000_000_000, &mut ts);
     sdeusd::deposit(
         &mut management,
         &global_config,
@@ -1073,7 +1073,7 @@ fun test_withdraw_fails_when_cooldown_active() {
     let clock = clock::create_for_testing(ts.ctx());
 
     // First deposit
-    let deusd_coin = mint_deusd(&mut deusd_config, ALICE, 1000_000_000, &mut ts);
+    let deusd_coin = mint_deusd(&mut deusd_config, 1000_000_000, &mut ts);
     sdeusd::deposit(
         &mut management,
         &global_config,
@@ -1117,7 +1117,7 @@ fun test_withdraw_zero_assets_fails() {
     let clock = clock::create_for_testing(ts.ctx());
 
     // First deposit
-    let deusd_coin = mint_deusd(&mut deusd_config, ALICE, 1000_000_000, &mut ts);
+    let deusd_coin = mint_deusd(&mut deusd_config, 1000_000_000, &mut ts);
     sdeusd::deposit(
         &mut management,
         &global_config,
@@ -1165,7 +1165,7 @@ fun test_withdraw_sender_full_restricted_fails() {
     let clock = clock::create_for_testing(ts.ctx());
 
     // First deposit (before restriction - this should work)
-    let deusd_coin = mint_deusd(&mut deusd_config, ALICE, 1000_000_000, &mut ts);
+    let deusd_coin = mint_deusd(&mut deusd_config, 1000_000_000, &mut ts);
     sdeusd::deposit(
         &mut management,
         &global_config,
@@ -1222,7 +1222,7 @@ fun test_withdraw_receiver_full_restricted_fails() {
     let clock = clock::create_for_testing(ts.ctx());
 
     // First deposit
-    let deusd_coin = mint_deusd(&mut deusd_config, ALICE, 1000_000_000, &mut ts);
+    let deusd_coin = mint_deusd(&mut deusd_config, 1000_000_000, &mut ts);
     sdeusd::deposit(
         &mut management,
         &global_config,
@@ -1274,7 +1274,7 @@ fun test_withdraw_owner_full_restricted_fails() {
     let clock = clock::create_for_testing(ts.ctx());
 
     // First deposit
-    let deusd_coin = mint_deusd(&mut deusd_config, ALICE, 1000_000_000, &mut ts);
+    let deusd_coin = mint_deusd(&mut deusd_config, 1000_000_000, &mut ts);
     sdeusd::deposit(
         &mut management,
         &global_config,
@@ -1318,7 +1318,7 @@ fun test_withdraw_with_different_receiver_and_owner() {
     let clock = clock::create_for_testing(ts.ctx());
 
     // First deposit
-    let deusd_coin = mint_deusd(&mut deusd_config, ALICE, 1000_000_000, &mut ts);
+    let deusd_coin = mint_deusd(&mut deusd_config, 1000_000_000, &mut ts);
     sdeusd::deposit(
         &mut management,
         &global_config,
@@ -1371,7 +1371,7 @@ fun test_withdraw_partial_amount() {
 
     // Large deposit
     let initial_deposit = 10000_000_000; // 10,000 deUSD
-    let deusd_coin = mint_deusd(&mut deusd_config, ALICE, initial_deposit, &mut ts);
+    let deusd_coin = mint_deusd(&mut deusd_config, initial_deposit, &mut ts);
     sdeusd::deposit(
         &mut management,
         &global_config,
@@ -1447,7 +1447,7 @@ fun test_withdraw_with_rewards_affects_ratio() {
 
     // Initial deposit
     let initial_deposit = 1000_000_000; // 1,000 deUSD
-    let deusd_coin = mint_deusd(&mut deusd_config, ALICE, initial_deposit, &mut ts);
+    let deusd_coin = mint_deusd(&mut deusd_config, initial_deposit, &mut ts);
     sdeusd::deposit(
         &mut management,
         &global_config,
@@ -1462,7 +1462,7 @@ fun test_withdraw_with_rewards_affects_ratio() {
     
     // Add rewards to change the ratio
     ts.next_tx(ADMIN);
-    let rewards_coin = mint_deusd(&mut deusd_config, ADMIN, 100_000_000, &mut ts); // 100 deUSD rewards
+    let rewards_coin = mint_deusd(&mut deusd_config, 100_000_000, &mut ts); // 100 deUSD rewards
     sdeusd::transfer_in_rewards(
         &mut management,
         &global_config,
@@ -1520,7 +1520,7 @@ fun test_redeem_success_when_no_cooldown() {
 
     // First deposit to get shares
     let deposit_amount = 1000_000_000; // 1,000 deUSD
-    let deusd_coin = mint_deusd(&mut deusd_config, ALICE, deposit_amount, &mut ts);
+    let deusd_coin = mint_deusd(&mut deusd_config, deposit_amount, &mut ts);
     sdeusd::deposit(
         &mut management,
         &global_config,
@@ -1570,7 +1570,7 @@ fun test_redeem_fails_when_cooldown_active() {
 
     // First deposit to get shares
     let deposit_amount = 1000_000_000; // 1,000 deUSD
-    let deusd_coin = mint_deusd(&mut deusd_config, ALICE, deposit_amount, &mut ts);
+    let deusd_coin = mint_deusd(&mut deusd_config, deposit_amount, &mut ts);
     sdeusd::deposit(
         &mut management,
         &global_config,
@@ -1601,7 +1601,7 @@ fun test_redeem_fails_when_cooldown_active_actual() {
     let clock = clock::create_for_testing(ts.ctx());
 
     let deposit_amount = 1000_000_000;
-    let deusd_coin = mint_deusd(&mut deusd_config, ALICE, deposit_amount, &mut ts);
+    let deusd_coin = mint_deusd(&mut deusd_config, deposit_amount, &mut ts);
     sdeusd::deposit(
         &mut management,
         &global_config,
@@ -1642,7 +1642,7 @@ fun test_redeem_with_different_receiver_and_owner() {
 
     // Alice deposits
     let deposit_amount = 1000_000_000; // 1,000 deUSD
-    let deusd_coin = mint_deusd(&mut deusd_config, ALICE, deposit_amount, &mut ts);
+    let deusd_coin = mint_deusd(&mut deusd_config, deposit_amount, &mut ts);
     sdeusd::deposit(
         &mut management,
         &global_config,
@@ -1691,7 +1691,7 @@ fun test_redeem_zero_shares_fails() {
     let clock = clock::create_for_testing(ts.ctx());
 
     let deposit_amount = 1000_000_000;
-    let deusd_coin = mint_deusd(&mut deusd_config, ALICE, deposit_amount, &mut ts);
+    let deusd_coin = mint_deusd(&mut deusd_config, deposit_amount, &mut ts);
     sdeusd::deposit(
         &mut management,
         &global_config,
@@ -1740,7 +1740,7 @@ fun test_redeem_sender_full_restricted_fails() {
 
     // Alice deposits first (before being blacklisted)
     let deposit_amount = 1000_000_000;
-    let deusd_coin = mint_deusd(&mut deusd_config, ALICE, deposit_amount, &mut ts);
+    let deusd_coin = mint_deusd(&mut deusd_config, deposit_amount, &mut ts);
     sdeusd::deposit(
         &mut management,
         &global_config,
@@ -1794,7 +1794,7 @@ fun test_redeem_receiver_full_restricted_fails() {
     let clock = clock::create_for_testing(ts.ctx());
 
     let deposit_amount = 1000_000_000;
-    let deusd_coin = mint_deusd(&mut deusd_config, ALICE, deposit_amount, &mut ts);
+    let deusd_coin = mint_deusd(&mut deusd_config, deposit_amount, &mut ts);
     sdeusd::deposit(
         &mut management,
         &global_config,
@@ -1848,7 +1848,7 @@ fun test_redeem_owner_full_restricted_fails() {
     let clock = clock::create_for_testing(ts.ctx());
 
     let deposit_amount = 1000_000_000;
-    let deusd_coin = mint_deusd(&mut deusd_config, ALICE, deposit_amount, &mut ts);
+    let deusd_coin = mint_deusd(&mut deusd_config, deposit_amount, &mut ts);
     sdeusd::deposit(
         &mut management,
         &global_config,
@@ -1902,7 +1902,7 @@ fun test_redeem_with_rewards_affects_ratio() {
 
     // Initial deposit
     let initial_deposit = 1000_000_000; // 1,000 deUSD
-    let deusd_coin = mint_deusd(&mut deusd_config, ALICE, initial_deposit, &mut ts);
+    let deusd_coin = mint_deusd(&mut deusd_config, initial_deposit, &mut ts);
     sdeusd::deposit(
         &mut management,
         &global_config,
@@ -1917,7 +1917,7 @@ fun test_redeem_with_rewards_affects_ratio() {
     
     // Add rewards to change the ratio
     ts.next_tx(ADMIN);
-    let rewards_coin = mint_deusd(&mut deusd_config, ADMIN, 100_000_000, &mut ts); // 100 deUSD rewards
+    let rewards_coin = mint_deusd(&mut deusd_config, 100_000_000, &mut ts); // 100 deUSD rewards
     sdeusd::transfer_in_rewards(
         &mut management,
         &global_config,
@@ -1971,7 +1971,7 @@ fun test_vesting_mechanism() {
     clock::set_for_testing(&mut clock, start_time);
 
     // Transfer rewards
-    let rewards_coin = mint_deusd(&mut deusd_config, ADMIN, 100_000_000, &mut ts);
+    let rewards_coin = mint_deusd(&mut deusd_config, 100_000_000, &mut ts);
     sdeusd::transfer_in_rewards(
         &mut management,
         &global_config,
@@ -2017,7 +2017,7 @@ fun test_cooldown_assets_success() {
 
     ts.next_tx(ALICE);
     // First deposit to get shares
-    let deusd_coin = mint_deusd(&mut deusd_config, ALICE, 1000_000_000, &mut ts);
+    let deusd_coin = mint_deusd(&mut deusd_config, 1000_000_000, &mut ts);
     sdeusd::deposit(
         &mut management,
         &global_config,
@@ -2068,7 +2068,7 @@ fun test_cooldown_assets_zero_cooldown_fails() {
 
     ts.next_tx(ALICE);
     // First deposit
-    let deusd_coin = mint_deusd(&mut deusd_config, ALICE, 1000_000_000, &mut ts);
+    let deusd_coin = mint_deusd(&mut deusd_config, 1000_000_000, &mut ts);
     sdeusd::deposit(
         &mut management,
         &global_config,
@@ -2108,7 +2108,7 @@ fun test_unstake_success() {
 
     ts.next_tx(ALICE);
     // First deposit
-    let deusd_coin = mint_deusd(&mut deusd_config, ALICE, 1000_000_000, &mut ts);
+    let deusd_coin = mint_deusd(&mut deusd_config, 1000_000_000, &mut ts);
     sdeusd::deposit(
         &mut management,
         &global_config,
@@ -2171,7 +2171,7 @@ fun test_unstake_before_cooldown_end_fails() {
     let clock = clock::create_for_testing(ts.ctx());
 
     // First deposit and start cooldown
-    let deusd_coin = mint_deusd(&mut deusd_config, ALICE, 1000_000_000, &mut ts);
+    let deusd_coin = mint_deusd(&mut deusd_config, 1000_000_000, &mut ts);
     sdeusd::deposit(
         &mut management,
         &global_config,
@@ -2237,7 +2237,7 @@ fun test_unstake_with_zero_cooldown_duration() {
 
     ts.next_tx(ALICE);
     // First deposit
-    let deusd_coin = mint_deusd(&mut deusd_config, ALICE, 1000_000_000, &mut ts);
+    let deusd_coin = mint_deusd(&mut deusd_config, 1000_000_000, &mut ts);
     sdeusd::deposit(
         &mut management,
         &global_config,
@@ -2299,7 +2299,7 @@ fun test_unstake_exact_cooldown_end_time() {
 
     ts.next_tx(ALICE);
     // First deposit
-    let deusd_coin = mint_deusd(&mut deusd_config, ALICE, 1000_000_000, &mut ts);
+    let deusd_coin = mint_deusd(&mut deusd_config, 1000_000_000, &mut ts);
     sdeusd::deposit(
         &mut management,
         &global_config,
@@ -2358,7 +2358,7 @@ fun test_unstake_multiple_times_same_user() {
 
     ts.next_tx(ALICE);
     // First deposit
-    let deusd_coin = mint_deusd(&mut deusd_config, ALICE, 1000_000_000, &mut ts);
+    let deusd_coin = mint_deusd(&mut deusd_config, 1000_000_000, &mut ts);
     sdeusd::deposit(
         &mut management,
         &global_config,
@@ -2452,7 +2452,7 @@ fun test_unstake_with_different_receiver() {
     ts.next_tx(ALICE);
     // Regular deposit
     let deposit_amount = 1000_000_000; // 1000 deUSD with 9 decimals
-    let deusd_coin = mint_deusd(&mut deusd_config, ALICE, deposit_amount, &mut ts);
+    let deusd_coin = mint_deusd(&mut deusd_config, deposit_amount, &mut ts);
     sdeusd::deposit(
         &mut management,
         &global_config,
@@ -2524,7 +2524,7 @@ fun test_preview_functions() {
     assert_eq(expected_assets, assets);
 
     // Make a deposit to change the ratio
-    let deusd_coin = mint_deusd(&mut deusd_config, ALICE, assets, &mut ts);
+    let deusd_coin = mint_deusd(&mut deusd_config, assets, &mut ts);
     sdeusd::deposit(
         &mut management,
         &global_config,
@@ -2565,7 +2565,7 @@ fun test_full_staking_flow() {
 
     // 1. Alice deposits 1000 deUSD
     let initial_deposit = 1000_000_000;
-    let deusd_coin = mint_deusd(&mut deusd_config, ALICE, initial_deposit, &mut ts);
+    let deusd_coin = mint_deusd(&mut deusd_config, initial_deposit, &mut ts);
     sdeusd::deposit(
         &mut management,
         &global_config,
@@ -2582,7 +2582,7 @@ fun test_full_staking_flow() {
     // 2. Admin adds rewards
     ts.next_tx(ADMIN);
     let rewards = 100_000_000; // 100 deUSD rewards
-    let rewards_coin = mint_deusd(&mut deusd_config, ADMIN, rewards, &mut ts);
+    let rewards_coin = mint_deusd(&mut deusd_config, rewards, &mut ts);
     sdeusd::transfer_in_rewards(
         &mut management,
         &global_config,
@@ -2647,7 +2647,7 @@ fun test_cooldown_assets_excessive_amount_fails() {
 
     ts.next_tx(ALICE);
     // First deposit to get shares
-    let deusd_coin = mint_deusd(&mut deusd_config, ALICE, 1000_000_000, &mut ts);
+    let deusd_coin = mint_deusd(&mut deusd_config, 1000_000_000, &mut ts);
     sdeusd::deposit(
         &mut management,
         &global_config,
@@ -2692,7 +2692,7 @@ fun test_cooldown_assets_full_restricted_user_fails() {
 
     // First deposit before restriction
     ts.next_tx(ALICE);
-    let deusd_coin = mint_deusd(&mut deusd_config, ALICE, 1000_000_000, &mut ts);
+    let deusd_coin = mint_deusd(&mut deusd_config, 1000_000_000, &mut ts);
     sdeusd::deposit(
         &mut management,
         &global_config,
@@ -2735,7 +2735,7 @@ fun test_cooldown_assets_zero_amount_fails() {
 
     ts.next_tx(ALICE);
     // First deposit to get shares
-    let deusd_coin = mint_deusd(&mut deusd_config, ALICE, 1000_000_000, &mut ts);
+    let deusd_coin = mint_deusd(&mut deusd_config, 1000_000_000, &mut ts);
     sdeusd::deposit(
         &mut management,
         &global_config,
@@ -2772,7 +2772,7 @@ fun test_cooldown_assets_multiple_accumulate() {
 
     ts.next_tx(ALICE);
     // First deposit to get shares
-    let deusd_coin = mint_deusd(&mut deusd_config, ALICE, 1000_000_000, &mut ts);
+    let deusd_coin = mint_deusd(&mut deusd_config, 1000_000_000, &mut ts);
     sdeusd::deposit(
         &mut management,
         &global_config,
@@ -2827,7 +2827,7 @@ fun test_cooldown_shares_success() {
     let clock = clock::create_for_testing(ts.ctx());
 
     // First deposit
-    let deusd_coin = mint_deusd(&mut deusd_config, ALICE, 1000_000_000, &mut ts);
+    let deusd_coin = mint_deusd(&mut deusd_config, 1000_000_000, &mut ts);
     sdeusd::deposit(
         &mut management,
         &global_config,
@@ -2878,7 +2878,7 @@ fun test_cooldown_shares_zero_cooldown_fails() {
 
     ts.next_tx(ALICE);
     // First deposit
-    let deusd_coin = mint_deusd(&mut deusd_config, ALICE, 1000_000_000, &mut ts);
+    let deusd_coin = mint_deusd(&mut deusd_config, 1000_000_000, &mut ts);
     sdeusd::deposit(
         &mut management,
         &global_config,
@@ -2920,7 +2920,7 @@ fun test_cooldown_shares_full_restricted_user_fails() {
 
     // First deposit before restriction
     ts.next_tx(ALICE);
-    let deusd_coin = mint_deusd(&mut deusd_config, ALICE, 1000_000_000, &mut ts);
+    let deusd_coin = mint_deusd(&mut deusd_config, 1000_000_000, &mut ts);
     sdeusd::deposit(
         &mut management,
         &global_config,
@@ -2961,7 +2961,7 @@ fun test_cooldown_shares_zero_shares_fails() {
     let clock = clock::create_for_testing(ts.ctx());
 
     // First deposit
-    let deusd_coin = mint_deusd(&mut deusd_config, ALICE, 1000_000_000, &mut ts);
+    let deusd_coin = mint_deusd(&mut deusd_config, 1000_000_000, &mut ts);
     sdeusd::deposit(
         &mut management,
         &global_config,
@@ -2997,7 +2997,7 @@ fun test_cooldown_shares_multiple_accumulate() {
     let clock = clock::create_for_testing(ts.ctx());
 
     // First deposit
-    let deusd_coin = mint_deusd(&mut deusd_config, ALICE, 1000_000_000, &mut ts);
+    let deusd_coin = mint_deusd(&mut deusd_config, 1000_000_000, &mut ts);
     sdeusd::deposit(
         &mut management,
         &global_config,
@@ -3057,7 +3057,7 @@ fun test_cooldown_shares_with_changed_ratio() {
 
     // First deposit
     ts.next_tx(ALICE);
-    let deusd_coin = mint_deusd(&mut deusd_config, ALICE, 1000_000_000, &mut ts);
+    let deusd_coin = mint_deusd(&mut deusd_config, 1000_000_000, &mut ts);
     sdeusd::deposit(
         &mut management,
         &global_config,
@@ -3069,7 +3069,7 @@ fun test_cooldown_shares_with_changed_ratio() {
 
     // Add rewards to change the share-to-asset ratio
     ts.next_tx(ADMIN);
-    let rewards = mint_deusd(&mut deusd_config, ADMIN, 100_000_000, &mut ts); // 100 deUSD rewards
+    let rewards = mint_deusd(&mut deusd_config, 100_000_000, &mut ts); // 100 deUSD rewards
     sdeusd::transfer_in_rewards(
         &mut management,
         &global_config,
@@ -3120,7 +3120,7 @@ fun test_multiple_users_deposit_and_rewards() {
     // ALICE deposits 1000 tokens
     ts.next_tx(ALICE);
     let alice_deposit = 1000_000_000;
-    let deusd_coin = mint_deusd(&mut deusd_config, ALICE, alice_deposit, &mut ts);
+    let deusd_coin = mint_deusd(&mut deusd_config, alice_deposit, &mut ts);
     sdeusd::deposit(
         &mut management,
         &global_config,
@@ -3137,7 +3137,7 @@ fun test_multiple_users_deposit_and_rewards() {
     // BOB deposits 500 tokens
     ts.next_tx(BOB);
     let bob_deposit = 500_000_000;
-    let deusd_coin = mint_deusd(&mut deusd_config, BOB, bob_deposit, &mut ts);
+    let deusd_coin = mint_deusd(&mut deusd_config, bob_deposit, &mut ts);
     sdeusd::deposit(
         &mut management,
         &global_config,
@@ -3154,7 +3154,7 @@ fun test_multiple_users_deposit_and_rewards() {
     // Admin adds rewards
     ts.next_tx(ADMIN);
     let rewards = 100_000_000;
-    let rewards_coin = mint_deusd(&mut deusd_config, ADMIN, rewards, &mut ts);
+    let rewards_coin = mint_deusd(&mut deusd_config, rewards, &mut ts);
     sdeusd::transfer_in_rewards(
         &mut management,
         &global_config,
@@ -3185,7 +3185,7 @@ fun test_deposit_with_existing_rewards_share_calculation() {
 
     // ALICE deposits first
     ts.next_tx(ALICE);
-    let deusd_coin = mint_deusd(&mut deusd_config, ALICE, 1000_000_000, &mut ts);
+    let deusd_coin = mint_deusd(&mut deusd_config, 1000_000_000, &mut ts);
     sdeusd::deposit(
         &mut management,
         &global_config,
@@ -3202,7 +3202,7 @@ fun test_deposit_with_existing_rewards_share_calculation() {
     // Admin adds rewards and waits for vesting
     ts.next_tx(ADMIN);
     let rewards = 100_000_000;
-    let rewards_coin = mint_deusd(&mut deusd_config, ADMIN, rewards, &mut ts);
+    let rewards_coin = mint_deusd(&mut deusd_config, rewards, &mut ts);
     sdeusd::transfer_in_rewards(
         &mut management,
         &global_config,
@@ -3219,7 +3219,7 @@ fun test_deposit_with_existing_rewards_share_calculation() {
     // BOB deposits 550 assets, should get (550 * 1000) / 1100 = 500 shares
     ts.next_tx(BOB);
     let bob_deposit = 500_000_000 + 50_000_000; // 550
-    let deusd_coin = mint_deusd(&mut deusd_config, BOB, bob_deposit, &mut ts);
+    let deusd_coin = mint_deusd(&mut deusd_config, bob_deposit, &mut ts);
     sdeusd::deposit(
         &mut management,
         &global_config,
@@ -3251,7 +3251,7 @@ fun test_deposit_meets_min_shares_requirement() {
 
     // Deposit exactly the minimum amount
     let min_deposit = 1_000_000; // 1 token
-    let deusd_coin = mint_deusd(&mut deusd_config, ALICE, min_deposit, &mut ts);
+    let deusd_coin = mint_deusd(&mut deusd_config, min_deposit, &mut ts);
     sdeusd::deposit(
         &mut management,
         &global_config,
@@ -3287,7 +3287,7 @@ fun test_preview_withdraw_and_redeem_accuracy() {
 
     // ALICE deposits first
     ts.next_tx(ALICE);
-    let deusd_coin = mint_deusd(&mut deusd_config, ALICE, 1000_000_000, &mut ts);
+    let deusd_coin = mint_deusd(&mut deusd_config, 1000_000_000, &mut ts);
     sdeusd::deposit(
         &mut management,
         &global_config,
@@ -3311,7 +3311,7 @@ fun test_preview_withdraw_and_redeem_accuracy() {
     // Add rewards to change the share price
     ts.next_tx(ADMIN);
     let rewards = 100_000_000;
-    let rewards_coin = mint_deusd(&mut deusd_config, ADMIN, rewards, &mut ts);
+    let rewards_coin = mint_deusd(&mut deusd_config, rewards, &mut ts);
     sdeusd::transfer_in_rewards(
         &mut management,
         &global_config,
@@ -3355,7 +3355,7 @@ fun test_multiple_reward_distributions() {
 
     // ALICE deposits first
     ts.next_tx(ALICE);
-    let deusd_coin = mint_deusd(&mut deusd_config, ALICE, 1000_000_000, &mut ts);
+    let deusd_coin = mint_deusd(&mut deusd_config, 1000_000_000, &mut ts);
     sdeusd::deposit(
         &mut management,
         &global_config,
@@ -3372,7 +3372,7 @@ fun test_multiple_reward_distributions() {
     // First reward distribution
     ts.next_tx(ADMIN);
     let rewards1 = 100_000_000;
-    let rewards_coin1 = mint_deusd(&mut deusd_config, ADMIN, rewards1, &mut ts);
+    let rewards_coin1 = mint_deusd(&mut deusd_config, rewards1, &mut ts);
     sdeusd::transfer_in_rewards(
         &mut management,
         &global_config,
@@ -3394,7 +3394,7 @@ fun test_multiple_reward_distributions() {
 
     // Now add second reward distribution
     let rewards2 = 50_000_000;
-    let rewards_coin2 = mint_deusd(&mut deusd_config, ADMIN, rewards2, &mut ts);
+    let rewards_coin2 = mint_deusd(&mut deusd_config, rewards2, &mut ts);
     sdeusd::transfer_in_rewards(
         &mut management,
         &global_config,
@@ -3436,6 +3436,6 @@ public fun clean_test(
     ts.end();
 }
 
-fun mint_deusd(deusd_config: &mut DeUSDConfig, _to: address, amount: u64, ts: &mut test_scenario::Scenario): coin::Coin<DEUSD> {
-    deusd::mint_for_test(deusd_config, ADMIN, amount, ts.ctx())
+fun mint_deusd(deusd_config: &mut DeUSDConfig, amount: u64, ts: &mut test_scenario::Scenario): coin::Coin<DEUSD> {
+    deusd::mint_for_test(deusd_config, amount, ts.ctx())
 }

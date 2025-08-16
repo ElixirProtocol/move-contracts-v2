@@ -92,6 +92,10 @@ public fun burn(
     coin::burn(&mut config.treasury_cap, coin);
 }
 
+public fun supply(config: &mut DeUSDConfig): u64 {
+    config.treasury_cap.supply().supply_value()
+}
+
 // === Tests ===
 
 #[test_only]
@@ -102,12 +106,8 @@ public fun init_for_test(ctx: &mut TxContext) {
 #[test_only]
 public fun mint_for_test(
     config: &mut DeUSDConfig,
-    to: address,
     amount: u64,
     ctx: &mut TxContext,
 ): Coin<DEUSD> {
-    assert!(to != @0x0, EZeroAddress);
-    assert!(amount > 0, EZeroAmount);
-
     coin::mint(&mut config.treasury_cap, amount, ctx)
 }

@@ -22,6 +22,7 @@ use elixir::config::{Self, GlobalConfig};
 use elixir::cryptography;
 use elixir::deusd::{Self, DEUSD, DeUSDConfig};
 use elixir::math_u64;
+use elixir::locked_funds::{Self, LockedFundsManagement};
 use elixir::roles;
 use elixir::set::{Self, Set};
 
@@ -49,12 +50,14 @@ const EUnsupportedAsset: u64 = 8;
 const EInvalidCustodianAddress: u64 = 9;
 /// Invalid nonce.
 const EInvalidNonce: u64 = 10;
-/// Delegation not initiated.
-const EDelegationNotInitiated: u64 = 11;
 /// Not authorized.
-const ENotAuthorized: u64 = 12;
+const ENotAuthorized: u64 = 11;
 /// Invalid signature.
-const EInvalidSignature: u64 = 13;
+const EInvalidSignature: u64 = 12;
+/// Invalid signer.
+const EInvalidSigner: u64 = 13;
+/// Not enough amount for the operation.
+const ENotEnoughAmount: u64 = 14;
 
 // === Constants ===
 
@@ -63,11 +66,6 @@ const ORDER_TYPE_REDEEM: u8 = 1;
 
 /// Required ratio for route (10000 = 100%)
 const ROUTE_REQUIRED_RATIO: u64 = 10_000;
-
-const DELEGATED_SIGNER_STATUS_NO_STATUS: u8 = 0;
-const DELEGATED_SIGNER_STATUS_PENDING: u8 = 1;
-const DELEGATED_SIGNER_STATUS_ACCEPTED: u8 = 2;
-const DELEGATED_SIGNER_STATUS_REJECTED: u8 = 3;
 
 // === Structs ===
 
@@ -84,8 +82,6 @@ public struct DeUSDMintingManagement has key {
     minted_per_second: Table<u64, u64>,
     /// deUSD redeemed per second
     redeemed_per_second: Table<u64, u64>,
-    /// Delegated signers mapping
-    delegated_signers: Table<address, Table<address, u8>>,
     /// Max mint per second
     max_mint_per_second: u64,
     /// Max redeem per second
@@ -141,25 +137,22 @@ public struct MaxRedeemPerBlockChanged has copy, drop, store {
     new_max: u64,
 }
 
-public struct DelegatedSignerInitiated has copy, drop, store {
-    signer: address,
-    delegator: address,
-}
-
-public struct DelegatedSignerAdded has copy, drop, store {
-    signer: address,
-    delegator: address,
-}
-
-public struct DelegatedSignerRemoved has copy, drop, store {
-    signer: address,
-    delegator: address,
-}
-
 public struct CustodyTransfer has copy, drop, store {
     wallet: address,
     asset: TypeName,
     amount: u64,
+}
+
+public struct Deposit has copy, drop, store {
+    depositor: address,
+    asset: TypeName,
+    amount: u64,
+}
+
+public struct Withdraw has copy, drop, store {
+    asset: TypeName,
+    amount: u64,
+    recipient: address,
 }
 
 // === Initialization ===
@@ -173,7 +166,6 @@ fun init(ctx: &mut TxContext) {
         order_bitmaps: table::new(ctx),
         minted_per_second: table::new(ctx),
         redeemed_per_second: table::new(ctx),
-        delegated_signers: table::new(ctx),
         max_mint_per_second: 0,
         max_redeem_per_second: 0,
         initialized: false,
@@ -211,13 +203,14 @@ public fun initialize(
 /// Mint deUSDs from assets
 public fun mint<T>(
     management: &mut DeUSDMintingManagement,
+    locked_funds_management: &mut LockedFundsManagement,
     deusd_management: &mut DeUSDConfig,
     global_config: &GlobalConfig,
     expiry: u64,
     nonce: u64,
     benefactor: address,
     beneficiary: address,
-    collateral: Coin<T>,
+    collateral_amount: u64,
     deusd_amount: u64,
     // Route parameters
     route_addresses: vector<address>,
@@ -228,13 +221,9 @@ public fun mint<T>(
     ctx: &mut TxContext,
 ) {
     assert_package_version_and_initialized(management, global_config);
-
     assert_is_minter(global_config, ctx);
 
-    let collateral_amount = collateral.value();
-
     verify_order<T>(
-        management,
         ORDER_TYPE_MINT,
         expiry,
         nonce,
@@ -258,7 +247,8 @@ public fun mint<T>(
     // Update minted amount for this second
     update_minted_per_second(management, now_seconds, deusd_amount);
 
-    transfer_collateral(management, collateral, benefactor, route_addresses, route_ratios, ctx);
+    let collateral = locked_funds::withdraw_internal<T>(locked_funds_management, benefactor, collateral_amount, ctx);
+    transfer_collateral(management, collateral, route_addresses, route_ratios, ctx);
 
     deusd::mint(deusd_management, beneficiary, deusd_amount, global_config, ctx);
 
@@ -272,9 +262,10 @@ public fun mint<T>(
     });
 }
 
-/// Redeem deUSD for collateral assets with individual order parameters
+/// Redeem deUSD for collateral assets
 public fun redeem<T>(
     management: &mut DeUSDMintingManagement,
+    locked_funds_management: &mut LockedFundsManagement,
     deusd_config: &mut DeUSDConfig,
     global_config: &GlobalConfig,
     // Order parameters
@@ -283,20 +274,16 @@ public fun redeem<T>(
     benefactor: address,
     beneficiary: address,
     collateral_amount: u64,
-    deusd_coins: Coin<DEUSD>,
+    deusd_amount: u64,
     public_key: vector<u8>,
     signature: vector<u8>,
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
     assert_package_version_and_initialized(management, global_config);
-
     assert_is_redeemer(global_config, ctx);
 
-    let deusd_amount = deusd_coins.value();
-
     verify_order<T>(
-        management,
         ORDER_TYPE_REDEEM,
         expiry,
         nonce,
@@ -318,6 +305,7 @@ public fun redeem<T>(
 
     update_redeemed_per_second(management, now_seconds, deusd_amount);
 
+    let deusd_coins = locked_funds::withdraw_internal<DEUSD>(locked_funds_management, benefactor, deusd_amount, ctx);
     deusd::burn(deusd_config, deusd_coins, global_config, ctx);
 
     transfer_to_beneficiary<T>(management, beneficiary, collateral_amount, ctx);
@@ -419,8 +407,8 @@ public fun disable_mint_redeem(
     assert_package_version_and_initialized(management, global_config);
     assert_is_gatekeeper(global_config, ctx);
 
-    management.max_mint_per_second = 0;
-    management.max_redeem_per_second = 0;
+    set_max_mint_per_second_internal(management, 0);
+    set_max_redeem_per_second_internal(management, 0)
 }
 
 /// Removes the minter role from an account, can ONLY be executed by the gatekeeper role
@@ -462,74 +450,6 @@ public fun remove_collateral_manager_role(
     config::remove_role_internal(global_config, collateral_manager, roles::role_collateral_manager());
 }
 
-/// Set delegated signer
-public fun set_delegated_signer(
-    management: &mut DeUSDMintingManagement,
-    global_config: &GlobalConfig,
-    delegate_to: address,
-    ctx: &mut TxContext,
-) {
-    assert_package_version_and_initialized(management, global_config);
-
-    let sender = ctx.sender();
-    if (!management.delegated_signers.contains(delegate_to)) {
-        management.delegated_signers.add(delegate_to, table::new(ctx));
-    };
-    let delegate_map = management.delegated_signers.borrow_mut(delegate_to);
-    delegate_map.add(sender, DELEGATED_SIGNER_STATUS_PENDING);
-
-    event::emit(DelegatedSignerInitiated {
-        signer: delegate_to,
-        delegator: sender,
-    });
-}
-
-/// Confirm delegated signer
-public fun confirm_delegated_signer(
-    management: &mut DeUSDMintingManagement,
-    global_config: &GlobalConfig,
-    delegated_by: address,
-    ctx: &TxContext,
-) {
-    assert_package_version_and_initialized(management, global_config);
-
-    let sender = ctx.sender();
-    assert!(management.delegated_signers.contains(sender), EDelegationNotInitiated);
-
-    let delegate_map = management.delegated_signers.borrow_mut(sender);
-    assert!(delegate_map.contains(delegated_by), EDelegationNotInitiated);
-
-    let status = delegate_map.borrow_mut(delegated_by);
-    assert!(*status == DELEGATED_SIGNER_STATUS_PENDING, EDelegationNotInitiated);
-    *status = DELEGATED_SIGNER_STATUS_ACCEPTED;
-
-    event::emit(DelegatedSignerAdded {
-        signer: sender,
-        delegator: delegated_by,
-    });
-}
-
-/// Removes a delegated signer mapping (undelegates an address for signing)
-public fun remove_delegated_signer(
-    management: &mut DeUSDMintingManagement,
-    global_config: &GlobalConfig,
-    removed_signer: address,
-    ctx: &mut TxContext,
-) {
-    assert_package_version_and_initialized(management, global_config);
-
-    let sender = ctx.sender();
-    assert!(management.delegated_signers.contains(removed_signer), EDelegationNotInitiated);
-    let delegate_map = management.delegated_signers.borrow_mut(removed_signer);
-    assert!(delegate_map.contains(sender), EDelegationNotInitiated);
-    *delegate_map.borrow_mut(sender) = DELEGATED_SIGNER_STATUS_REJECTED;
-
-    event::emit(DelegatedSignerRemoved {
-        signer: removed_signer,
-        delegator: sender,
-    });
-}
-
 /// Transfers an asset to a custody wallet.
 public fun transfer_to_custody<T>(
     management: &mut DeUSDMintingManagement,
@@ -550,6 +470,56 @@ public fun transfer_to_custody<T>(
     transfer::public_transfer(coin::from_balance(contract_balance.split(amount), ctx), wallet);
 
     event::emit(CustodyTransfer { wallet, asset: type_name::get<T>(), amount });
+}
+
+/// Deposit coins into the minting contract for redeeming later.
+/// This allows anyone to deposit coins.
+public fun deposit<T>(
+    management: &mut DeUSDMintingManagement,
+    global_config: &GlobalConfig,
+    coins: Coin<T>,
+    ctx: &TxContext,
+) {
+    assert_package_version_and_initialized(management, global_config);
+
+    let amount = coins.value();
+    assert!(amount > 0, EInvalidAmount);
+
+    let balance = get_or_create_balance_store_mut<T>(management);
+    balance.join(coin::into_balance(coins));
+
+    event::emit(Deposit {
+        depositor: ctx.sender(),
+        asset: type_name::get<T>(),
+        amount,
+    });
+}
+
+/// Withdraw coins from the minting contract.
+/// This allows only the admin to withdraw coins.
+public fun withdraw<T>(
+    _: &AdminCap,
+    management: &mut DeUSDMintingManagement,
+    global_config: &GlobalConfig,
+    amount: u64,
+    recipient: address,
+    ctx: &mut TxContext,
+) {
+    assert_package_version_and_initialized(management, global_config);
+    assert!(amount > 0, EInvalidAmount);
+    assert!(recipient != @0x0, EInvalidAddress);
+
+    let balance = get_or_create_balance_store_mut<T>(management);
+    assert!(balance.value() >= amount, ENotEnoughAmount);
+
+    let withdrawn_coins = coin::from_balance(balance.split(amount), ctx);
+    transfer::public_transfer(withdrawn_coins, recipient);
+
+    event::emit(Withdraw {
+        asset: type_name::get<T>(),
+        amount,
+        recipient,
+    });
 }
 
 // === View Functions ===
@@ -644,17 +614,6 @@ public fun get_redeemed_per_second(management: &DeUSDMintingManagement, timestam
     }
 }
 
-public fun get_delegated_signer_status(management: &DeUSDMintingManagement, signer: address, delegator: address): u8 {
-    if (management.delegated_signers.contains(signer)) {
-        let delegate_map = management.delegated_signers.borrow(signer);
-        if (delegate_map.contains(delegator)) {
-            return *delegate_map.borrow(delegator)
-        };
-    };
-
-    DELEGATED_SIGNER_STATUS_NO_STATUS
-}
-
 public fun get_balance<T>(
     management: &DeUSDMintingManagement,
 ): u64 {
@@ -694,7 +653,6 @@ fun assert_is_collateral_manager(config: &GlobalConfig, ctx: &TxContext) {
 }
 
 fun verify_order<Collateral>(
-    management: &DeUSDMintingManagement,
     order_type: u8,
     expiry: u64,
     nonce: u64,
@@ -706,6 +664,11 @@ fun verify_order<Collateral>(
     signature: vector<u8>,
     clock: &Clock,
 ) {
+    assert!(beneficiary != @0x0, EInvalidAddress);
+    assert!(collateral_amount > 0, EInvalidAmount);
+    assert!(deusd_amount > 0, EInvalidAmount);
+    assert!(clock_utils::timestamp_seconds(clock) <= expiry, ESignatureExpired);
+
     let order_hash = hash_order<Collateral>(
         order_type,
         expiry,
@@ -718,16 +681,7 @@ fun verify_order<Collateral>(
     assert!(ed25519::ed25519_verify(&signature, &public_key, &order_hash), EInvalidSignature);
 
     let signer = cryptography::ed25519_public_key_to_address(public_key);
-    assert!(
-        signer == benefactor ||
-            get_delegated_signer_status(management, signer, benefactor) == DELEGATED_SIGNER_STATUS_ACCEPTED,
-        EInvalidSignature,
-    );
-
-    assert!(beneficiary != @0x0, EInvalidAddress);
-    assert!(collateral_amount > 0, EInvalidAmount);
-    assert!(deusd_amount > 0, EInvalidAmount);
-    assert!(clock_utils::timestamp_seconds(clock) <= expiry, ESignatureExpired);
+    assert!(signer == benefactor, EInvalidSigner);
 }
 
 fun deduplicate_order(
@@ -825,7 +779,6 @@ fun set_max_redeem_per_second_internal(
 fun transfer_collateral<T>(
     management: &mut DeUSDMintingManagement,
     mut collateral: Coin<T>,
-    benefactor: address,
     addresses: vector<address>,
     ratios: vector<u64>,
     ctx: &mut TxContext,
@@ -836,28 +789,30 @@ fun transfer_collateral<T>(
     let total_asset_amount = collateral.value();
 
     let mut i = 0;
-    let addresses_length = vector::length(&addresses);
-    while (i < addresses_length) {
+    let addresses_length = addresses.length();
+    while (i < addresses_length - 1) {
         let ratio = ratios[i];
         let amount_to_transfer = math_u64::mul_div(total_asset_amount, ratio, ROUTE_REQUIRED_RATIO, false);
         let asset_to_transfer = collateral.split(amount_to_transfer, ctx);
-
-        let recipient = addresses[i];
-        if (recipient == management.address) {
-            let contract_balance = get_or_create_balance_store_mut<T>(management);
-            contract_balance.join(coin::into_balance(asset_to_transfer));
-        } else {
-            transfer::public_transfer(asset_to_transfer, addresses[i]);
-        };
+        transfer_collateral_to(management, asset_to_transfer, addresses[i]);
 
         i = i + 1;
     };
 
-    if (collateral.value() > 0) {
-        transfer::public_transfer(collateral, benefactor);
+    transfer_collateral_to(management, collateral, addresses[addresses_length - 1]);
+}
+
+fun transfer_collateral_to<T>(
+    management: &mut DeUSDMintingManagement,
+    collateral: Coin<T>,
+    recipient: address,
+) {
+    if (recipient == management.address) {
+        let contract_balance = get_or_create_balance_store_mut<T>(management);
+        contract_balance.join(coin::into_balance(collateral));
     } else {
-        coin::destroy_zero(collateral);
-    }
+        transfer::public_transfer(collateral, recipient);
+    };
 }
 
 /// Transfer supported asset to beneficiary address
@@ -880,21 +835,6 @@ fun transfer_to_beneficiary<T>(
 #[test_only]
 public fun init_for_test(ctx: &mut TxContext) {
     init(ctx);
-}
-
-#[test_only]
-public fun set_delegated_signer_for_test(
-    management: &mut DeUSDMintingManagement,
-    signer: address,
-    delegator: address,
-    status: u8,
-    ctx: &mut TxContext,
-) {
-    if (!management.delegated_signers.contains(signer)) {
-        management.delegated_signers.add(signer, table::new(ctx));
-    };
-    let delegate_map = management.delegated_signers.borrow_mut(signer);
-    delegate_map.add(delegator, status);
 }
 
 #[test_only]

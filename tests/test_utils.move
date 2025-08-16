@@ -3,6 +3,8 @@ module elixir::test_utils;
 
 // === Imports ===
 
+use elixir::locked_funds;
+use elixir::locked_funds::LockedFundsManagement;
 use elixir::deusd;
 use elixir::deusd_minting::DeUSDMintingManagement;
 use elixir::deusd::DeUSDConfig;
@@ -34,6 +36,13 @@ public fun setup_deusd(ts: &mut test_scenario::Scenario, admin: address): DeUSDC
 
     ts.next_tx(admin);
     ts.take_shared<DeUSDConfig>()
+}
+
+public fun setup_locked_funds(ts: &mut test_scenario::Scenario, admin: address): LockedFundsManagement {
+    locked_funds::init_for_test(ts.ctx());
+
+    ts.next_tx(admin);
+    ts.take_shared<LockedFundsManagement>()
 }
 
 public fun setup_deusd_minting(ts: &mut test_scenario::Scenario, admin: address): DeUSDMintingManagement {

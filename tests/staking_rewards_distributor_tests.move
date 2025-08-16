@@ -98,7 +98,7 @@ fun test_deposit_deusd_success() {
     ts.next_tx(USER);
     
     // Mint some deUSD
-    let deusd_coin = mint_deusd(&mut deusd_config, USER, 1000_000_000, &mut ts);
+    let deusd_coin = mint_deusd(&mut deusd_config, 1000_000_000, &mut ts);
     
     // Deposit to distributor
     staking_rewards_distributor::deposit_deusd(&mut distributor, &global_config, deusd_coin, ts.ctx());
@@ -120,18 +120,18 @@ fun test_deposit_multiple_times() {
     ts.next_tx(USER);
     
     // First deposit
-    let deusd_coin1 = mint_deusd(&mut deusd_config, USER, 500_000_000, &mut ts);
+    let deusd_coin1 = mint_deusd(&mut deusd_config, 500_000_000, &mut ts);
     staking_rewards_distributor::deposit_deusd(&mut distributor, &global_config, deusd_coin1, ts.ctx());
     assert!(staking_rewards_distributor::get_deusd_balance(&distributor) == 500_000_000);
     
     // Second deposit
-    let deusd_coin2 = mint_deusd(&mut deusd_config, USER, 500_000_000, &mut ts);
+    let deusd_coin2 = mint_deusd(&mut deusd_config, 500_000_000, &mut ts);
     staking_rewards_distributor::deposit_deusd(&mut distributor, &global_config, deusd_coin2, ts.ctx());
     assert!(staking_rewards_distributor::get_deusd_balance(&distributor) == 1000_000_000);
     
     // Test deposits from different users
     ts.next_tx(ADMIN);
-    let admin_coin = mint_deusd(&mut deusd_config, ADMIN, 100_000_000, &mut ts);
+    let admin_coin = mint_deusd(&mut deusd_config, 100_000_000, &mut ts);
     staking_rewards_distributor::deposit_deusd(&mut distributor, &global_config, admin_coin, ts.ctx());
     
     // Verify total balance includes all deposits
@@ -161,7 +161,7 @@ fun test_deposit_minimum_amount() {
     let (mut ts, admin_cap, mut deusd_config, mut distributor, global_config, sdeusd_management) = setup_test();
     
     ts.next_tx(USER);
-    let min_coin = mint_deusd(&mut deusd_config, USER, 1, &mut ts); // 1 unit (smallest possible)
+    let min_coin = mint_deusd(&mut deusd_config, 1, &mut ts); // 1 unit (smallest possible)
     
     staking_rewards_distributor::deposit_deusd(&mut distributor, &global_config, min_coin, ts.ctx());
     
@@ -178,7 +178,7 @@ fun test_withdraw_deusd_success() {
     
     // First deposit some funds
     ts.next_tx(USER);
-    let deusd_coin = mint_deusd(&mut deusd_config, USER, 1000_000_000, &mut ts);
+    let deusd_coin = mint_deusd(&mut deusd_config, 1000_000_000, &mut ts);
     staking_rewards_distributor::deposit_deusd(&mut distributor, &global_config, deusd_coin, ts.ctx());
     
     // Admin withdraws half
@@ -224,7 +224,7 @@ fun test_withdraw_minimum_amount() {
     
     // Deposit some funds first
     ts.next_tx(USER);
-    let deusd_coin = mint_deusd(&mut deusd_config, USER, 100_000_000, &mut ts);
+    let deusd_coin = mint_deusd(&mut deusd_config, 100_000_000, &mut ts);
     staking_rewards_distributor::deposit_deusd(&mut distributor, &global_config, deusd_coin, ts.ctx());
     
     // Withdraw minimum amount
@@ -247,7 +247,7 @@ fun test_transfer_in_rewards_success() {
     
     // Deposit funds
     ts.next_tx(USER);
-    let deusd_coin = mint_deusd(&mut deusd_config, USER, 1000_000_000, &mut ts);
+    let deusd_coin = mint_deusd(&mut deusd_config, 1000_000_000, &mut ts);
     staking_rewards_distributor::deposit_deusd(&mut distributor, &global_config, deusd_coin, ts.ctx());
     
     // Operator transfers rewards
@@ -294,7 +294,7 @@ fun test_transfer_in_rewards_multiple_times() {
     
     // Deposit funds
     ts.next_tx(USER);
-    let deusd_coin = mint_deusd(&mut deusd_config, USER, 1000_000_000, &mut ts);
+    let deusd_coin = mint_deusd(&mut deusd_config, 1000_000_000, &mut ts);
     staking_rewards_distributor::deposit_deusd(&mut distributor, &global_config, deusd_coin, ts.ctx());
     
     // First transfer
@@ -340,7 +340,7 @@ fun test_transfer_in_rewards_unauthorized() {
     
     // Deposit funds
     ts.next_tx(USER);
-    let deusd_coin = mint_deusd(&mut deusd_config, USER, 1000_000_000, &mut ts);
+    let deusd_coin = mint_deusd(&mut deusd_config, 1000_000_000, &mut ts);
     staking_rewards_distributor::deposit_deusd(&mut distributor, &global_config, deusd_coin, ts.ctx());
     
     // USER (not operator) tries to transfer rewards
@@ -369,7 +369,7 @@ fun test_transfer_in_rewards_insufficient_balance() {
     
     // Deposit smaller amount
     ts.next_tx(USER);
-    let deusd_coin = mint_deusd(&mut deusd_config, USER, 100_000_000, &mut ts);
+    let deusd_coin = mint_deusd(&mut deusd_config, 100_000_000, &mut ts);
     staking_rewards_distributor::deposit_deusd(&mut distributor, &global_config, deusd_coin, ts.ctx());
     
     // Try to transfer more than available
@@ -398,7 +398,7 @@ fun test_transfer_in_rewards_if_not_operator() {
     
     // Deposit funds
     ts.next_tx(USER);
-    let deusd_coin = mint_deusd(&mut deusd_config, USER, 1000_000_000, &mut ts);
+    let deusd_coin = mint_deusd(&mut deusd_config, 1000_000_000, &mut ts);
     staking_rewards_distributor::deposit_deusd(&mut distributor, &global_config, deusd_coin, ts.ctx());
     
     // Try to transfer rewards without being operator
@@ -426,7 +426,7 @@ fun test_transfer_in_rewards_minimum_amount() {
     
     // Deposit funds
     ts.next_tx(USER);
-    let deusd_coin = mint_deusd(&mut deusd_config, USER, 100_000_000, &mut ts);
+    let deusd_coin = mint_deusd(&mut deusd_config, 100_000_000, &mut ts);
     staking_rewards_distributor::deposit_deusd(&mut distributor, &global_config, deusd_coin, ts.ctx());
     
     // Transfer minimum amount
@@ -460,11 +460,11 @@ fun test_full_workflow() {
     
     // 2. Users deposit deUSD
     ts.next_tx(USER);
-    let deusd_coin1 = mint_deusd(&mut deusd_config, USER, 500_000_000, &mut ts);
+    let deusd_coin1 = mint_deusd(&mut deusd_config, 500_000_000, &mut ts);
     staking_rewards_distributor::deposit_deusd(&mut distributor, &global_config, deusd_coin1, ts.ctx());
     
     ts.next_tx(ADMIN);
-    let deusd_coin2 = mint_deusd(&mut deusd_config, ADMIN, 500_000_000, &mut ts);
+    let deusd_coin2 = mint_deusd(&mut deusd_config, 500_000_000, &mut ts);
     staking_rewards_distributor::deposit_deusd(&mut distributor, &global_config, deusd_coin2, ts.ctx());
     
     assert!(staking_rewards_distributor::get_deusd_balance(&distributor) == 1000_000_000);
@@ -576,7 +576,7 @@ fun test_large_amounts() {
     let large_amount = 1_000_000_000_000_000; // 1 billion tokens
     
     ts.next_tx(USER);
-    let large_coin = mint_deusd(&mut deusd_config, USER, large_amount, &mut ts);
+    let large_coin = mint_deusd(&mut deusd_config, large_amount, &mut ts);
     staking_rewards_distributor::deposit_deusd(&mut distributor, &global_config, large_coin, ts.ctx());
     
     assert!(staking_rewards_distributor::get_deusd_balance(&distributor) == large_amount);
@@ -602,8 +602,8 @@ fun test_large_amounts() {
 
 // === Test Setup Helper Functions ===
 
-fun mint_deusd(deusd_config: &mut DeUSDConfig, to: address, amount: u64, ts: &mut test_scenario::Scenario): coin::Coin<DEUSD> {
-    deusd::mint_for_test(deusd_config, to, amount, ts.ctx())
+fun mint_deusd(deusd_config: &mut DeUSDConfig, amount: u64, ts: &mut test_scenario::Scenario): coin::Coin<DEUSD> {
+    deusd::mint_for_test(deusd_config, amount, ts.ctx())
 }
 
 fun setup_test(): (test_scenario::Scenario, AdminCap, DeUSDConfig, StakingRewardsDistributor, GlobalConfig, SdeUSDManagement) {
