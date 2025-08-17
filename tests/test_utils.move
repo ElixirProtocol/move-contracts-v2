@@ -3,6 +3,7 @@ module elixir::test_utils;
 
 // === Imports ===
 
+use sui::clock::Clock;
 use elixir::locked_funds;
 use elixir::locked_funds::LockedFundsManagement;
 use elixir::deusd;
@@ -64,4 +65,9 @@ public fun setup_staking_rewards_distributor(ts: &mut test_scenario::Scenario, a
 
     ts.next_tx(admin);
     ts.take_shared<StakingRewardsDistributor>()
+}
+
+public fun advance_time(clock: &mut Clock, duration_ms: u64) {
+    let current_time = clock.timestamp_ms();
+    clock.set_for_testing(current_time + duration_ms);
 }

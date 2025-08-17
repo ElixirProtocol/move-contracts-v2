@@ -59,7 +59,6 @@ fun test_mint_success() {
     {
         clock.set_for_testing(1000000000 * 1000);
 
-        // Prepare mint parameters
         let nonce = 1;
         let expiry = 1000000001;
         let collateral_amount = 1000000000;
@@ -70,7 +69,7 @@ fun test_mint_success() {
         let route_ratios = vector[5000, 3000, 2000]; // 50% to CUSTODIAN1, 30% to CUSTODIAN2, 20% to contract itself
 
         let public_key = x"15fffd5a17a3f7274979a1bba33d11d53c1d465667516d80dc6fe2b8fe4eaf01";
-        let signature = x"2c81dade6e96768d6e54ffe0733af0e8ebe1a4c1e1482ae8e557217b3b186fafdb76c383f9b8e6872604d35810f2edd8e2ac942c9369856ece44a77a9a96d404";
+        let signature = x"0a2704523b3166b794fb7b54ab2226d94d5bf3fa6ffda4b695c4d5ef39d141659e5e6c97030451a6ddfe75832f3d48539654feede0305a9a49314b7aa44e1004";
 
         deusd_minting::mint<ETH>(
             &mut management,
@@ -116,7 +115,6 @@ fun test_mint_success() {
     {
         clock.set_for_testing(1000000000 * 1000);
 
-        // Prepare mint parameters
         let nonce = 2;
         let expiry = 1000000001;
         let collateral_amount = 2000000001;
@@ -127,7 +125,7 @@ fun test_mint_success() {
         let route_ratios = vector[6000, 4000]; // 60% to CUSTODIAN1, 40% to contract itself
 
         let public_key = x"15fffd5a17a3f7274979a1bba33d11d53c1d465667516d80dc6fe2b8fe4eaf01";
-        let signature = x"4624cf9cb2ef3d2757d01b5d0f3cc6a2c6ad0bd8f529842b9c2fc595b91d7b7dc9faea2dd082ae64fe34ccf4a16e6309b52bb85773b6a40f9f0b947ab295820a";
+        let signature = x"d7d426e6c8004ced4c70273407521437ebf73a9b611830f524b95d3b2d745b606b59c892356b23b12bf6fbd0d58ed57ed89817542833bcc710e88436ab233006";
 
         deusd_minting::mint<ETH>(
             &mut management,
@@ -171,7 +169,6 @@ fun test_mint_success() {
     {
         clock.set_for_testing(1000000001 * 1000);
 
-        // Prepare mint parameters
         let nonce = 3;
         let expiry = 1000000001;
         // 1 unit remaining when calculating collateral distribution should be sent to the contract
@@ -183,7 +180,7 @@ fun test_mint_success() {
         let route_ratios = vector[4000, 6000]; // 40% to contract itself, 60% to CUSTODIAN1
 
         let public_key = x"15fffd5a17a3f7274979a1bba33d11d53c1d465667516d80dc6fe2b8fe4eaf01";
-        let signature = x"e47ff7849944bad59140ae20d2b304569c0cc47386b35d22ed1a54f89fdcb066917572ff87b55db8d060ac7bea7856788ebb82ecafc6240f8735e8a3b6e97903";
+        let signature = x"7ea93798d6cc4c4c2c697504772e9f4a3d80cccad491e6cdfa5159d31bca050a0a367625f799c1d8dbb3941368a1b4a302aa88e3341aee43ed071947d50bcd00";
 
         deusd_minting::mint<ETH>(
             &mut management,
@@ -260,7 +257,6 @@ fun test_mint_fail_if_not_minter() {
     {
         clock.set_for_testing(1000000000 * 1000);
 
-        // Prepare mint parameters
         let nonce = 1;
         let expiry = 1000000001;
         let collateral_amount = 1000000000;
@@ -271,7 +267,7 @@ fun test_mint_fail_if_not_minter() {
         let route_ratios = vector[5000, 3000, 2000]; // 50% to CUSTODIAN1, 30% to CUSTODIAN2, 20% to contract itself
 
         let public_key = x"15fffd5a17a3f7274979a1bba33d11d53c1d465667516d80dc6fe2b8fe4eaf01";
-        let signature = x"2c81dade6e96768d6e54ffe0733af0e8ebe1a4c1e1482ae8e557217b3b186fafdb76c383f9b8e6872604d35810f2edd8e2ac942c9369856ece44a77a9a96d404";
+        let signature = x"0a2704523b3166b794fb7b54ab2226d94d5bf3fa6ffda4b695c4d5ef39d141659e5e6c97030451a6ddfe75832f3d48539654feede0305a9a49314b7aa44e1004";
         deusd_minting::mint<ETH>(
             &mut management,
             &mut locked_funds_management,
@@ -330,7 +326,6 @@ fun test_mint_fail_if_beneficiary_is_zero() {
     {
         clock.set_for_testing(1000000000 * 1000);
 
-        // Prepare mint parameters
         let nonce = 1;
         let expiry = 1000000001;
         let collateral_amount = 1000000000;
@@ -341,7 +336,7 @@ fun test_mint_fail_if_beneficiary_is_zero() {
         let route_ratios = vector[5000, 3000, 2000]; // 50% to CUSTODIAN1, 30% to CUSTODIAN2, 20% to contract itself
 
         let public_key = x"15fffd5a17a3f7274979a1bba33d11d53c1d465667516d80dc6fe2b8fe4eaf01";
-        let signature = x"2c81dade6e96768d6e54ffe0733af0e8ebe1a4c1e1482ae8e557217b3b186fafdb76c383f9b8e6872604d35810f2edd8e2ac942c9369856ece44a77a9a96d404";
+        let signature = x"0a2704523b3166b794fb7b54ab2226d94d5bf3fa6ffda4b695c4d5ef39d141659e5e6c97030451a6ddfe75832f3d48539654feede0305a9a49314b7aa44e1004";
         deusd_minting::mint<ETH>(
             &mut management,
             &mut locked_funds_management,
@@ -400,7 +395,6 @@ fun test_mint_fail_if_collateral_amount_is_zero() {
     {
         clock.set_for_testing(1000000000 * 1000);
 
-        // Prepare mint parameters
         let nonce = 1;
         let expiry = 1000000001;
         let collateral_amount = 0;
@@ -411,7 +405,7 @@ fun test_mint_fail_if_collateral_amount_is_zero() {
         let route_ratios = vector[5000, 3000, 2000]; // 50% to CUSTODIAN1, 30% to CUSTODIAN2, 20% to contract itself
 
         let public_key = x"15fffd5a17a3f7274979a1bba33d11d53c1d465667516d80dc6fe2b8fe4eaf01";
-        let signature = x"2c81dade6e96768d6e54ffe0733af0e8ebe1a4c1e1482ae8e557217b3b186fafdb76c383f9b8e6872604d35810f2edd8e2ac942c9369856ece44a77a9a96d404";
+        let signature = x"0a2704523b3166b794fb7b54ab2226d94d5bf3fa6ffda4b695c4d5ef39d141659e5e6c97030451a6ddfe75832f3d48539654feede0305a9a49314b7aa44e1004";
         deusd_minting::mint<ETH>(
             &mut management,
             &mut locked_funds_management,
@@ -470,7 +464,6 @@ fun test_mint_fail_if_deusd_amount_is_zero() {
     {
         clock.set_for_testing(1000000000 * 1000);
 
-        // Prepare mint parameters
         let nonce = 1;
         let expiry = 1000000001;
         let collateral_amount = 1000000000;
@@ -481,7 +474,7 @@ fun test_mint_fail_if_deusd_amount_is_zero() {
         let route_ratios = vector[5000, 3000, 2000]; // 50% to CUSTODIAN1, 30% to CUSTODIAN2, 20% to contract itself
 
         let public_key = x"15fffd5a17a3f7274979a1bba33d11d53c1d465667516d80dc6fe2b8fe4eaf01";
-        let signature = x"2c81dade6e96768d6e54ffe0733af0e8ebe1a4c1e1482ae8e557217b3b186fafdb76c383f9b8e6872604d35810f2edd8e2ac942c9369856ece44a77a9a96d404";
+        let signature = x"0a2704523b3166b794fb7b54ab2226d94d5bf3fa6ffda4b695c4d5ef39d141659e5e6c97030451a6ddfe75832f3d48539654feede0305a9a49314b7aa44e1004";
         deusd_minting::mint<ETH>(
             &mut management,
             &mut locked_funds_management,
@@ -540,7 +533,6 @@ fun test_mint_fail_if_order_expired() {
     {
         clock.set_for_testing(1000000000 * 1000);
 
-        // Prepare mint parameters
         let nonce = 1;
         let expiry = 1000000000 - 1;
         let collateral_amount = 1000000000;
@@ -551,7 +543,7 @@ fun test_mint_fail_if_order_expired() {
         let route_ratios = vector[5000, 3000, 2000]; // 50% to CUSTODIAN1, 30% to CUSTODIAN2, 20% to contract itself
 
         let public_key = x"15fffd5a17a3f7274979a1bba33d11d53c1d465667516d80dc6fe2b8fe4eaf01";
-        let signature = x"2c81dade6e96768d6e54ffe0733af0e8ebe1a4c1e1482ae8e557217b3b186fafdb76c383f9b8e6872604d35810f2edd8e2ac942c9369856ece44a77a9a96d404";
+        let signature = x"0a2704523b3166b794fb7b54ab2226d94d5bf3fa6ffda4b695c4d5ef39d141659e5e6c97030451a6ddfe75832f3d48539654feede0305a9a49314b7aa44e1004";
         deusd_minting::mint<ETH>(
             &mut management,
             &mut locked_funds_management,
@@ -610,7 +602,6 @@ fun test_mint_fail_if_invalid_signature() {
     {
         clock.set_for_testing(1000000000 * 1000);
 
-        // Prepare mint parameters
         let nonce = 2;
         let expiry = 1000000000;
         let collateral_amount = 1000000000;
@@ -622,7 +613,7 @@ fun test_mint_fail_if_invalid_signature() {
 
         let public_key = x"15fffd5a17a3f7274979a1bba33d11d53c1d465667516d80dc6fe2b8fe4eaf01";
         // This signature is for nonce 1, not nonce 2
-        let signature = x"2c81dade6e96768d6e54ffe0733af0e8ebe1a4c1e1482ae8e557217b3b186fafdb76c383f9b8e6872604d35810f2edd8e2ac942c9369856ece44a77a9a96d404";
+        let signature = x"0a2704523b3166b794fb7b54ab2226d94d5bf3fa6ffda4b695c4d5ef39d141659e5e6c97030451a6ddfe75832f3d48539654feede0305a9a49314b7aa44e1004";
         deusd_minting::mint<ETH>(
             &mut management,
             &mut locked_funds_management,
@@ -681,7 +672,6 @@ fun test_mint_fail_if_signer_not_benefactor() {
     {
         clock.set_for_testing(1000000000 * 1000);
 
-        // Prepare mint parameters
         let nonce = 1;
         let expiry = 1000000000;
         let collateral_amount = 1000000000;
@@ -692,7 +682,7 @@ fun test_mint_fail_if_signer_not_benefactor() {
         let route_ratios = vector[5000, 3000, 2000]; // 50% to CUSTODIAN1, 30% to CUSTODIAN2, 20% to contract itself
 
         let public_key = x"15fffd5a17a3f7274979a1bba33d11d53c1d465667516d80dc6fe2b8fe4eaf01";
-        let signature = x"b15026dcbe092a7b2f0010377d24bdaad56163120d5f27b42280d24d32dac32604727775376cf0db7fe8e7f6adc81ce858399ec6667cf7403690eed9252da308";
+        let signature = x"1e261f8769f3629035ee69a0f78bc71a071b61ef8a6887972728e99e87a3af974575dce23be8faac3943b1bf1795f885f2d8f6e5a209b1bf76592d8dde225004";
         deusd_minting::mint<ETH>(
             &mut management,
             &mut locked_funds_management,
@@ -762,7 +752,7 @@ fun test_mint_fail_if_route_addresses_and_ratios_length_mismatch() {
         let route_ratios = vector[5000, 3000, 2000]; // 3 ratios - mismatch!
 
         let public_key = x"15fffd5a17a3f7274979a1bba33d11d53c1d465667516d80dc6fe2b8fe4eaf01";
-        let signature = x"2c81dade6e96768d6e54ffe0733af0e8ebe1a4c1e1482ae8e557217b3b186fafdb76c383f9b8e6872604d35810f2edd8e2ac942c9369856ece44a77a9a96d404";
+        let signature = x"0a2704523b3166b794fb7b54ab2226d94d5bf3fa6ffda4b695c4d5ef39d141659e5e6c97030451a6ddfe75832f3d48539654feede0305a9a49314b7aa44e1004";
         deusd_minting::mint<ETH>(
             &mut management,
             &mut locked_funds_management,
@@ -832,7 +822,7 @@ fun test_mint_fail_if_empty_route() {
         let route_ratios = vector[]; // Empty route
 
         let public_key = x"15fffd5a17a3f7274979a1bba33d11d53c1d465667516d80dc6fe2b8fe4eaf01";
-        let signature = x"2c81dade6e96768d6e54ffe0733af0e8ebe1a4c1e1482ae8e557217b3b186fafdb76c383f9b8e6872604d35810f2edd8e2ac942c9369856ece44a77a9a96d404";
+        let signature = x"0a2704523b3166b794fb7b54ab2226d94d5bf3fa6ffda4b695c4d5ef39d141659e5e6c97030451a6ddfe75832f3d48539654feede0305a9a49314b7aa44e1004";
         deusd_minting::mint<ETH>(
             &mut management,
             &mut locked_funds_management,
@@ -902,7 +892,7 @@ fun test_mint_fail_if_route_contains_non_custodian() {
         let route_ratios = vector[5000, 5000];
 
         let public_key = x"15fffd5a17a3f7274979a1bba33d11d53c1d465667516d80dc6fe2b8fe4eaf01";
-        let signature = x"2c81dade6e96768d6e54ffe0733af0e8ebe1a4c1e1482ae8e557217b3b186fafdb76c383f9b8e6872604d35810f2edd8e2ac942c9369856ece44a77a9a96d404";
+        let signature = x"0a2704523b3166b794fb7b54ab2226d94d5bf3fa6ffda4b695c4d5ef39d141659e5e6c97030451a6ddfe75832f3d48539654feede0305a9a49314b7aa44e1004";
         deusd_minting::mint<ETH>(
             &mut management,
             &mut locked_funds_management,
@@ -928,7 +918,7 @@ fun test_mint_fail_if_route_contains_non_custodian() {
 }
 
 #[test]
-#[expected_failure(abort_code = deusd_minting::EMaxMintPerBlockExceeded)]
+#[expected_failure(abort_code = deusd_minting::EMaxMintPerSecondExceeded)]
 fun test_mint_fail_if_max_mint_per_second_exceeded() {
     let (mut ts, mut global_config, admin_cap, mut deusd_config, mut locked_funds_management, mut management) = setup_test();
 
@@ -972,7 +962,7 @@ fun test_mint_fail_if_max_mint_per_second_exceeded() {
         let route_ratios = vector[10000];
 
         let public_key = x"15fffd5a17a3f7274979a1bba33d11d53c1d465667516d80dc6fe2b8fe4eaf01";
-        let signature = x"1b7fa88eae7163c325298fb5fdf9ef803646d1871e6bc25dc7d1cc2dbc6a0b28aba64acf20700c58063a0ce8a72c98595f893812f2c00203b7bab39513a12308";
+        let signature = x"2540b4dc9933d6d5575321eee738069001c286725b79cda68a9910028ac0c4475508fc3e0891a913b701c0f5b7ce6619afa58113c57f427982fb1d5264f2160f";
         deusd_minting::mint<ETH>(
             &mut management,
             &mut locked_funds_management,
@@ -1042,7 +1032,7 @@ fun test_mint_fail_if_nonce_is_zero() {
         let route_ratios = vector[10000];
 
         let public_key = x"15fffd5a17a3f7274979a1bba33d11d53c1d465667516d80dc6fe2b8fe4eaf01";
-        let signature = x"390e3ee9a417ea6f1ac0b8c61f8298f5430f97ee9bf4756e15a6ddd9fb062c19434fd631bbad05a3be97902365032f6cc015daccd658e7d2ad3626f5bec6a101";
+        let signature = x"03fae63dce410dde170fe83ab9f8acdbc4f757795756e1112b5df116d4bc7570297111113e25a36665b0933f060f472681fc19b29604887ccbc6577e53012a0f";
         deusd_minting::mint<ETH>(
             &mut management,
             &mut locked_funds_management,
@@ -1113,7 +1103,7 @@ fun test_mint_fail_if_nonce_already_used() {
         let route_ratios = vector[10000];
 
         let public_key = x"15fffd5a17a3f7274979a1bba33d11d53c1d465667516d80dc6fe2b8fe4eaf01";
-        let signature = x"2c81dade6e96768d6e54ffe0733af0e8ebe1a4c1e1482ae8e557217b3b186fafdb76c383f9b8e6872604d35810f2edd8e2ac942c9369856ece44a77a9a96d404";
+        let signature = x"0a2704523b3166b794fb7b54ab2226d94d5bf3fa6ffda4b695c4d5ef39d141659e5e6c97030451a6ddfe75832f3d48539654feede0305a9a49314b7aa44e1004";
         deusd_minting::mint<ETH>(
             &mut management,
             &mut locked_funds_management,
@@ -1149,7 +1139,7 @@ fun test_mint_fail_if_nonce_already_used() {
         let route_ratios = vector[10000];
 
         let public_key = x"15fffd5a17a3f7274979a1bba33d11d53c1d465667516d80dc6fe2b8fe4eaf01";
-        let signature = x"e9436399320d06cdaf418752a067e0d17e5df4e6c88ecb4c35834bca7f2f911da7a5bb2014720b7ad91d524bdd63ad4a5d27dc32f186c998d79e9a3ce1537802";
+        let signature = x"712d6d8912356839a965b1200457b0786f3ae8df89efbd2e03d27d1535cfe59c3492963a2f851e6b3bd8c717533da2a14a6274bbcddffc229b32fb314d13a904";
         deusd_minting::mint<ETH>(
             &mut management,
             &mut locked_funds_management,
@@ -1218,7 +1208,7 @@ fun test_mint_fail_if_asset_not_supported() {
         let route_ratios = vector[10000];
 
         let public_key = x"15fffd5a17a3f7274979a1bba33d11d53c1d465667516d80dc6fe2b8fe4eaf01";
-        let signature = x"2c81dade6e96768d6e54ffe0733af0e8ebe1a4c1e1482ae8e557217b3b186fafdb76c383f9b8e6872604d35810f2edd8e2ac942c9369856ece44a77a9a96d404";
+        let signature = x"0a2704523b3166b794fb7b54ab2226d94d5bf3fa6ffda4b695c4d5ef39d141659e5e6c97030451a6ddfe75832f3d48539654feede0305a9a49314b7aa44e1004";
         deusd_minting::mint<ETH>(
             &mut management,
             &mut locked_funds_management,
@@ -1287,7 +1277,7 @@ fun test_mint_single_custodian_route() {
         let route_ratios = vector[10000]; // 100% to CUSTODIAN1
 
         let public_key = x"15fffd5a17a3f7274979a1bba33d11d53c1d465667516d80dc6fe2b8fe4eaf01";
-        let signature = x"2c81dade6e96768d6e54ffe0733af0e8ebe1a4c1e1482ae8e557217b3b186fafdb76c383f9b8e6872604d35810f2edd8e2ac942c9369856ece44a77a9a96d404";
+        let signature = x"0a2704523b3166b794fb7b54ab2226d94d5bf3fa6ffda4b695c4d5ef39d141659e5e6c97030451a6ddfe75832f3d48539654feede0305a9a49314b7aa44e1004";
         deusd_minting::mint<ETH>(
             &mut management,
             &mut locked_funds_management,
@@ -1379,9 +1369,9 @@ fun test_redeem_success() {
         let deusd_amount = 500000000;
 
         let public_key = x"15fffd5a17a3f7274979a1bba33d11d53c1d465667516d80dc6fe2b8fe4eaf01";
-        let signature = x"6c043145ff06b8413a90669843caffead9ab91f26adc43078520436674e46eb152ef8baad303a783d808844ec7b712ba8b8b1cae98f7f16a15b9d7d93ba2040b";
+        let signature = x"05167197354f455f22cd275ad4f1bfee65bb9fb650512bc6fabe8e3954ba358a22d34013ac5f02acee2b465c02949dacbcd9c0be1929916b972b1cc0b831970b";
 
-        let deusd_supply_before = deusd::supply(&mut deusd_config);
+        let deusd_supply_before = deusd::total_supply(&deusd_config);
 
         deusd_minting::redeem<ETH>(
             &mut management,
@@ -1400,7 +1390,7 @@ fun test_redeem_success() {
             ts.ctx(),
         );
 
-        let deusd_supply_after = deusd::supply(&mut deusd_config);
+        let deusd_supply_after = deusd::total_supply(&deusd_config);
         assert_eq(deusd_supply_before - deusd_supply_after, deusd_amount);
 
         ts.next_tx(beneficiary);
@@ -1426,9 +1416,9 @@ fun test_redeem_success() {
         let deusd_amount = 100000000;
 
         let public_key = x"15fffd5a17a3f7274979a1bba33d11d53c1d465667516d80dc6fe2b8fe4eaf01";
-        let signature = x"6a947d00ea29e172327766e53f4377f02bad7e364fc002e28bd61fd59dc2a6092a67eb2d71f0dae06ecc1e7aec564e4837095468d69f37ba1ae4ce702edf720b";
+        let signature = x"d58e7bf8b4a69b666c3d233862d62eb2dfa77f3e6e70756eecec0196909757e3485819563f32b1c793d48d3d297f4e30861a10f6ca8084319aac089174765b02";
 
-        let deusd_supply_before = deusd::supply(&mut deusd_config);
+        let deusd_supply_before = deusd::total_supply(&deusd_config);
 
         deusd_minting::redeem<USDC>(
             &mut management,
@@ -1447,7 +1437,7 @@ fun test_redeem_success() {
             ts.ctx(),
         );
 
-        let deusd_supply_after = deusd::supply(&mut deusd_config);
+        let deusd_supply_after = deusd::total_supply(&deusd_config);
         assert_eq(deusd_supply_before - deusd_supply_after, deusd_amount);
 
         ts.next_tx(beneficiary);
@@ -1510,9 +1500,9 @@ fun test_redeem_fail_if_not_redeemer() {
         let deusd_amount = 500000000;
 
         let public_key = x"15fffd5a17a3f7274979a1bba33d11d53c1d465667516d80dc6fe2b8fe4eaf01";
-        let signature = x"6c043145ff06b8413a90669843caffead9ab91f26adc43078520436674e46eb152ef8baad303a783d808844ec7b712ba8b8b1cae98f7f16a15b9d7d93ba2040b";
+        let signature = x"05167197354f455f22cd275ad4f1bfee65bb9fb650512bc6fabe8e3954ba358a22d34013ac5f02acee2b465c02949dacbcd9c0be1929916b972b1cc0b831970b";
 
-        let deusd_supply_before = deusd::supply(&mut deusd_config);
+        let deusd_supply_before = deusd::total_supply(&deusd_config);
 
         deusd_minting::redeem<ETH>(
             &mut management,
@@ -1531,7 +1521,7 @@ fun test_redeem_fail_if_not_redeemer() {
             ts.ctx(),
         );
 
-        let deusd_supply_after = deusd::supply(&mut deusd_config);
+        let deusd_supply_after = deusd::total_supply(&deusd_config);
         assert_eq(deusd_supply_before - deusd_supply_after, deusd_amount);
 
         ts.next_tx(beneficiary);
@@ -1550,7 +1540,7 @@ fun test_redeem_fail_if_not_redeemer() {
 }
 
 #[test]
-#[expected_failure(abort_code = deusd_minting::EMaxRedeemPerBlockExceeded)]
+#[expected_failure(abort_code = deusd_minting::EMaxRedeemPerSecondExceeded)]
 fun test_redeem_fail_if_max_redeem_per_second_exceeded() {
     let (mut ts, mut global_config, admin_cap, mut deusd_config, mut locked_funds_management, mut management) = setup_test();
 
@@ -1595,7 +1585,7 @@ fun test_redeem_fail_if_max_redeem_per_second_exceeded() {
         let deusd_amount = 500000000; // Exceeds max redeem per second (499999999)
 
         let public_key = x"15fffd5a17a3f7274979a1bba33d11d53c1d465667516d80dc6fe2b8fe4eaf01";
-        let signature = x"6c043145ff06b8413a90669843caffead9ab91f26adc43078520436674e46eb152ef8baad303a783d808844ec7b712ba8b8b1cae98f7f16a15b9d7d93ba2040b";
+        let signature = x"05167197354f455f22cd275ad4f1bfee65bb9fb650512bc6fabe8e3954ba358a22d34013ac5f02acee2b465c02949dacbcd9c0be1929916b972b1cc0b831970b";
 
         deusd_minting::redeem<ETH>(
             &mut management,
@@ -1665,7 +1655,7 @@ fun test_redeem_fail_if_nonce_is_zero() {
         let deusd_amount = 500000000;
 
         let public_key = x"15fffd5a17a3f7274979a1bba33d11d53c1d465667516d80dc6fe2b8fe4eaf01";
-        let signature = x"45a55526ca22203bc6213e44c5c30474b92c5bbc15c38b945ebd2bd9c50d7e726150378333dad7240b06794e351dd30955715751a1ae863cfebf65ee90aede03";
+        let signature = x"88181e1b2cf5536c1c0bd4d8e069decee5ebca6265dd2cf5377c60bccc43afc696f4b1c02d4440b2da85b156951325484146dc18e3224d52e3df5121567a5b04";
 
         deusd_minting::redeem<ETH>(
             &mut management,
@@ -1736,7 +1726,7 @@ fun test_redeem_fail_if_nonce_already_used() {
         let deusd_amount = 100000000;
 
         let public_key = x"15fffd5a17a3f7274979a1bba33d11d53c1d465667516d80dc6fe2b8fe4eaf01";
-        let signature = x"1ef757d9b2e450516cd59bd25a597d280d5083ae69fd3e661172bd2858dec7325678270b579aeb16b4166cc6646d473de88f49ee78075a584406a09b66e6e007";
+        let signature = x"9c5eaeae730d292752553b5c2b01d61bf37e18304691546bc3f70d508a4247238a52b2c9e4d1e1d4014688b2d6318f343e61e5494a102f994fdc25be58db5701";
 
         deusd_minting::redeem<ETH>(
             &mut management,
@@ -1769,7 +1759,7 @@ fun test_redeem_fail_if_nonce_already_used() {
         let deusd_amount = 50000000;
 
         let public_key = x"15fffd5a17a3f7274979a1bba33d11d53c1d465667516d80dc6fe2b8fe4eaf01";
-        let signature = x"835afd172a4d9ab9b3a4cab17cddc82e6037c6f6409669f75509ef8587136bb6089bd141fced750028cd82522d1036330023cdd443752d55a03cf05ff483ec05";
+        let signature = x"51556c9edcc31fd22890d29cc52279a2f63604a29f6166d8b4ee108c12754c8316fbe94362682a9dcdc920dd903dc15f1a25217c2c82266f392b4bebd21fa20f";
 
         deusd_minting::redeem<ETH>(
             &mut management,
@@ -1834,9 +1824,9 @@ fun test_redeem_fail_if_asset_not_supported() {
         let deusd_amount = 500000000;
 
         let public_key = x"15fffd5a17a3f7274979a1bba33d11d53c1d465667516d80dc6fe2b8fe4eaf01";
-        let signature = x"6c043145ff06b8413a90669843caffead9ab91f26adc43078520436674e46eb152ef8baad303a783d808844ec7b712ba8b8b1cae98f7f16a15b9d7d93ba2040b";
+        let signature = x"05167197354f455f22cd275ad4f1bfee65bb9fb650512bc6fabe8e3954ba358a22d34013ac5f02acee2b465c02949dacbcd9c0be1929916b972b1cc0b831970b";
 
-        let deusd_supply_before = deusd::supply(&mut deusd_config);
+        let deusd_supply_before = deusd::total_supply(&deusd_config);
 
         deusd_minting::redeem<ETH>(
             &mut management,
@@ -1855,7 +1845,7 @@ fun test_redeem_fail_if_asset_not_supported() {
             ts.ctx(),
         );
 
-        let deusd_supply_after = deusd::supply(&mut deusd_config);
+        let deusd_supply_after = deusd::total_supply(&deusd_config);
         assert_eq(deusd_supply_before - deusd_supply_after, deusd_amount);
 
         ts.next_tx(beneficiary);
@@ -1919,7 +1909,7 @@ fun test_redeem_fail_if_beneficiary_is_zero_address() {
         let deusd_amount = 500000000;
 
         let public_key = x"15fffd5a17a3f7274979a1bba33d11d53c1d465667516d80dc6fe2b8fe4eaf01";
-        let signature = x"6c043145ff06b8413a90669843caffead9ab91f26adc43078520436674e46eb152ef8baad303a783d808844ec7b712ba8b8b1cae98f7f16a15b9d7d93ba2040b";
+        let signature = x"05167197354f455f22cd275ad4f1bfee65bb9fb650512bc6fabe8e3954ba358a22d34013ac5f02acee2b465c02949dacbcd9c0be1929916b972b1cc0b831970b";
 
         deusd_minting::redeem<ETH>(
             &mut management,
@@ -1989,7 +1979,7 @@ fun test_redeem_fail_if_collateral_amount_is_zero() {
         let deusd_amount = 500000000;
 
         let public_key = x"15fffd5a17a3f7274979a1bba33d11d53c1d465667516d80dc6fe2b8fe4eaf01";
-        let signature = x"6c043145ff06b8413a90669843caffead9ab91f26adc43078520436674e46eb152ef8baad303a783d808844ec7b712ba8b8b1cae98f7f16a15b9d7d93ba2040b";
+        let signature = x"05167197354f455f22cd275ad4f1bfee65bb9fb650512bc6fabe8e3954ba358a22d34013ac5f02acee2b465c02949dacbcd9c0be1929916b972b1cc0b831970b";
 
         deusd_minting::redeem<ETH>(
             &mut management,
@@ -2059,7 +2049,7 @@ fun test_redeem_fail_if_deusd_amount_is_zero() {
         let deusd_amount = 0;
 
         let public_key = x"15fffd5a17a3f7274979a1bba33d11d53c1d465667516d80dc6fe2b8fe4eaf01";
-        let signature = x"6c043145ff06b8413a90669843caffead9ab91f26adc43078520436674e46eb152ef8baad303a783d808844ec7b712ba8b8b1cae98f7f16a15b9d7d93ba2040b";
+        let signature = x"05167197354f455f22cd275ad4f1bfee65bb9fb650512bc6fabe8e3954ba358a22d34013ac5f02acee2b465c02949dacbcd9c0be1929916b972b1cc0b831970b";
 
         deusd_minting::redeem<ETH>(
             &mut management,
@@ -2129,7 +2119,7 @@ fun test_redeem_fail_if_signature_expired() {
         let deusd_amount = 500000000;
 
         let public_key = x"15fffd5a17a3f7274979a1bba33d11d53c1d465667516d80dc6fe2b8fe4eaf01";
-        let signature = x"6c043145ff06b8413a90669843caffead9ab91f26adc43078520436674e46eb152ef8baad303a783d808844ec7b712ba8b8b1cae98f7f16a15b9d7d93ba2040b";
+        let signature = x"05167197354f455f22cd275ad4f1bfee65bb9fb650512bc6fabe8e3954ba358a22d34013ac5f02acee2b465c02949dacbcd9c0be1929916b972b1cc0b831970b";
 
         deusd_minting::redeem<ETH>(
             &mut management,
@@ -2269,7 +2259,7 @@ fun test_redeem_fail_if_signer_mismatch() {
         let deusd_amount = 500000000;
 
         let public_key = x"15fffd5a17a3f7274979a1bba33d11d53c1d465667516d80dc6fe2b8fe4eaf01";
-        let signature = x"9ed7a95cf71c2d2b5349adc6a6cf26bf10fc81dd568011457726f8427b34ed503b2bcd543847f5a8881f3b8402b527f10dffd787e309aa5ddd2278e7cb1e7600";
+        let signature = x"a0032095c7505fa4c95b9376b9d43313547cee567f3b4fb8f15081f97154bc7cb2e6b4b36b86f59fb233c4298edca360ebc9f88877d3b3be6b9184fd61553404";
 
         deusd_minting::redeem<ETH>(
             &mut management,

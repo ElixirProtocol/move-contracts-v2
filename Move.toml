@@ -4,11 +4,11 @@ edition = "2024.beta"
 
 [addresses]
 elixir = "_"
-admin = "_"
+initial_rewarder = "_"
 
 [dev-addresses]
 elixir = "0xee"
-admin = "0xad"
+initial_rewarder = "0xabc"
 
 [dependencies]
 

@@ -30,6 +30,10 @@ public struct LockedFundsManagement has key {
     user_collateral_coin_types: Table<address, VecSet<TypeName>>,
 }
 
+public struct BalanceStore<phantom T> has store {
+    balance: Balance<T>,
+}
+
 // === Events ===
 
 public struct Deposit has copy, drop, store {
@@ -68,10 +72,10 @@ public fun deposit<T>(
     assert!(coin_amount > 0, EZeroAmount);
 
     let owner = ctx.sender();
-    let balance = get_or_create_balance_store_mut<T>(management, owner);
-    balance.join(coin::into_balance(coins));
+    let balance_store = get_or_create_balance_store_mut<T>(management, owner);
+    balance_store.balance.join(coin::into_balance(coins));
 
-    update_user_collateral_coin_types<T>(management, owner, balance.value());
+    update_user_collateral_coin_types<T>(management, owner, balance_store.balance.value());
 
     event::emit(Deposit {
         owner,
@@ -92,15 +96,15 @@ public fun withdraw<T>(
     assert!(amount > 0, EZeroAmount);
 
     let owner = ctx.sender();
-    let balance = get_or_create_balance_store_mut<T>(management, owner);
+    let balance_store = get_or_create_balance_store_mut<T>(management, owner);
 
-    assert!(balance.value() >= amount, ENotEnoughAmount);
+    assert!(balance_store.balance.value() >= amount, ENotEnoughAmount);
 
-    let withdrawn_balance = balance.split(amount);
+    let withdrawn_balance = balance_store.balance.split(amount);
     let withdrawn_coin = coin::from_balance(withdrawn_balance, ctx);
     transfer::public_transfer(withdrawn_coin, owner);
 
-    update_user_collateral_coin_types<T>(management, owner, balance.value());
+    update_user_collateral_coin_types<T>(management, owner, balance_store.balance.value());
 
     event::emit(Withdraw {
         owner,
@@ -139,8 +143,8 @@ public fun get_user_collateral_amount<T>(
         return 0
     };
 
-    let balance = df::borrow<vector<u8>, Balance<T>>(&management.id, balance_key);
-    balance.value()
+    let balance_store = df::borrow<vector<u8>, BalanceStore<T>>(&management.id, balance_key);
+    balance_store.balance.value()
 }
 
 // === Package Functions ===
@@ -156,12 +160,12 @@ public(package) fun withdraw_internal<T>(
     let balance_key = get_balance_store_key<T>(owner);
     assert!(df::exists_(&management.id, balance_key), ENotEnoughAmount);
 
-    let balance = df::borrow_mut<vector<u8>, Balance<T>>(&mut management.id, balance_key);
-    assert!(balance.value() >= amount, ENotEnoughAmount);
+    let balance_store = df::borrow_mut<vector<u8>, BalanceStore<T>>(&mut management.id, balance_key);
+    assert!(balance_store.balance.value() >= amount, ENotEnoughAmount);
 
-    let collateral = coin::from_balance(balance.split(amount), ctx);
+    let collateral = coin::from_balance(balance_store.balance.split(amount), ctx);
 
-    update_user_collateral_coin_types<T>(management, owner, balance.value());
+    update_user_collateral_coin_types<T>(management, owner, balance_store.balance.value());
 
     collateral
 }
@@ -171,10 +175,16 @@ public(package) fun withdraw_internal<T>(
 fun get_or_create_balance_store_mut<T>(
     management: &mut LockedFundsManagement,
     owner: address,
-): &mut Balance<T> {
+): &mut BalanceStore<T> {
     let balance_key = get_balance_store_key<T>(owner);
     if (!df::exists_(&management.id, balance_key)) {
-        df::add(&mut management.id, balance_key, balance::zero<T>());
+        df::add(
+            &mut management.id,
+            balance_key,
+            BalanceStore {
+                balance: balance::zero<T>(),
+            },
+        );
     };
 
     df::borrow_mut(&mut management.id, balance_key)

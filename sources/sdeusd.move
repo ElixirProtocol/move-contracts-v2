@@ -1,4 +1,4 @@
-/// The stdeUSD contract allows users to stake deUSD tokens and earn a portion of protocol LST and
+/// The sdeUSD contract allows users to stake deUSD tokens and earn a portion of protocol LST and
 /// perpetual yield that is allocated to stakers by the Elixir Foundation voted yield distribution algorithm.
 /// The algorithm seeks to balance the stability of the protocol by funding
 /// the protocol's insurance fund, DAO activities, and rewarding stakers with a portion of the protocol's yield.
@@ -63,9 +63,9 @@ public struct SDEUSD has drop {}
 /// Main management struct for the staked deUSD contract
 public struct SdeUSDManagement has key {
     id: UID,
-    /// Treasury cap for minting/burning stdeUSD tokens
+    /// Treasury cap for minting/burning sdeUSD tokens
     treasury_cap: TreasuryCap<SDEUSD>,
-    /// Deny cap for stdeUSD tokens
+    /// Deny cap for sdeUSD tokens
     deny_cap: DenyCapV2<SDEUSD>,
     /// Balance of deUSD tokens held by the contract
     deusd_balance: Balance<DEUSD>,
@@ -143,12 +143,12 @@ public struct UserUnblacklisted has copy, drop, store {
 
 // === Initialization ===
 
-/// Initializes the stdeUSD contract, creating the treasury cap, management, user cooldowns, and user balances objects.
+/// Initializes the sdeUSD contract, creating the treasury cap, management, user cooldowns, and user balances objects.
 fun init(witness: SDEUSD, ctx: &mut TxContext) {
     let (treasury_cap, deny_cap, metadata) = coin::create_regulated_currency_v2(
         witness,
         6,
-        b"stdeUSD",
+        b"sdeUSD",
         b"Staked deUSD",
         b"Staked deUSD tokens for earning yield",
         option::none(),
@@ -237,7 +237,7 @@ public fun remove_from_blacklist(
     if (is_full_blacklisting) {
         if (management.full_restricted_stakers.contains(target)) {
             management.full_restricted_stakers.remove(target);
-            coin::deny_list_v2_add(deny_list, &mut management.deny_cap, target, ctx);
+            coin::deny_list_v2_remove(deny_list, &mut management.deny_cap, target, ctx);
         };
     } else {
         if (management.soft_restricted_stakers.contains(target)) {
@@ -250,40 +250,6 @@ public fun remove_from_blacklist(
         user: target,
         is_full_blacklisting,
     });
-}
-
-/// Withdraws deUSD assets by burning stdeUSD shares. The shares are split from the provided coin.
-public fun withdraw(
-    management: &mut SdeUSDManagement,
-    global_config: &GlobalConfig,
-    assets: u64,
-    shares_coin: &mut Coin<SDEUSD>,
-    receiver: address,
-    owner: address,
-    clock: &Clock,
-    ctx: &mut TxContext,
-) {
-    global_config.check_package_version();
-    assert_cooldown_off(management);
-
-    let shares = preview_withdraw(management, assets, clock);
-    let shares_coin_to_use = shares_coin.split(shares, ctx);
-
-    withdraw_to_user(
-        management, 
-        ctx.sender(),
-        receiver, 
-        owner, 
-        assets, 
-        shares_coin_to_use,
-        ctx
-    );
-
-    // if (shares_coin.value() != 0) {
-    //     transfer::public_transfer(shares_coin, receiver);
-    // } else {
-    //     coin::destroy_zero(shares_coin);
-    // };
 }
 
 /// Deposits deUSD and mints sdeUSD shares to the receiver. Fails if sender or receiver is soft restricted.
@@ -322,8 +288,7 @@ public fun deposit(
     });
 }
 
-/// Mints sdeUSD shares for the specified amount.
-/// The remaining deUSD coins will be returned to the sender.
+/// Deposits deUSD and mints sdeUSD shares to the receiver. Fails if sender or receiver is soft restricted.
 public fun mint(
     management: &mut SdeUSDManagement,
     global_config: &GlobalConfig,
@@ -359,13 +324,41 @@ public fun mint(
     });
 }
 
-/// Redeems stdeUSD shares for deUSD assets. The shares are burned and assets are sent to the receiver.
+/// Withdraws deUSD assets by burning sdeUSD shares. The shares are split from the provided coin.
+public fun withdraw(
+    management: &mut SdeUSDManagement,
+    global_config: &GlobalConfig,
+    assets: u64,
+    shares_coin: &mut Coin<SDEUSD>,
+    owner: address,
+    receiver: address,
+    clock: &Clock,
+    ctx: &mut TxContext,
+) {
+    global_config.check_package_version();
+    assert_cooldown_off(management);
+
+    let shares = preview_withdraw(management, assets, clock);
+    let shares_coin_to_use = shares_coin.split(shares, ctx);
+
+    withdraw_to_user(
+        management,
+        ctx.sender(),
+        receiver,
+        owner,
+        assets,
+        shares_coin_to_use,
+        ctx
+    );
+}
+
+/// Redeems sdeUSD shares for deUSD assets. The shares are burned and assets are sent to the receiver.
 public fun redeem(
     management: &mut SdeUSDManagement,
     global_config: &GlobalConfig,
     shares_coin: Coin<SDEUSD>,
-    receiver: address,
     owner: address,
+    receiver: address,
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
@@ -524,56 +517,24 @@ public fun get_unvested_amount(management: &SdeUSDManagement, clock: &Clock): u6
     math_u64::mul_div(VESTING_PERIOD - time_since_last_distribution, management.vesting_amount, VESTING_PERIOD, false)
 }
 
-/// Calculates the number of stdeUSD shares to mint for a given deposit amount.
-public fun preview_deposit(management: &mut SdeUSDManagement, assets: u64, clock: &Clock): u64 {
-    let total_supply = total_supply(management);
-    if (total_supply == 0) {
-        assets
-    } else {
-        let total_assets = total_assets(management, clock);
-        if (total_assets == 0) {
-            assets
-        } else {
-            math_u64::mul_div(assets, total_supply, total_assets, false)
-        }
-    }
+/// Calculates the number of sdeUSD shares to mint for a given deposit amount.
+public fun preview_deposit(management: &SdeUSDManagement, assets: u64, clock: &Clock): u64 {
+    convert_to_shares(management, assets, false, clock)
 }
 
 /// Calculates the amount of assets required to mint a specific number of shares
-public fun preview_mint(management: &mut SdeUSDManagement, shares: u64, clock: &Clock): u64 {
-    let total_supply = total_supply(management);
-    if (total_supply == 0) {
-        shares
-    } else {
-        let total_assets = total_assets(management, clock);
-        math_u64::mul_div(shares, total_assets, total_supply, true)
-    }
+public fun preview_mint(management: &SdeUSDManagement, shares: u64, clock: &Clock): u64 {
+    convert_to_assets(management, shares, true, clock)
 }
 
-/// Calculates the amount of deUSD to return for a given number of stdeUSD shares.
-public fun preview_redeem(management: &mut SdeUSDManagement, shares: u64, clock: &Clock): u64 {
-    let total_supply = total_supply(management);
-    if (total_supply == 0) {
-        0
-    } else {
-        let total_assets = total_assets(management, clock);
-        math_u64::mul_div(shares, total_assets, total_supply, false)
-    }
+/// Calculates the amount of deUSD to return for a given number of sdeUSD shares.
+public fun preview_redeem(management: &SdeUSDManagement, shares: u64, clock: &Clock): u64 {
+    convert_to_assets(management, shares, false, clock)
 }
 
 /// Calculates the number of shares to burn for a specific amount of assets
-public fun preview_withdraw(management: &mut SdeUSDManagement, assets: u64, clock: &Clock): u64 {
-    let total_supply = total_supply(management);
-    if (total_supply == 0) {
-        assets
-    } else {
-        let total_assets = total_assets(management, clock);
-        if (total_assets == 0) {
-            assets
-        } else {
-            math_u64::mul_div(assets, total_supply, total_assets, true)
-        }
-    }
+public fun preview_withdraw(management: &SdeUSDManagement, assets: u64, clock: &Clock): u64 {
+    convert_to_shares(management, assets, true, clock)
 }
 
 /// Returns the maximum amount of deUSD a user can withdraw.
@@ -605,9 +566,9 @@ public fun cooldown_end_time(cooldown: &UserCooldown): u64 {
     cooldown.cooldown_end
 }
 
-/// Get total supply of stdeUSD
-public fun total_supply(management: &mut SdeUSDManagement): u64 {
-    management.treasury_cap.supply().supply_value()
+/// Get total supply of sdeUSD
+public fun total_supply(management: &SdeUSDManagement): u64 {
+    management.treasury_cap.total_supply()
 }
 
 /// Get current cooldown duration
@@ -642,7 +603,7 @@ fun update_vesting_amount(management: &mut SdeUSDManagement, new_vesting_amount:
     management.last_distribution_timestamp = clock_utils::timestamp_seconds(clock);
 }
 
-fun check_min_shares(management: &mut SdeUSDManagement) {
+fun check_min_shares(management: &SdeUSDManagement) {
     let total_supply = total_supply(management);
     assert!(total_supply == 0 || total_supply >= MIN_SHARES, EMinSharesViolation);
 }
@@ -653,6 +614,29 @@ fun assert_cooldown_on(management: &SdeUSDManagement) {
 
 fun assert_cooldown_off(management: &SdeUSDManagement) {
     assert!(management.cooldown_duration == 0, EOperationNotAllowed);
+}
+
+fun convert_to_shares(management: &SdeUSDManagement, assets: u64, rounding_up: bool, clock: &Clock): u64 {
+    let total_supply = total_supply(management);
+    let total_assets = total_assets(management, clock);
+
+    if (total_supply == 0 || total_assets == 0) {
+        assets
+    } else {
+        math_u64::mul_div(assets, total_supply, total_assets, rounding_up)
+    }
+}
+
+fun convert_to_assets(management: &SdeUSDManagement, shares: u64, rounding_up: bool, clock: &Clock): u64 {
+    let total_supply = total_supply(management);
+    let total_assets = total_assets(management, clock);
+
+    if (total_supply == 0 || total_assets == 0) {
+        shares
+    } else {
+        math_u64::mul_div(shares, total_assets, total_supply, rounding_up)
+    }
+
 }
 
 fun withdraw_to_user(
@@ -676,7 +660,7 @@ fun withdraw_to_user(
 
     coin::burn(&mut management.treasury_cap, shares_coin);
     let assets_coin = coin::from_balance(management.deusd_balance.split(assets), ctx);
-    transfer::public_transfer(assets_coin, owner);
+    transfer::public_transfer(assets_coin, receiver);
 
     check_min_shares(management);
 
@@ -740,58 +724,4 @@ fun update_user_cooldown(
 #[test_only]
 public fun init_for_test(ctx: &mut TxContext) {
     init(SDEUSD {}, ctx);
-}
-
-#[test_only]
-public fun create_management_for_test(ctx: &mut TxContext): SdeUSDManagement {
-    let (treasury_cap, deny_cap, metadata) = coin::create_regulated_currency_v2(
-        SDEUSD {},
-        18,
-        b"stdeUSD",
-        b"Staked deUSD",
-        b"Staked deUSD tokens for earning yield",
-        option::none(),
-        true,
-        ctx
-    );
-    transfer::public_freeze_object(metadata);
-
-    SdeUSDManagement {
-        id: object::new(ctx),
-        treasury_cap,
-        deny_cap,
-        deusd_balance: balance::zero(),
-        silo_balance: balance::zero(),
-        vesting_amount: 0,
-        last_distribution_timestamp: 0,
-        cooldown_duration: MAX_COOLDOWN_DURATION,
-        cooldowns: table::new(ctx),
-        soft_restricted_stakers: set::new(ctx),
-        full_restricted_stakers: set::new(ctx),
-    }
-}
-
-#[test_only]
-public fun destroy_management_for_test(management: SdeUSDManagement) {
-    let SdeUSDManagement {
-        id, 
-        treasury_cap,
-        deny_cap,
-        deusd_balance,
-        silo_balance,
-        vesting_amount: _, 
-        last_distribution_timestamp: _, 
-        cooldown_duration: _,
-        cooldowns,
-        soft_restricted_stakers,
-        full_restricted_stakers 
-    } = management;
-    id.delete();
-    sui::test_utils::destroy(treasury_cap);
-    sui::test_utils::destroy(deny_cap);
-    deusd_balance.destroy_for_testing();
-    silo_balance.destroy_for_testing();
-    sui::test_utils::destroy(cooldowns);
-    sui::test_utils::destroy(soft_restricted_stakers);
-    sui::test_utils::destroy(full_restricted_stakers);
 }

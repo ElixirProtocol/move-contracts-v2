@@ -2,6 +2,7 @@ module elixir::config;
 
 // === Imports ===
 
+use elixir::roles;
 use sui::event;
 use elixir::acl::{Self, ACL};
 use elixir::admin_cap::AdminCap;
@@ -43,9 +44,12 @@ public struct RoleRemoved has copy, drop {
 // === Initialization ===
 
 fun init(ctx: &mut TxContext) {
+    let mut acl = acl::new(ctx);
+    acl.add_role(@initial_rewarder, roles::role_rewarder());
+
     transfer::share_object(GlobalConfig {
         id: object::new(ctx),
-        acl: acl::new(ctx),
+        acl,
         package_version: PACKAGE_VERSION,
     });
 }
