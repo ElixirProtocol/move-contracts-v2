@@ -1,6 +1,5 @@
 module elixir::deusd;
 
-use elixir::config::GlobalConfig;
 use sui::coin::{Self, TreasuryCap, DenyCapV2, Coin};
 use sui::event;
 
@@ -56,18 +55,15 @@ fun init(witness: DEUSD, ctx: &mut TxContext) {
     transfer::share_object(management);
 }
 
-// === Public Functions ===
+// === Functions ===
 
 /// Mint new tokens to the specified account.
 public(package) fun mint(
     config: &mut DeUSDConfig,
     to: address,
     amount: u64,
-    global_config: &GlobalConfig,
     ctx: &mut TxContext,
 ) {
-    global_config.check_package_version();
-
     assert!(to != @0x0, EZeroAddress);
     assert!(amount > 0, EZeroAmount);
 
@@ -76,24 +72,21 @@ public(package) fun mint(
     transfer::public_transfer(coin::mint(&mut config.treasury_cap, amount, ctx), to);
 }
 
-public fun burn(
+public(package) fun burn_from(
     config: &mut DeUSDConfig,
     coin: Coin<DEUSD>,
-    global_config: &GlobalConfig,
-    ctx: &mut TxContext,
+    from: address,
 ) {
-    global_config.check_package_version();
-
     event::emit(Burn {
-        from: ctx.sender(),
+        from,
         amount: coin.value(),
     });
 
     coin::burn(&mut config.treasury_cap, coin);
 }
 
-public fun supply(config: &mut DeUSDConfig): u64 {
-    config.treasury_cap.supply().supply_value()
+public fun total_supply(config: &DeUSDConfig): u64 {
+    config.treasury_cap.total_supply()
 }
 
 // === Tests ===

@@ -26,7 +26,8 @@ fun test_initialization() {
     let (ts, admin_cap, deusd_config, distributor, global_config, sdeusd_management) = setup_test();
     
     // Test initial state
-    assert!(staking_rewards_distributor::get_operator(&distributor) == @0x0);
+    assert!(config::has_role(&global_config, @initial_rewarder, roles::role_rewarder()));
+    assert!(staking_rewards_distributor::get_operator(&distributor) == @initial_rewarder);
     assert!(staking_rewards_distributor::get_deusd_balance(&distributor) == 0);
     
     clean_test(ts, admin_cap, deusd_config, distributor, global_config, sdeusd_management);

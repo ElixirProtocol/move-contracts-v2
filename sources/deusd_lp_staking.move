@@ -18,26 +18,26 @@ use elixir::config::GlobalConfig;
 // === Error codes ===
 
 /// Invalid amount
-const EInvalidAmount: u64 = 0;
+const EInvalidAmount: u64 = 1;
 /// No stake found for user
-const ENoUserStake: u64 = 1;
+const ENoUserStake: u64 = 2;
 /// No stake parameters found for token
-const ENoStakeParameters: u64 = 2;
+const ENoStakeParameters: u64 = 3;
 /// Invalid epoch
-const EInvalidEpoch: u64 = 3;
+const EInvalidEpoch: u64 = 4;
 /// Maximum cooldown period exceeded
-const EMaxCooldownExceeded: u64 = 4;
+const EMaxCooldownExceeded: u64 = 5;
 /// Stake limit exceeded
-const EStakeLimitExceeded: u64 = 5;
+const EStakeLimitExceeded: u64 = 6;
 /// Cooldown period not over
-const ECooldownNotOver: u64 = 6;
+const ECooldownNotOver: u64 = 7;
 /// Invariant broken
-const EInvariantBroken: u64 = 7;
+const EInvariantBroken: u64 = 8;
 
 // === Constants ===
 
 /// Maximum cooldown period (90 days in seconds)
-const MAX_COOLDOWN_PERIOD: u64 = 90 * 24 * 60 * 60; // 90 days in seconds
+const MAX_COOLDOWN_PERIOD: u64 = 90 * 86400;
 
 // === Structs ===
 

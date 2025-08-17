@@ -23,9 +23,9 @@ use elixir::deusd::DEUSD;
 
 // === Error codes ===
 
-const EOnlyOperator: u64 = 3;
-const EInsufficientFunds: u64 = 4;
-const EInvalidAmount: u64 = 5;
+const EOnlyOperator: u64 = 1;
+const EInsufficientFunds: u64 = 2;
+const EInvalidAmount: u64 = 3;
 
 // === Structs ===
 
@@ -61,11 +61,11 @@ public struct DeUSDWithdrawn has copy, drop {
 
 // === Initialization ===
 
-/// @notice Initialize the StakingRewardsDistributor
+/// Initialize the StakingRewardsDistributor
 fun init(ctx: &mut TxContext) {
     let distributor = StakingRewardsDistributor {
         id: object::new(ctx),
-        operator: @0x0,
+        operator: @initial_rewarder,
         deusd_balance: balance::zero<DEUSD>(),
     };
     
@@ -179,7 +179,7 @@ public fun get_operator(distributor: &StakingRewardsDistributor): address {
     distributor.operator
 }
 
-/// @notice Get the deUSD balance
+/// Get the deUSD balance
 public fun get_deusd_balance(distributor: &StakingRewardsDistributor): u64 {
     distributor.deusd_balance.value()
 }
@@ -187,7 +187,6 @@ public fun get_deusd_balance(distributor: &StakingRewardsDistributor): u64 {
 // === Test-only Functions ===
 
 #[test_only]
-/// @notice Initialize the module for testing
 public fun init_for_test(ctx: &mut TxContext) {
     init(ctx);
 }

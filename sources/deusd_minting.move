@@ -34,10 +34,10 @@ const EInitialized: u64 = 0;
 const ENotInitialized: u64 = 1;
 /// Invalid route.
 const EInvalidRoute: u64 = 2;
-/// Max mint per block exceeded.
-const EMaxMintPerBlockExceeded: u64 = 3;
-/// Max redeem per block exceeded.
-const EMaxRedeemPerBlockExceeded: u64 = 4;
+/// Max mint per second exceeded.
+const EMaxMintPerSecondExceeded: u64 = 3;
+/// Max redeem per second exceeded.
+const EMaxRedeemPerSecondExceeded: u64 = 4;
 /// Invalid address.
 const EInvalidAddress: u64 = 5;
 /// Invalid amount.
@@ -67,11 +67,15 @@ const ORDER_TYPE_REDEEM: u8 = 1;
 /// Required ratio for route (10000 = 100%)
 const ROUTE_REQUIRED_RATIO: u64 = 10_000;
 
+const ORDER_DOMAIN_SEPARATOR: vector<u8> = b"deusd_order";
+
 // === Structs ===
 
 public struct DeUSDMintingManagement has key {
     id: UID,
+    /// Initialization address of the contract
     address: address,
+    domain_separator: vector<u8>,
     /// Supported assets for collateral
     supported_assets: Set<TypeName>,
     /// Custodian addresses
@@ -132,7 +136,7 @@ public struct MaxMintPerSecondChanged has copy, drop, store {
     new_max: u64,
 }
 
-public struct MaxRedeemPerBlockChanged has copy, drop, store {
+public struct MaxRedeemPerSecondChanged has copy, drop, store {
     old_max: u64,
     new_max: u64,
 }
@@ -161,6 +165,7 @@ fun init(ctx: &mut TxContext) {
     let management = DeUSDMintingManagement {
         id: object::new(ctx),
         address: @elixir,
+        domain_separator: calculate_domain_separator(@elixir),
         supported_assets: set::new(ctx),
         custodian_addresses: set::new(ctx),
         order_bitmaps: table::new(ctx),
@@ -224,6 +229,7 @@ public fun mint<T>(
     assert_is_minter(global_config, ctx);
 
     verify_order<T>(
+        management,
         ORDER_TYPE_MINT,
         expiry,
         nonce,
@@ -240,7 +246,7 @@ public fun mint<T>(
     let now_seconds = clock_utils::timestamp_seconds(clock);
 
     let current_minted = get_minted_per_second(management, now_seconds);
-    assert!(current_minted + deusd_amount <= management.max_mint_per_second, EMaxMintPerBlockExceeded);
+    assert!(current_minted + deusd_amount <= management.max_mint_per_second, EMaxMintPerSecondExceeded);
 
     deduplicate_order(management, benefactor, nonce, ctx);
 
@@ -250,7 +256,7 @@ public fun mint<T>(
     let collateral = locked_funds::withdraw_internal<T>(locked_funds_management, benefactor, collateral_amount, ctx);
     transfer_collateral(management, collateral, route_addresses, route_ratios, ctx);
 
-    deusd::mint(deusd_management, beneficiary, deusd_amount, global_config, ctx);
+    deusd::mint(deusd_management, beneficiary, deusd_amount, ctx);
 
     event::emit(Mint {
         minter: ctx.sender(),
@@ -284,6 +290,7 @@ public fun redeem<T>(
     assert_is_redeemer(global_config, ctx);
 
     verify_order<T>(
+        management,
         ORDER_TYPE_REDEEM,
         expiry,
         nonce,
@@ -299,14 +306,14 @@ public fun redeem<T>(
     let now_seconds = clock_utils::timestamp_seconds(clock);
 
     let current_redeemed = get_redeemed_per_second(management, now_seconds);
-    assert!(current_redeemed + deusd_amount <= management.max_redeem_per_second, EMaxRedeemPerBlockExceeded);
+    assert!(current_redeemed + deusd_amount <= management.max_redeem_per_second, EMaxRedeemPerSecondExceeded);
 
     deduplicate_order(management, benefactor, nonce, ctx);
 
     update_redeemed_per_second(management, now_seconds, deusd_amount);
 
     let deusd_coins = locked_funds::withdraw_internal<DEUSD>(locked_funds_management, benefactor, deusd_amount, ctx);
-    deusd::burn(deusd_config, deusd_coins, global_config, ctx);
+    deusd::burn_from(deusd_config, deusd_coins, benefactor);
 
     transfer_to_beneficiary<T>(management, beneficiary, collateral_amount, ctx);
 
@@ -524,24 +531,45 @@ public fun withdraw<T>(
 
 // === View Functions ===
 
+public fun get_domain_separator(management: &DeUSDMintingManagement): vector<u8> {
+    management.domain_separator
+}
+
 /// Check if asset is supported
 public fun is_supported_asset<T>(management: &DeUSDMintingManagement): bool {
     let asset = type_name::get<T>();
     management.supported_assets.contains(asset)
 }
 
-/// Get max mint per block
-public fun get_max_mint_per_block(management: &DeUSDMintingManagement): u64 {
+/// Get max mint per second
+public fun get_max_mint_per_second(management: &DeUSDMintingManagement): u64 {
     management.max_mint_per_second
 }
 
-/// Get max redeem per block
-public fun get_max_redeem_per_block(management: &DeUSDMintingManagement): u64 {
+/// Get max redeem per second
+public fun get_max_redeem_per_second(management: &DeUSDMintingManagement): u64 {
     management.max_redeem_per_second
+}
+
+public fun get_minted_per_second(management: &DeUSDMintingManagement, timestamp_seconds: u64): u64 {
+    if (management.minted_per_second.contains(timestamp_seconds)) {
+        *management.minted_per_second.borrow(timestamp_seconds)
+    } else {
+        0
+    }
+}
+
+public fun get_redeemed_per_second(management: &DeUSDMintingManagement, timestamp_seconds: u64): u64 {
+    if (management.redeemed_per_second.contains(timestamp_seconds)) {
+        *management.redeemed_per_second.borrow(timestamp_seconds)
+    } else {
+        0
+    }
 }
 
 /// Hash order for verification using individual parameters
 public fun hash_order<Collateral>(
+    management: &DeUSDMintingManagement,
     order_type: u8,
     expiry: u64,
     nonce: u64,
@@ -552,7 +580,8 @@ public fun hash_order<Collateral>(
 ): vector<u8> {
     let collateral_asset = type_name::get<Collateral>();
 
-    let mut data = vector::empty<u8>();
+    let mut data = management.domain_separator;
+    vector::append(&mut data, ORDER_DOMAIN_SEPARATOR);
     vector::append(&mut data, bcs::to_bytes(&order_type));
     vector::append(&mut data, bcs::to_bytes(&expiry));
     vector::append(&mut data, bcs::to_bytes(&nonce));
@@ -596,24 +625,6 @@ public fun verify_route(
     total_ratio == ROUTE_REQUIRED_RATIO
 }
 
-// === View Functions ===
-
-public fun get_minted_per_second(management: &DeUSDMintingManagement, timestamp_seconds: u64): u64 {
-    if (management.minted_per_second.contains(timestamp_seconds)) {
-        *management.minted_per_second.borrow(timestamp_seconds)
-    } else {
-        0
-    }
-}
-
-public fun get_redeemed_per_second(management: &DeUSDMintingManagement, timestamp_seconds: u64): u64 {
-    if (management.redeemed_per_second.contains(timestamp_seconds)) {
-        *management.redeemed_per_second.borrow(timestamp_seconds)
-    } else {
-        0
-    }
-}
-
 public fun get_balance<T>(
     management: &DeUSDMintingManagement,
 ): u64 {
@@ -627,6 +638,13 @@ public fun get_balance<T>(
 }
 
 // === Helper Functions ===
+
+fun calculate_domain_separator(addr: address): vector<u8> {
+    let mut data = vector::empty<u8>();
+    vector::append(&mut data, bcs::to_bytes(&addr));
+    vector::append(&mut data, b"deusd_minting");
+    hash::keccak256(&data)
+}
 
 fun assert_package_version_and_initialized(
     management: &DeUSDMintingManagement,
@@ -653,6 +671,7 @@ fun assert_is_collateral_manager(config: &GlobalConfig, ctx: &TxContext) {
 }
 
 fun verify_order<Collateral>(
+    management: &DeUSDMintingManagement,
     order_type: u8,
     expiry: u64,
     nonce: u64,
@@ -670,6 +689,7 @@ fun verify_order<Collateral>(
     assert!(clock_utils::timestamp_seconds(clock) <= expiry, ESignatureExpired);
 
     let order_hash = hash_order<Collateral>(
+        management,
         order_type,
         expiry,
         nonce,
@@ -710,21 +730,21 @@ fun deduplicate_order(
     *invalidator = *invalidator | invalidator_bit;
 }
 
-fun update_minted_per_second(management: &mut DeUSDMintingManagement, block: u64, amount: u64) {
-    if (management.minted_per_second.contains(block)) {
-        let current = management.minted_per_second.borrow_mut(block);
+fun update_minted_per_second(management: &mut DeUSDMintingManagement, timestamp_seconds: u64, amount: u64) {
+    if (management.minted_per_second.contains(timestamp_seconds)) {
+        let current = management.minted_per_second.borrow_mut(timestamp_seconds);
         *current = *current + amount;
     } else {
-        management.minted_per_second.add(block, amount);
+        management.minted_per_second.add(timestamp_seconds, amount);
     }
 }
 
-fun update_redeemed_per_second(management: &mut DeUSDMintingManagement, second: u64, amount: u64) {
-    if (management.redeemed_per_second.contains(second)) {
-        let current = management.redeemed_per_second.borrow_mut(second);
+fun update_redeemed_per_second(management: &mut DeUSDMintingManagement, timestamp_seconds: u64, amount: u64) {
+    if (management.redeemed_per_second.contains(timestamp_seconds)) {
+        let current = management.redeemed_per_second.borrow_mut(timestamp_seconds);
         *current = *current + amount;
     } else {
-        management.redeemed_per_second.add(second, amount);
+        management.redeemed_per_second.add(timestamp_seconds, amount);
     }
 }
 
@@ -769,7 +789,7 @@ fun set_max_redeem_per_second_internal(
     let old_max = management.max_redeem_per_second;
     management.max_redeem_per_second = max_redeem;
 
-    event::emit(MaxRedeemPerBlockChanged {
+    event::emit(MaxRedeemPerSecondChanged {
         old_max,
         new_max: max_redeem,
     });

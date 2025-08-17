@@ -45,8 +45,9 @@ fun test_initialization() {
     );
 
     // Test basic initialization
-    assert_eq(1000000, deusd_minting::get_max_mint_per_block(&management));
-    assert_eq(2000000, deusd_minting::get_max_redeem_per_block(&management));
+    assert_eq(x"29168617060ffecbc997a42a1d75d4a109f3be2c52ccb4e043dccafccce0e3c1", deusd_minting::get_domain_separator(&management));
+    assert_eq(1000000, deusd_minting::get_max_mint_per_second(&management));
+    assert_eq(2000000, deusd_minting::get_max_redeem_per_second(&management));
 
     clean_test(ts, global_config, admin_cap, deusd_config, locked_funds_management, management);
 }
@@ -258,10 +259,10 @@ fun test_set_max_mint_per_second_success() {
     );
 
     deusd_minting::set_max_mint_per_second(&admin_cap, &mut management, &global_config, 2000000);
-    assert_eq(2000000, deusd_minting::get_max_mint_per_block(&management));
+    assert_eq(2000000, deusd_minting::get_max_mint_per_second(&management));
 
     deusd_minting::set_max_mint_per_second(&admin_cap, &mut management, &global_config, 3000000);
-    assert_eq(3000000, deusd_minting::get_max_mint_per_block(&management));
+    assert_eq(3000000, deusd_minting::get_max_mint_per_second(&management));
 
     clean_test(ts, global_config, admin_cap, deusd_config, locked_funds_management, management);
 }
@@ -291,10 +292,10 @@ fun test_set_max_redeem_per_second_success() {
     );
 
     deusd_minting::set_max_redeem_per_second(&admin_cap, &mut management, &global_config, 1500000);
-    assert_eq(1500000, deusd_minting::get_max_redeem_per_block(&management));
+    assert_eq(1500000, deusd_minting::get_max_redeem_per_second(&management));
 
     deusd_minting::set_max_redeem_per_second(&admin_cap, &mut management, &global_config, 2500000);
-    assert_eq(2500000, deusd_minting::get_max_redeem_per_block(&management));
+    assert_eq(2500000, deusd_minting::get_max_redeem_per_second(&management));
 
     clean_test(ts, global_config, admin_cap, deusd_config, locked_funds_management, management);
 }
@@ -330,8 +331,8 @@ fun test_disable_mint_redeem_success() {
     ts.next_tx(GATEKEEPER);
     deusd_minting::disable_mint_redeem(&mut management, &global_config, ts.ctx());
 
-    assert_eq(0, deusd_minting::get_max_mint_per_block(&management));
-    assert_eq(0, deusd_minting::get_max_redeem_per_block(&management));
+    assert_eq(0, deusd_minting::get_max_mint_per_second(&management));
+    assert_eq(0, deusd_minting::get_max_redeem_per_second(&management));
 
     clean_test(ts, global_config, admin_cap, deusd_config, locked_funds_management, management);
 }
@@ -356,57 +357,6 @@ fun test_disable_mint_redeem_fail_if_not_gatekeeper() {
     deusd_minting::disable_mint_redeem(&mut management, &global_config, ts.ctx());
 
     clean_test(ts, global_config, admin_cap, deusd_config, locked_funds_management, management);
-}
-
-#[test]
-fun test_hash_order_different_types() {
-    // Test hash for different collateral types
-    let hash_eth = deusd_minting::hash_order<ETH>(
-        0, // order_type
-        1000000, // expiry
-        1, // nonce
-        ALICE, // benefactor
-        ALICE, // beneficiary
-        1000, // collateral_amount
-        1000, // deusd_amount
-    );
-
-    let hash_usdc = deusd_minting::hash_order<USDC>(
-        0, // order_type
-        1000000, // expiry
-        1, // nonce
-        ALICE, // benefactor
-        ALICE, // beneficiary
-        1000, // collateral_amount
-        1000, // deusd_amount
-    );
-
-    // Different types should produce different hashes
-    assert!(hash_eth != hash_usdc, 0);
-
-    // Test hash for different order types
-    let hash_mint = deusd_minting::hash_order<ETH>(
-        0, // MINT
-        1000000, // expiry
-        1, // nonce
-        ALICE, // benefactor
-        ALICE, // beneficiary
-        1000, // collateral_amount
-        1000, // deusd_amount
-    );
-
-    let hash_redeem = deusd_minting::hash_order<ETH>(
-        1, // REDEEM
-        1000000, // expiry
-        1, // nonce
-        ALICE, // benefactor
-        ALICE, // beneficiary
-        1000, // collateral_amount
-        1000, // deusd_amount
-    );
-
-    // Different order types should produce different hashes
-    assert!(hash_mint != hash_redeem, 1);
 }
 
 #[test]

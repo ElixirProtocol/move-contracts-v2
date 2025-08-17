@@ -129,7 +129,7 @@ fun test_cooldown_period_at_max() {
     let mut staking_management = deusd_lp_staking::create_for_test(&mut ctx);
 
     // Set cooldown period exactly at max (should succeed)
-    let max_cooldown = 90 * 24 * 60 * 60; // 90 days in seconds
+    let max_cooldown = 90 * 86400; // 90 days in seconds
     deusd_lp_staking::update_stake_parameters<TestCoin>(
         &admin_cap,
         &mut staking_management,
@@ -158,7 +158,7 @@ fun test_update_stake_parameters_fail_if_cooldown_period_too_long() {
     let mut staking_management = deusd_lp_staking::create_for_test(&mut ctx);
 
     // Try to set cooldown period longer than max (90 days)
-    let max_cooldown = 90 * 24 * 60 * 60; // 90 days in seconds
+    let max_cooldown = 90 * 86400;
     deusd_lp_staking::update_stake_parameters<TestCoin>(
         &admin_cap,
         &mut staking_management,
