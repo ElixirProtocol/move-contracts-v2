@@ -74,7 +74,7 @@ const ORDER_DOMAIN_SEPARATOR: vector<u8> = b"deusd_order";
 public struct DeUSDMintingManagement has key {
     id: UID,
     /// Initialization address of the contract
-    address: address,
+    package_address: address,
     domain_separator: vector<u8>,
     /// Supported assets for collateral
     supported_assets: Set<TypeName>,
@@ -164,8 +164,8 @@ public struct Withdraw has copy, drop, store {
 fun init(ctx: &mut TxContext) {
     let management = DeUSDMintingManagement {
         id: object::new(ctx),
-        address: @elixir,
-        domain_separator: calculate_domain_separator(@elixir),
+        package_address: @0x0,
+        domain_separator: vector::empty(),
         supported_assets: set::new(ctx),
         custodian_addresses: set::new(ctx),
         order_bitmaps: table::new(ctx),
@@ -185,6 +185,7 @@ public fun initialize(
     _: &AdminCap,
     management: &mut DeUSDMintingManagement,
     global_config: &GlobalConfig,
+    package_address: address,
     custodians: vector<address>,
     max_mint_per_second: u64,
     max_redeem_per_second: u64,
@@ -193,6 +194,8 @@ public fun initialize(
     assert!(!management.initialized, EInitialized);
 
     management.initialized = true;
+    management.package_address = package_address;
+    management.domain_separator = calculate_domain_separator(package_address);
 
     let mut j = 0;
     let custodians_length = vector::length(&custodians);
@@ -763,7 +766,7 @@ fun add_custodian_address_internal(
     management: &mut DeUSDMintingManagement,
     custodian: address,
 ) {
-    assert!(custodian != @0x0, EInvalidCustodianAddress);
+    assert!(custodian != @0x0 || management.custodian_addresses.contains(custodian), EInvalidCustodianAddress);
     management.custodian_addresses.add(custodian);
 
     event::emit(CustodianAddressAdded { custodian });
@@ -827,7 +830,7 @@ fun transfer_collateral_to<T>(
     collateral: Coin<T>,
     recipient: address,
 ) {
-    if (recipient == management.address) {
+    if (recipient == management.package_address) {
         let contract_balance = get_or_create_balance_store_mut<T>(management);
         contract_balance.join(coin::into_balance(collateral));
     } else {

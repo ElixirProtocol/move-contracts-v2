@@ -5,6 +5,7 @@ use sui::coin::{Self, Coin};
 use sui::test_scenario;
 use sui::test_utils::{assert_eq};
 use sui::test_scenario::Scenario;
+use test_coin::test_coins::{ETH, USDC};
 use elixir::locked_funds::LockedFundsManagement;
 use elixir::test_utils;
 use elixir::deusd_minting::{Self, DeUSDMintingManagement};
@@ -15,6 +16,7 @@ use elixir::roles;
 
 // === Constants ===
 
+const PACKAGE_ADDRESS: address = @0xee;
 const ADMIN: address = @0xad;
 const MINTER: address = @0xBB;
 const REDEEMER: address = @0xCC;
@@ -22,12 +24,6 @@ const CUSTODIAN1: address = @0xC1;
 const CUSTODIAN2: address = @0xC2;
 const ALICE: address = @0xa11ce;
 const GATEKEEPER: address = @0xfeed;
-
-// === Structs ===
-
-public struct ETH has drop {}
-
-public struct USDC has drop {}
 
 // === Tests ===
 
@@ -39,6 +35,7 @@ fun test_initialization() {
         &admin_cap,
         &mut management,
         &global_config,
+        PACKAGE_ADDRESS,
         vector[CUSTODIAN1, CUSTODIAN2],
         1000000,
         2000000,
@@ -63,6 +60,7 @@ fun test_initialize_twice_fail() {
         &admin_cap,
         &mut management,
         &global_config,
+        PACKAGE_ADDRESS,
         vector[CUSTODIAN1],
         1000000,
         500000,
@@ -73,6 +71,7 @@ fun test_initialize_twice_fail() {
         &admin_cap,
         &mut management,
         &global_config,
+        PACKAGE_ADDRESS,
         vector[CUSTODIAN2],
         2000000,
         1000000,
@@ -89,6 +88,7 @@ fun test_add_supported_asset_success() {
         &admin_cap,
         &mut management,
         &global_config,
+        PACKAGE_ADDRESS,
         vector[CUSTODIAN1],
         1000000,
         500000,
@@ -125,6 +125,7 @@ fun test_remove_supported_asset_success() {
         &admin_cap,
         &mut management,
         &global_config,
+        PACKAGE_ADDRESS,
         vector[CUSTODIAN1],
         1000000,
         500000,
@@ -162,6 +163,7 @@ fun test_add_custodian_address_success() {
         &admin_cap,
         &mut management,
         &global_config,
+        PACKAGE_ADDRESS,
         vector[CUSTODIAN1],
         1000000,
         500000,
@@ -200,6 +202,7 @@ fun test_add_custodian_address_fail_if_zero_address() {
         &admin_cap,
         &mut management,
         &global_config,
+        PACKAGE_ADDRESS,
         vector[CUSTODIAN1],
         1000000,
         500000,
@@ -219,6 +222,7 @@ fun test_remove_custodian_address_success() {
         &admin_cap,
         &mut management,
         &global_config,
+        PACKAGE_ADDRESS,
         vector[CUSTODIAN1, CUSTODIAN2],
         1000000,
         500000,
@@ -253,6 +257,7 @@ fun test_set_max_mint_per_second_success() {
         &admin_cap,
         &mut management,
         &global_config,
+        PACKAGE_ADDRESS,
         vector[CUSTODIAN1],
         1000000,
         500000,
@@ -286,6 +291,7 @@ fun test_set_max_redeem_per_second_success() {
         &admin_cap,
         &mut management,
         &global_config,
+        PACKAGE_ADDRESS,
         vector[CUSTODIAN1],
         1000000,
         500000,
@@ -320,6 +326,7 @@ fun test_disable_mint_redeem_success() {
         &admin_cap,
         &mut management,
         &global_config,
+        PACKAGE_ADDRESS,
         vector[CUSTODIAN1],
         1000000,
         500000,
@@ -346,6 +353,7 @@ fun test_disable_mint_redeem_fail_if_not_gatekeeper() {
         &admin_cap,
         &mut management,
         &global_config,
+        PACKAGE_ADDRESS,
         vector[CUSTODIAN1],
         1000000,
         500000,
@@ -367,6 +375,7 @@ fun test_remove_minter_role_success() {
         &admin_cap,
         &mut management,
         &global_config,
+        PACKAGE_ADDRESS,
         vector[CUSTODIAN1],
         1000000,
         500000,
@@ -393,6 +402,7 @@ fun test_remove_minter_role_fail_if_not_gatekeeper() {
         &admin_cap,
         &mut management,
         &global_config,
+        PACKAGE_ADDRESS,
         vector[CUSTODIAN1],
         1000000,
         500000,
@@ -416,6 +426,7 @@ fun test_remove_redeemer_role_success() {
         &admin_cap,
         &mut management,
         &global_config,
+        PACKAGE_ADDRESS,
         vector[CUSTODIAN1],
         1000000,
         500000,
@@ -441,6 +452,7 @@ fun test_remove_redeemer_role_fail_if_not_gatekeeper() {
         &admin_cap,
         &mut management,
         &global_config,
+        PACKAGE_ADDRESS,
         vector[CUSTODIAN1],
         1000000,
         500000,
@@ -464,6 +476,7 @@ fun test_remove_collateral_manager_role_success() {
         &admin_cap,
         &mut management,
         &global_config,
+        PACKAGE_ADDRESS,
         vector[CUSTODIAN1],
         1000000,
         500000,
@@ -489,6 +502,7 @@ fun test_remove_collateral_manager_role_fail_if_not_gatekeeper() {
         &admin_cap,
         &mut management,
         &global_config,
+        PACKAGE_ADDRESS,
         vector[CUSTODIAN1],
         1000000,
         500000,
@@ -513,6 +527,7 @@ fun test_verify_route_invalid_scenarios() {
         &admin_cap,
         &mut management,
         &global_config,
+        PACKAGE_ADDRESS,
         vector[CUSTODIAN1, CUSTODIAN2],
         1000000,
         500000,
@@ -565,6 +580,7 @@ fun test_transfer_to_custody_success() {
         &admin_cap,
         &mut management,
         &global_config,
+        PACKAGE_ADDRESS,
         vector[CUSTODIAN1],
         1000000,
         500000,
@@ -598,6 +614,7 @@ fun test_transfer_to_custody_fail_if_not_collateral_manager() {
         &admin_cap,
         &mut management,
         &global_config,
+        PACKAGE_ADDRESS,
         vector[CUSTODIAN1],
         1000000,
         500000,
@@ -624,6 +641,7 @@ fun test_transfer_to_custody_fail_if_zero_address() {
         &admin_cap,
         &mut management,
         &global_config,
+        PACKAGE_ADDRESS,
         vector[CUSTODIAN1],
         1000000,
         500000,
@@ -652,6 +670,7 @@ fun test_transfer_to_custody_fail_if_invalid_custodian() {
         &admin_cap,
         &mut management,
         &global_config,
+        PACKAGE_ADDRESS,
         vector[CUSTODIAN1],
         1000000,
         500000,
@@ -691,6 +710,7 @@ fun test_deposit_success() {
         &admin_cap,
         &mut management,
         &global_config,
+        PACKAGE_ADDRESS,
         vector[CUSTODIAN1],
         1000000,
         500000,
@@ -738,6 +758,7 @@ fun test_deposit_fail_if_amount_is_zero() {
         &admin_cap,
         &mut management,
         &global_config,
+        PACKAGE_ADDRESS,
         vector[CUSTODIAN1],
         1000000,
         500000,
@@ -761,6 +782,7 @@ fun test_withdraw_success() {
         &admin_cap,
         &mut management,
         &global_config,
+        PACKAGE_ADDRESS,
         vector[CUSTODIAN1],
         1000000,
         500000,
@@ -794,6 +816,7 @@ fun test_withdraw_fail_if_amount_is_zero() {
         &admin_cap,
         &mut management,
         &global_config,
+        PACKAGE_ADDRESS,
         vector[CUSTODIAN1],
         1000000,
         500000,
@@ -821,6 +844,7 @@ fun test_withdraw_fail_if_recipient_is_zero_address() {
         &admin_cap,
         &mut management,
         &global_config,
+        PACKAGE_ADDRESS,
         vector[CUSTODIAN1],
         1000000,
         500000,
@@ -848,6 +872,7 @@ fun test_withdraw_fail_if_insufficient_balance() {
         &admin_cap,
         &mut management,
         &global_config,
+        PACKAGE_ADDRESS,
         vector[CUSTODIAN1],
         1000000,
         500000,

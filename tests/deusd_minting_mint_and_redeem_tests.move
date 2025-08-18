@@ -5,15 +5,17 @@ use elixir::deusd;
 use sui::coin::{Self, Coin};
 use sui::clock;
 use sui::test_utils::assert_eq;
+use test_coin::test_coins::{ETH, USDC};
 use elixir::locked_funds;
 use elixir::deusd::DEUSD;
-use elixir::deusd_minting_tests::{setup_test, clean_test, ETH, USDC};
+use elixir::deusd_minting_tests::{setup_test, clean_test};
 use elixir::deusd_minting::{Self, get_minted_per_second};
-use elixir::config::{Self};
+use elixir::config;
 use elixir::roles;
 
 // === Constants ===
 
+const PACKAGE_ADDRESS: address = @0xee;
 const MINTER1: address = @0xBB1;
 const MINTER2: address = @0xBB2;
 const REDEEMER1: address = @0xBC1;
@@ -33,7 +35,8 @@ fun test_mint_success() {
         &admin_cap,
         &mut management,
         &global_config,
-        vector[CUSTODIAN1, CUSTODIAN2, @elixir],
+        PACKAGE_ADDRESS,
+        vector[CUSTODIAN1, CUSTODIAN2, PACKAGE_ADDRESS],
         1000000000,
         500000000,
     );
@@ -65,11 +68,11 @@ fun test_mint_success() {
         let benefactor = BENEFACTOR;
         let beneficiary = ALICE;
         let deusd_amount = 500000000;
-        let route_addresses = vector[CUSTODIAN1, CUSTODIAN2, @elixir];
+        let route_addresses = vector[CUSTODIAN1, CUSTODIAN2, PACKAGE_ADDRESS];
         let route_ratios = vector[5000, 3000, 2000]; // 50% to CUSTODIAN1, 30% to CUSTODIAN2, 20% to contract itself
 
         let public_key = x"15fffd5a17a3f7274979a1bba33d11d53c1d465667516d80dc6fe2b8fe4eaf01";
-        let signature = x"0a2704523b3166b794fb7b54ab2226d94d5bf3fa6ffda4b695c4d5ef39d141659e5e6c97030451a6ddfe75832f3d48539654feede0305a9a49314b7aa44e1004";
+        let signature = x"1351734f44b966f72793064132c42e50c5c08bc0465456e069a4d75e99f431247bf41a7f8b5ddd92eda11451ccf491f2d2720153171f39e81bb30d64c76e320a";
 
         deusd_minting::mint<ETH>(
             &mut management,
@@ -121,11 +124,11 @@ fun test_mint_success() {
         let benefactor = @0xa9e41843ffead2ce82891fa46f0349f22023ed81a488ecefd5f570080368f81a;
         let beneficiary = ALICE;
         let deusd_amount = 500000000;
-        let route_addresses = vector[CUSTODIAN1, @elixir];
+        let route_addresses = vector[CUSTODIAN1, PACKAGE_ADDRESS];
         let route_ratios = vector[6000, 4000]; // 60% to CUSTODIAN1, 40% to contract itself
 
         let public_key = x"15fffd5a17a3f7274979a1bba33d11d53c1d465667516d80dc6fe2b8fe4eaf01";
-        let signature = x"d7d426e6c8004ced4c70273407521437ebf73a9b611830f524b95d3b2d745b606b59c892356b23b12bf6fbd0d58ed57ed89817542833bcc710e88436ab233006";
+        let signature = x"ef0484c8cf4ef4206be085522acf107f5ba517b9dbd31f0bc5534b0713b92253ab19ca339d8686f6fa15ebce2eb319c3d016e2a94f3ec17466bd6ebabae58600";
 
         deusd_minting::mint<ETH>(
             &mut management,
@@ -176,11 +179,11 @@ fun test_mint_success() {
         let benefactor = @0xa9e41843ffead2ce82891fa46f0349f22023ed81a488ecefd5f570080368f81a;
         let beneficiary = ALICE;
         let deusd_amount = 500000000;
-        let route_addresses = vector[@elixir, CUSTODIAN1];
+        let route_addresses = vector[PACKAGE_ADDRESS, CUSTODIAN1];
         let route_ratios = vector[4000, 6000]; // 40% to contract itself, 60% to CUSTODIAN1
 
         let public_key = x"15fffd5a17a3f7274979a1bba33d11d53c1d465667516d80dc6fe2b8fe4eaf01";
-        let signature = x"7ea93798d6cc4c4c2c697504772e9f4a3d80cccad491e6cdfa5159d31bca050a0a367625f799c1d8dbb3941368a1b4a302aa88e3341aee43ed071947d50bcd00";
+        let signature = x"1a21f0772c8d7499642e5c7076f9f6fbafc41239d6720aa4679eb3f9cbebecd5995fb966878cb14269023092a18dfbad3239f83878a58dcb95e10a5e8a72da0d";
 
         deusd_minting::mint<ETH>(
             &mut management,
@@ -232,7 +235,8 @@ fun test_mint_fail_if_not_minter() {
         &admin_cap,
         &mut management,
         &global_config,
-        vector[CUSTODIAN1, CUSTODIAN2, @elixir],
+        PACKAGE_ADDRESS,
+        vector[CUSTODIAN1, CUSTODIAN2, PACKAGE_ADDRESS],
         1000000000,
         500000000,
     );
@@ -263,11 +267,11 @@ fun test_mint_fail_if_not_minter() {
         let benefactor = BENEFACTOR;
         let beneficiary = ALICE;
         let deusd_amount = 500000000;
-        let route_addresses = vector[CUSTODIAN1, CUSTODIAN2, @elixir];
+        let route_addresses = vector[CUSTODIAN1, CUSTODIAN2, PACKAGE_ADDRESS];
         let route_ratios = vector[5000, 3000, 2000]; // 50% to CUSTODIAN1, 30% to CUSTODIAN2, 20% to contract itself
 
         let public_key = x"15fffd5a17a3f7274979a1bba33d11d53c1d465667516d80dc6fe2b8fe4eaf01";
-        let signature = x"0a2704523b3166b794fb7b54ab2226d94d5bf3fa6ffda4b695c4d5ef39d141659e5e6c97030451a6ddfe75832f3d48539654feede0305a9a49314b7aa44e1004";
+        let signature = x"1351734f44b966f72793064132c42e50c5c08bc0465456e069a4d75e99f431247bf41a7f8b5ddd92eda11451ccf491f2d2720153171f39e81bb30d64c76e320a";
         deusd_minting::mint<ETH>(
             &mut management,
             &mut locked_funds_management,
@@ -301,7 +305,8 @@ fun test_mint_fail_if_beneficiary_is_zero() {
         &admin_cap,
         &mut management,
         &global_config,
-        vector[CUSTODIAN1, CUSTODIAN2, @elixir],
+        PACKAGE_ADDRESS,
+        vector[CUSTODIAN1, CUSTODIAN2, PACKAGE_ADDRESS],
         1000000000,
         500000000,
     );
@@ -332,11 +337,11 @@ fun test_mint_fail_if_beneficiary_is_zero() {
         let benefactor = BENEFACTOR;
         let beneficiary = @0x0; // Invalid beneficiary address
         let deusd_amount = 500000000;
-        let route_addresses = vector[CUSTODIAN1, CUSTODIAN2, @elixir];
+        let route_addresses = vector[CUSTODIAN1, CUSTODIAN2, PACKAGE_ADDRESS];
         let route_ratios = vector[5000, 3000, 2000]; // 50% to CUSTODIAN1, 30% to CUSTODIAN2, 20% to contract itself
 
         let public_key = x"15fffd5a17a3f7274979a1bba33d11d53c1d465667516d80dc6fe2b8fe4eaf01";
-        let signature = x"0a2704523b3166b794fb7b54ab2226d94d5bf3fa6ffda4b695c4d5ef39d141659e5e6c97030451a6ddfe75832f3d48539654feede0305a9a49314b7aa44e1004";
+        let signature = x"1351734f44b966f72793064132c42e50c5c08bc0465456e069a4d75e99f431247bf41a7f8b5ddd92eda11451ccf491f2d2720153171f39e81bb30d64c76e320a";
         deusd_minting::mint<ETH>(
             &mut management,
             &mut locked_funds_management,
@@ -370,7 +375,8 @@ fun test_mint_fail_if_collateral_amount_is_zero() {
         &admin_cap,
         &mut management,
         &global_config,
-        vector[CUSTODIAN1, CUSTODIAN2, @elixir],
+        PACKAGE_ADDRESS,
+        vector[CUSTODIAN1, CUSTODIAN2, PACKAGE_ADDRESS],
         1000000000,
         500000000,
     );
@@ -401,11 +407,11 @@ fun test_mint_fail_if_collateral_amount_is_zero() {
         let benefactor = BENEFACTOR;
         let beneficiary = ALICE;
         let deusd_amount = 500000000;
-        let route_addresses = vector[CUSTODIAN1, CUSTODIAN2, @elixir];
+        let route_addresses = vector[CUSTODIAN1, CUSTODIAN2, PACKAGE_ADDRESS];
         let route_ratios = vector[5000, 3000, 2000]; // 50% to CUSTODIAN1, 30% to CUSTODIAN2, 20% to contract itself
 
         let public_key = x"15fffd5a17a3f7274979a1bba33d11d53c1d465667516d80dc6fe2b8fe4eaf01";
-        let signature = x"0a2704523b3166b794fb7b54ab2226d94d5bf3fa6ffda4b695c4d5ef39d141659e5e6c97030451a6ddfe75832f3d48539654feede0305a9a49314b7aa44e1004";
+        let signature = x"1351734f44b966f72793064132c42e50c5c08bc0465456e069a4d75e99f431247bf41a7f8b5ddd92eda11451ccf491f2d2720153171f39e81bb30d64c76e320a";
         deusd_minting::mint<ETH>(
             &mut management,
             &mut locked_funds_management,
@@ -439,7 +445,8 @@ fun test_mint_fail_if_deusd_amount_is_zero() {
         &admin_cap,
         &mut management,
         &global_config,
-        vector[CUSTODIAN1, CUSTODIAN2, @elixir],
+        PACKAGE_ADDRESS,
+        vector[CUSTODIAN1, CUSTODIAN2, PACKAGE_ADDRESS],
         1000000000,
         500000000,
     );
@@ -470,11 +477,11 @@ fun test_mint_fail_if_deusd_amount_is_zero() {
         let benefactor = BENEFACTOR;
         let beneficiary = ALICE;
         let deusd_amount = 0;
-        let route_addresses = vector[CUSTODIAN1, CUSTODIAN2, @elixir];
+        let route_addresses = vector[CUSTODIAN1, CUSTODIAN2, PACKAGE_ADDRESS];
         let route_ratios = vector[5000, 3000, 2000]; // 50% to CUSTODIAN1, 30% to CUSTODIAN2, 20% to contract itself
 
         let public_key = x"15fffd5a17a3f7274979a1bba33d11d53c1d465667516d80dc6fe2b8fe4eaf01";
-        let signature = x"0a2704523b3166b794fb7b54ab2226d94d5bf3fa6ffda4b695c4d5ef39d141659e5e6c97030451a6ddfe75832f3d48539654feede0305a9a49314b7aa44e1004";
+        let signature = x"1351734f44b966f72793064132c42e50c5c08bc0465456e069a4d75e99f431247bf41a7f8b5ddd92eda11451ccf491f2d2720153171f39e81bb30d64c76e320a";
         deusd_minting::mint<ETH>(
             &mut management,
             &mut locked_funds_management,
@@ -508,7 +515,8 @@ fun test_mint_fail_if_order_expired() {
         &admin_cap,
         &mut management,
         &global_config,
-        vector[CUSTODIAN1, CUSTODIAN2, @elixir],
+        PACKAGE_ADDRESS,
+        vector[CUSTODIAN1, CUSTODIAN2, PACKAGE_ADDRESS],
         1000000000,
         500000000,
     );
@@ -539,11 +547,11 @@ fun test_mint_fail_if_order_expired() {
         let benefactor = BENEFACTOR;
         let beneficiary = ALICE;
         let deusd_amount = 500000000;
-        let route_addresses = vector[CUSTODIAN1, CUSTODIAN2, @elixir];
+        let route_addresses = vector[CUSTODIAN1, CUSTODIAN2, PACKAGE_ADDRESS];
         let route_ratios = vector[5000, 3000, 2000]; // 50% to CUSTODIAN1, 30% to CUSTODIAN2, 20% to contract itself
 
         let public_key = x"15fffd5a17a3f7274979a1bba33d11d53c1d465667516d80dc6fe2b8fe4eaf01";
-        let signature = x"0a2704523b3166b794fb7b54ab2226d94d5bf3fa6ffda4b695c4d5ef39d141659e5e6c97030451a6ddfe75832f3d48539654feede0305a9a49314b7aa44e1004";
+        let signature = x"1351734f44b966f72793064132c42e50c5c08bc0465456e069a4d75e99f431247bf41a7f8b5ddd92eda11451ccf491f2d2720153171f39e81bb30d64c76e320a";
         deusd_minting::mint<ETH>(
             &mut management,
             &mut locked_funds_management,
@@ -577,7 +585,8 @@ fun test_mint_fail_if_invalid_signature() {
         &admin_cap,
         &mut management,
         &global_config,
-        vector[CUSTODIAN1, CUSTODIAN2, @elixir],
+        PACKAGE_ADDRESS,
+        vector[CUSTODIAN1, CUSTODIAN2, PACKAGE_ADDRESS],
         1000000000,
         500000000,
     );
@@ -608,12 +617,12 @@ fun test_mint_fail_if_invalid_signature() {
         let benefactor = BENEFACTOR;
         let beneficiary = ALICE;
         let deusd_amount = 500000000;
-        let route_addresses = vector[CUSTODIAN1, CUSTODIAN2, @elixir];
+        let route_addresses = vector[CUSTODIAN1, CUSTODIAN2, PACKAGE_ADDRESS];
         let route_ratios = vector[5000, 3000, 2000]; // 50% to CUSTODIAN1, 30% to CUSTODIAN2, 20% to contract itself
 
         let public_key = x"15fffd5a17a3f7274979a1bba33d11d53c1d465667516d80dc6fe2b8fe4eaf01";
         // This signature is for nonce 1, not nonce 2
-        let signature = x"0a2704523b3166b794fb7b54ab2226d94d5bf3fa6ffda4b695c4d5ef39d141659e5e6c97030451a6ddfe75832f3d48539654feede0305a9a49314b7aa44e1004";
+        let signature = x"1351734f44b966f72793064132c42e50c5c08bc0465456e069a4d75e99f431247bf41a7f8b5ddd92eda11451ccf491f2d2720153171f39e81bb30d64c76e320a";
         deusd_minting::mint<ETH>(
             &mut management,
             &mut locked_funds_management,
@@ -647,7 +656,8 @@ fun test_mint_fail_if_signer_not_benefactor() {
         &admin_cap,
         &mut management,
         &global_config,
-        vector[CUSTODIAN1, CUSTODIAN2, @elixir],
+        PACKAGE_ADDRESS,
+        vector[CUSTODIAN1, CUSTODIAN2, PACKAGE_ADDRESS],
         1000000000,
         500000000,
     );
@@ -678,11 +688,11 @@ fun test_mint_fail_if_signer_not_benefactor() {
         let benefactor = ALICE;
         let beneficiary = ALICE;
         let deusd_amount = 500000000;
-        let route_addresses = vector[CUSTODIAN1, CUSTODIAN2, @elixir];
+        let route_addresses = vector[CUSTODIAN1, CUSTODIAN2, PACKAGE_ADDRESS];
         let route_ratios = vector[5000, 3000, 2000]; // 50% to CUSTODIAN1, 30% to CUSTODIAN2, 20% to contract itself
 
         let public_key = x"15fffd5a17a3f7274979a1bba33d11d53c1d465667516d80dc6fe2b8fe4eaf01";
-        let signature = x"1e261f8769f3629035ee69a0f78bc71a071b61ef8a6887972728e99e87a3af974575dce23be8faac3943b1bf1795f885f2d8f6e5a209b1bf76592d8dde225004";
+        let signature = x"d6d1b7a0da6672ecfc198e1bf19976d2a45d8509d4d261370e0027af1392a4a6d25b6aacf95d8318e1b28252499018a5a5e203d0c645f50e265fd7630c9dea02";
         deusd_minting::mint<ETH>(
             &mut management,
             &mut locked_funds_management,
@@ -716,7 +726,8 @@ fun test_mint_fail_if_route_addresses_and_ratios_length_mismatch() {
         &admin_cap,
         &mut management,
         &global_config,
-        vector[CUSTODIAN1, CUSTODIAN2, @elixir],
+        PACKAGE_ADDRESS,
+        vector[CUSTODIAN1, CUSTODIAN2, PACKAGE_ADDRESS],
         1000000000,
         500000000,
     );
@@ -752,7 +763,7 @@ fun test_mint_fail_if_route_addresses_and_ratios_length_mismatch() {
         let route_ratios = vector[5000, 3000, 2000]; // 3 ratios - mismatch!
 
         let public_key = x"15fffd5a17a3f7274979a1bba33d11d53c1d465667516d80dc6fe2b8fe4eaf01";
-        let signature = x"0a2704523b3166b794fb7b54ab2226d94d5bf3fa6ffda4b695c4d5ef39d141659e5e6c97030451a6ddfe75832f3d48539654feede0305a9a49314b7aa44e1004";
+        let signature = x"1351734f44b966f72793064132c42e50c5c08bc0465456e069a4d75e99f431247bf41a7f8b5ddd92eda11451ccf491f2d2720153171f39e81bb30d64c76e320a";
         deusd_minting::mint<ETH>(
             &mut management,
             &mut locked_funds_management,
@@ -786,7 +797,8 @@ fun test_mint_fail_if_empty_route() {
         &admin_cap,
         &mut management,
         &global_config,
-        vector[CUSTODIAN1, CUSTODIAN2, @elixir],
+        PACKAGE_ADDRESS,
+        vector[CUSTODIAN1, CUSTODIAN2, PACKAGE_ADDRESS],
         1000000000,
         500000000,
     );
@@ -822,7 +834,7 @@ fun test_mint_fail_if_empty_route() {
         let route_ratios = vector[]; // Empty route
 
         let public_key = x"15fffd5a17a3f7274979a1bba33d11d53c1d465667516d80dc6fe2b8fe4eaf01";
-        let signature = x"0a2704523b3166b794fb7b54ab2226d94d5bf3fa6ffda4b695c4d5ef39d141659e5e6c97030451a6ddfe75832f3d48539654feede0305a9a49314b7aa44e1004";
+        let signature = x"1351734f44b966f72793064132c42e50c5c08bc0465456e069a4d75e99f431247bf41a7f8b5ddd92eda11451ccf491f2d2720153171f39e81bb30d64c76e320a";
         deusd_minting::mint<ETH>(
             &mut management,
             &mut locked_funds_management,
@@ -856,7 +868,8 @@ fun test_mint_fail_if_route_contains_non_custodian() {
         &admin_cap,
         &mut management,
         &global_config,
-        vector[CUSTODIAN1, CUSTODIAN2, @elixir],
+        PACKAGE_ADDRESS,
+        vector[CUSTODIAN1, CUSTODIAN2, PACKAGE_ADDRESS],
         1000000000,
         500000000,
     );
@@ -892,7 +905,7 @@ fun test_mint_fail_if_route_contains_non_custodian() {
         let route_ratios = vector[5000, 5000];
 
         let public_key = x"15fffd5a17a3f7274979a1bba33d11d53c1d465667516d80dc6fe2b8fe4eaf01";
-        let signature = x"0a2704523b3166b794fb7b54ab2226d94d5bf3fa6ffda4b695c4d5ef39d141659e5e6c97030451a6ddfe75832f3d48539654feede0305a9a49314b7aa44e1004";
+        let signature = x"1351734f44b966f72793064132c42e50c5c08bc0465456e069a4d75e99f431247bf41a7f8b5ddd92eda11451ccf491f2d2720153171f39e81bb30d64c76e320a";
         deusd_minting::mint<ETH>(
             &mut management,
             &mut locked_funds_management,
@@ -926,7 +939,8 @@ fun test_mint_fail_if_max_mint_per_second_exceeded() {
         &admin_cap,
         &mut management,
         &global_config,
-        vector[CUSTODIAN1, CUSTODIAN2, @elixir],
+        PACKAGE_ADDRESS,
+        vector[CUSTODIAN1, CUSTODIAN2, PACKAGE_ADDRESS],
         500000000,
         1500000000,
     );
@@ -962,7 +976,7 @@ fun test_mint_fail_if_max_mint_per_second_exceeded() {
         let route_ratios = vector[10000];
 
         let public_key = x"15fffd5a17a3f7274979a1bba33d11d53c1d465667516d80dc6fe2b8fe4eaf01";
-        let signature = x"2540b4dc9933d6d5575321eee738069001c286725b79cda68a9910028ac0c4475508fc3e0891a913b701c0f5b7ce6619afa58113c57f427982fb1d5264f2160f";
+        let signature = x"a41b0d8bae9641ef8702e936abe4e9f91e138efe48651dda107b03879071ccb853d94bb5c2e157b4a3a255aaef94ff128e8f5a12a6fb9284cf0f0db5d4824f0b";
         deusd_minting::mint<ETH>(
             &mut management,
             &mut locked_funds_management,
@@ -996,7 +1010,8 @@ fun test_mint_fail_if_nonce_is_zero() {
         &admin_cap,
         &mut management,
         &global_config,
-        vector[CUSTODIAN1, CUSTODIAN2, @elixir],
+        PACKAGE_ADDRESS,
+        vector[CUSTODIAN1, CUSTODIAN2, PACKAGE_ADDRESS],
         1000000000,
         500000000,
     );
@@ -1032,7 +1047,7 @@ fun test_mint_fail_if_nonce_is_zero() {
         let route_ratios = vector[10000];
 
         let public_key = x"15fffd5a17a3f7274979a1bba33d11d53c1d465667516d80dc6fe2b8fe4eaf01";
-        let signature = x"03fae63dce410dde170fe83ab9f8acdbc4f757795756e1112b5df116d4bc7570297111113e25a36665b0933f060f472681fc19b29604887ccbc6577e53012a0f";
+        let signature = x"2888df227156a60ff5e7e401e8588484232b6ecbf381560c008338490615bd9121fff277d4b42567c61890a342a4e01cf76a1bafb21cec001ef8c718e987e00d";
         deusd_minting::mint<ETH>(
             &mut management,
             &mut locked_funds_management,
@@ -1066,7 +1081,8 @@ fun test_mint_fail_if_nonce_already_used() {
         &admin_cap,
         &mut management,
         &global_config,
-        vector[CUSTODIAN1, CUSTODIAN2, @elixir],
+        PACKAGE_ADDRESS,
+        vector[CUSTODIAN1, CUSTODIAN2, PACKAGE_ADDRESS],
         1000000000,
         500000000,
     );
@@ -1103,7 +1119,7 @@ fun test_mint_fail_if_nonce_already_used() {
         let route_ratios = vector[10000];
 
         let public_key = x"15fffd5a17a3f7274979a1bba33d11d53c1d465667516d80dc6fe2b8fe4eaf01";
-        let signature = x"0a2704523b3166b794fb7b54ab2226d94d5bf3fa6ffda4b695c4d5ef39d141659e5e6c97030451a6ddfe75832f3d48539654feede0305a9a49314b7aa44e1004";
+        let signature = x"1351734f44b966f72793064132c42e50c5c08bc0465456e069a4d75e99f431247bf41a7f8b5ddd92eda11451ccf491f2d2720153171f39e81bb30d64c76e320a";
         deusd_minting::mint<ETH>(
             &mut management,
             &mut locked_funds_management,
@@ -1139,7 +1155,7 @@ fun test_mint_fail_if_nonce_already_used() {
         let route_ratios = vector[10000];
 
         let public_key = x"15fffd5a17a3f7274979a1bba33d11d53c1d465667516d80dc6fe2b8fe4eaf01";
-        let signature = x"712d6d8912356839a965b1200457b0786f3ae8df89efbd2e03d27d1535cfe59c3492963a2f851e6b3bd8c717533da2a14a6274bbcddffc229b32fb314d13a904";
+        let signature = x"30977a8f70898ac8ec4d69a736fc748249b6259e1265d1c5e272d524a8af1f502ffcfa1690ec494f4f11bdd7fe7aa5ca60d4bd1e3a521298eaa0961da0aa2108";
         deusd_minting::mint<ETH>(
             &mut management,
             &mut locked_funds_management,
@@ -1173,7 +1189,8 @@ fun test_mint_fail_if_asset_not_supported() {
         &admin_cap,
         &mut management,
         &global_config,
-        vector[CUSTODIAN1, CUSTODIAN2, @elixir],
+        PACKAGE_ADDRESS,
+        vector[CUSTODIAN1, CUSTODIAN2, PACKAGE_ADDRESS],
         1000000000,
         500000000,
     );
@@ -1208,7 +1225,7 @@ fun test_mint_fail_if_asset_not_supported() {
         let route_ratios = vector[10000];
 
         let public_key = x"15fffd5a17a3f7274979a1bba33d11d53c1d465667516d80dc6fe2b8fe4eaf01";
-        let signature = x"0a2704523b3166b794fb7b54ab2226d94d5bf3fa6ffda4b695c4d5ef39d141659e5e6c97030451a6ddfe75832f3d48539654feede0305a9a49314b7aa44e1004";
+        let signature = x"1351734f44b966f72793064132c42e50c5c08bc0465456e069a4d75e99f431247bf41a7f8b5ddd92eda11451ccf491f2d2720153171f39e81bb30d64c76e320a";
         deusd_minting::mint<ETH>(
             &mut management,
             &mut locked_funds_management,
@@ -1241,7 +1258,8 @@ fun test_mint_single_custodian_route() {
         &admin_cap,
         &mut management,
         &global_config,
-        vector[CUSTODIAN1, CUSTODIAN2, @elixir],
+        PACKAGE_ADDRESS,
+        vector[CUSTODIAN1, CUSTODIAN2, PACKAGE_ADDRESS],
         1000000000,
         500000000,
     );
@@ -1277,7 +1295,7 @@ fun test_mint_single_custodian_route() {
         let route_ratios = vector[10000]; // 100% to CUSTODIAN1
 
         let public_key = x"15fffd5a17a3f7274979a1bba33d11d53c1d465667516d80dc6fe2b8fe4eaf01";
-        let signature = x"0a2704523b3166b794fb7b54ab2226d94d5bf3fa6ffda4b695c4d5ef39d141659e5e6c97030451a6ddfe75832f3d48539654feede0305a9a49314b7aa44e1004";
+        let signature = x"1351734f44b966f72793064132c42e50c5c08bc0465456e069a4d75e99f431247bf41a7f8b5ddd92eda11451ccf491f2d2720153171f39e81bb30d64c76e320a";
         deusd_minting::mint<ETH>(
             &mut management,
             &mut locked_funds_management,
@@ -1327,7 +1345,8 @@ fun test_redeem_success() {
         &admin_cap,
         &mut management,
         &global_config,
-        vector[CUSTODIAN1, CUSTODIAN2, @elixir],
+        PACKAGE_ADDRESS,
+        vector[CUSTODIAN1, CUSTODIAN2, PACKAGE_ADDRESS],
         1000000000,
         500000000,
     );
@@ -1369,7 +1388,7 @@ fun test_redeem_success() {
         let deusd_amount = 500000000;
 
         let public_key = x"15fffd5a17a3f7274979a1bba33d11d53c1d465667516d80dc6fe2b8fe4eaf01";
-        let signature = x"05167197354f455f22cd275ad4f1bfee65bb9fb650512bc6fabe8e3954ba358a22d34013ac5f02acee2b465c02949dacbcd9c0be1929916b972b1cc0b831970b";
+        let signature = x"6e7ff46a9555f6e92b1931d3b12a0619b7aec8dcfcf553d6b92d752f217539e688e5164db3f2f43ea235ca29f04c0897282422a1c42eb11f1d69085b281fbb03";
 
         let deusd_supply_before = deusd::total_supply(&deusd_config);
 
@@ -1416,7 +1435,7 @@ fun test_redeem_success() {
         let deusd_amount = 100000000;
 
         let public_key = x"15fffd5a17a3f7274979a1bba33d11d53c1d465667516d80dc6fe2b8fe4eaf01";
-        let signature = x"d58e7bf8b4a69b666c3d233862d62eb2dfa77f3e6e70756eecec0196909757e3485819563f32b1c793d48d3d297f4e30861a10f6ca8084319aac089174765b02";
+        let signature = x"52643ac20a5b85630df6ba943d60f60924c8301e43002e2172820511b195e107631f404f2a055407e336f0308f1bf0abca1c9e5ddb3bd2fd7e98a679e5175b05";
 
         let deusd_supply_before = deusd::total_supply(&deusd_config);
 
@@ -1464,7 +1483,8 @@ fun test_redeem_fail_if_not_redeemer() {
         &admin_cap,
         &mut management,
         &global_config,
-        vector[CUSTODIAN1, CUSTODIAN2, @elixir],
+        PACKAGE_ADDRESS,
+        vector[CUSTODIAN1, CUSTODIAN2, PACKAGE_ADDRESS],
         1000000000,
         500000000,
     );
@@ -1500,7 +1520,7 @@ fun test_redeem_fail_if_not_redeemer() {
         let deusd_amount = 500000000;
 
         let public_key = x"15fffd5a17a3f7274979a1bba33d11d53c1d465667516d80dc6fe2b8fe4eaf01";
-        let signature = x"05167197354f455f22cd275ad4f1bfee65bb9fb650512bc6fabe8e3954ba358a22d34013ac5f02acee2b465c02949dacbcd9c0be1929916b972b1cc0b831970b";
+        let signature = x"6e7ff46a9555f6e92b1931d3b12a0619b7aec8dcfcf553d6b92d752f217539e688e5164db3f2f43ea235ca29f04c0897282422a1c42eb11f1d69085b281fbb03";
 
         let deusd_supply_before = deusd::total_supply(&deusd_config);
 
@@ -1548,7 +1568,8 @@ fun test_redeem_fail_if_max_redeem_per_second_exceeded() {
         &admin_cap,
         &mut management,
         &global_config,
-        vector[CUSTODIAN1, CUSTODIAN2, @elixir],
+        PACKAGE_ADDRESS,
+        vector[CUSTODIAN1, CUSTODIAN2, PACKAGE_ADDRESS],
         1000000000,
         499999999,
     );
@@ -1585,7 +1606,7 @@ fun test_redeem_fail_if_max_redeem_per_second_exceeded() {
         let deusd_amount = 500000000; // Exceeds max redeem per second (499999999)
 
         let public_key = x"15fffd5a17a3f7274979a1bba33d11d53c1d465667516d80dc6fe2b8fe4eaf01";
-        let signature = x"05167197354f455f22cd275ad4f1bfee65bb9fb650512bc6fabe8e3954ba358a22d34013ac5f02acee2b465c02949dacbcd9c0be1929916b972b1cc0b831970b";
+        let signature = x"6e7ff46a9555f6e92b1931d3b12a0619b7aec8dcfcf553d6b92d752f217539e688e5164db3f2f43ea235ca29f04c0897282422a1c42eb11f1d69085b281fbb03";
 
         deusd_minting::redeem<ETH>(
             &mut management,
@@ -1618,7 +1639,8 @@ fun test_redeem_fail_if_nonce_is_zero() {
         &admin_cap,
         &mut management,
         &global_config,
-        vector[CUSTODIAN1, CUSTODIAN2, @elixir],
+        PACKAGE_ADDRESS,
+        vector[CUSTODIAN1, CUSTODIAN2, PACKAGE_ADDRESS],
         1000000000,
         500000000,
     );
@@ -1655,7 +1677,7 @@ fun test_redeem_fail_if_nonce_is_zero() {
         let deusd_amount = 500000000;
 
         let public_key = x"15fffd5a17a3f7274979a1bba33d11d53c1d465667516d80dc6fe2b8fe4eaf01";
-        let signature = x"88181e1b2cf5536c1c0bd4d8e069decee5ebca6265dd2cf5377c60bccc43afc696f4b1c02d4440b2da85b156951325484146dc18e3224d52e3df5121567a5b04";
+        let signature = x"fb0fcb8303e3b977844bc9c22c72c4f2ebe4e83b42d767a572dcc626751d512d3683614a891fa24c8d9fa7ed04a397e90235ab193fde5f53392cc4a808d8de07";
 
         deusd_minting::redeem<ETH>(
             &mut management,
@@ -1688,7 +1710,8 @@ fun test_redeem_fail_if_nonce_already_used() {
         &admin_cap,
         &mut management,
         &global_config,
-        vector[CUSTODIAN1, CUSTODIAN2, @elixir],
+        PACKAGE_ADDRESS,
+        vector[CUSTODIAN1, CUSTODIAN2, PACKAGE_ADDRESS],
         1000000000,
         500000000,
     );
@@ -1726,7 +1749,7 @@ fun test_redeem_fail_if_nonce_already_used() {
         let deusd_amount = 100000000;
 
         let public_key = x"15fffd5a17a3f7274979a1bba33d11d53c1d465667516d80dc6fe2b8fe4eaf01";
-        let signature = x"9c5eaeae730d292752553b5c2b01d61bf37e18304691546bc3f70d508a4247238a52b2c9e4d1e1d4014688b2d6318f343e61e5494a102f994fdc25be58db5701";
+        let signature = x"eabec2615403f67adb81950ac5e4b63bd6e09d8c7e4272ba0372f62bb6efc046d0f68c66b811375f85f7340118959f54247efc5193c93f2542c0ebd148c96209";
 
         deusd_minting::redeem<ETH>(
             &mut management,
@@ -1759,7 +1782,7 @@ fun test_redeem_fail_if_nonce_already_used() {
         let deusd_amount = 50000000;
 
         let public_key = x"15fffd5a17a3f7274979a1bba33d11d53c1d465667516d80dc6fe2b8fe4eaf01";
-        let signature = x"51556c9edcc31fd22890d29cc52279a2f63604a29f6166d8b4ee108c12754c8316fbe94362682a9dcdc920dd903dc15f1a25217c2c82266f392b4bebd21fa20f";
+        let signature = x"a0af1ffa460492eebce8f6a6fdb4cfbba93924247d0fd5a2dce5df7481944f29e9dccfd79224171eecf955595571bae00b3a5e64495d3f519b860db99358770f";
 
         deusd_minting::redeem<ETH>(
             &mut management,
@@ -1792,7 +1815,8 @@ fun test_redeem_fail_if_asset_not_supported() {
         &admin_cap,
         &mut management,
         &global_config,
-        vector[CUSTODIAN1, CUSTODIAN2, @elixir],
+        PACKAGE_ADDRESS,
+        vector[CUSTODIAN1, CUSTODIAN2, PACKAGE_ADDRESS],
         1000000000,
         500000000,
     );
@@ -1824,7 +1848,7 @@ fun test_redeem_fail_if_asset_not_supported() {
         let deusd_amount = 500000000;
 
         let public_key = x"15fffd5a17a3f7274979a1bba33d11d53c1d465667516d80dc6fe2b8fe4eaf01";
-        let signature = x"05167197354f455f22cd275ad4f1bfee65bb9fb650512bc6fabe8e3954ba358a22d34013ac5f02acee2b465c02949dacbcd9c0be1929916b972b1cc0b831970b";
+        let signature = x"6e7ff46a9555f6e92b1931d3b12a0619b7aec8dcfcf553d6b92d752f217539e688e5164db3f2f43ea235ca29f04c0897282422a1c42eb11f1d69085b281fbb03";
 
         let deusd_supply_before = deusd::total_supply(&deusd_config);
 
@@ -1872,7 +1896,8 @@ fun test_redeem_fail_if_beneficiary_is_zero_address() {
         &admin_cap,
         &mut management,
         &global_config,
-        vector[CUSTODIAN1, CUSTODIAN2, @elixir],
+        PACKAGE_ADDRESS,
+        vector[CUSTODIAN1, CUSTODIAN2, PACKAGE_ADDRESS],
         1000000000,
         500000000,
     );
@@ -1909,7 +1934,7 @@ fun test_redeem_fail_if_beneficiary_is_zero_address() {
         let deusd_amount = 500000000;
 
         let public_key = x"15fffd5a17a3f7274979a1bba33d11d53c1d465667516d80dc6fe2b8fe4eaf01";
-        let signature = x"05167197354f455f22cd275ad4f1bfee65bb9fb650512bc6fabe8e3954ba358a22d34013ac5f02acee2b465c02949dacbcd9c0be1929916b972b1cc0b831970b";
+        let signature = x"6e7ff46a9555f6e92b1931d3b12a0619b7aec8dcfcf553d6b92d752f217539e688e5164db3f2f43ea235ca29f04c0897282422a1c42eb11f1d69085b281fbb03";
 
         deusd_minting::redeem<ETH>(
             &mut management,
@@ -1942,7 +1967,8 @@ fun test_redeem_fail_if_collateral_amount_is_zero() {
         &admin_cap,
         &mut management,
         &global_config,
-        vector[CUSTODIAN1, CUSTODIAN2, @elixir],
+        PACKAGE_ADDRESS,
+        vector[CUSTODIAN1, CUSTODIAN2, PACKAGE_ADDRESS],
         1000000000,
         500000000,
     );
@@ -1979,7 +2005,7 @@ fun test_redeem_fail_if_collateral_amount_is_zero() {
         let deusd_amount = 500000000;
 
         let public_key = x"15fffd5a17a3f7274979a1bba33d11d53c1d465667516d80dc6fe2b8fe4eaf01";
-        let signature = x"05167197354f455f22cd275ad4f1bfee65bb9fb650512bc6fabe8e3954ba358a22d34013ac5f02acee2b465c02949dacbcd9c0be1929916b972b1cc0b831970b";
+        let signature = x"6e7ff46a9555f6e92b1931d3b12a0619b7aec8dcfcf553d6b92d752f217539e688e5164db3f2f43ea235ca29f04c0897282422a1c42eb11f1d69085b281fbb03";
 
         deusd_minting::redeem<ETH>(
             &mut management,
@@ -2012,7 +2038,8 @@ fun test_redeem_fail_if_deusd_amount_is_zero() {
         &admin_cap,
         &mut management,
         &global_config,
-        vector[CUSTODIAN1, CUSTODIAN2, @elixir],
+        PACKAGE_ADDRESS,
+        vector[CUSTODIAN1, CUSTODIAN2, PACKAGE_ADDRESS],
         1000000000,
         500000000,
     );
@@ -2049,7 +2076,7 @@ fun test_redeem_fail_if_deusd_amount_is_zero() {
         let deusd_amount = 0;
 
         let public_key = x"15fffd5a17a3f7274979a1bba33d11d53c1d465667516d80dc6fe2b8fe4eaf01";
-        let signature = x"05167197354f455f22cd275ad4f1bfee65bb9fb650512bc6fabe8e3954ba358a22d34013ac5f02acee2b465c02949dacbcd9c0be1929916b972b1cc0b831970b";
+        let signature = x"6e7ff46a9555f6e92b1931d3b12a0619b7aec8dcfcf553d6b92d752f217539e688e5164db3f2f43ea235ca29f04c0897282422a1c42eb11f1d69085b281fbb03";
 
         deusd_minting::redeem<ETH>(
             &mut management,
@@ -2082,7 +2109,8 @@ fun test_redeem_fail_if_signature_expired() {
         &admin_cap,
         &mut management,
         &global_config,
-        vector[CUSTODIAN1, CUSTODIAN2, @elixir],
+        PACKAGE_ADDRESS,
+        vector[CUSTODIAN1, CUSTODIAN2, PACKAGE_ADDRESS],
         1000000000,
         500000000,
     );
@@ -2119,7 +2147,7 @@ fun test_redeem_fail_if_signature_expired() {
         let deusd_amount = 500000000;
 
         let public_key = x"15fffd5a17a3f7274979a1bba33d11d53c1d465667516d80dc6fe2b8fe4eaf01";
-        let signature = x"05167197354f455f22cd275ad4f1bfee65bb9fb650512bc6fabe8e3954ba358a22d34013ac5f02acee2b465c02949dacbcd9c0be1929916b972b1cc0b831970b";
+        let signature = x"6e7ff46a9555f6e92b1931d3b12a0619b7aec8dcfcf553d6b92d752f217539e688e5164db3f2f43ea235ca29f04c0897282422a1c42eb11f1d69085b281fbb03";
 
         deusd_minting::redeem<ETH>(
             &mut management,
@@ -2152,7 +2180,8 @@ fun test_redeem_fail_if_invalid_signature() {
         &admin_cap,
         &mut management,
         &global_config,
-        vector[CUSTODIAN1, CUSTODIAN2, @elixir],
+        PACKAGE_ADDRESS,
+        vector[CUSTODIAN1, CUSTODIAN2, PACKAGE_ADDRESS],
         1000000000,
         500000000,
     );
@@ -2222,7 +2251,8 @@ fun test_redeem_fail_if_signer_mismatch() {
         &admin_cap,
         &mut management,
         &global_config,
-        vector[CUSTODIAN1, CUSTODIAN2, @elixir],
+        PACKAGE_ADDRESS,
+        vector[CUSTODIAN1, CUSTODIAN2, PACKAGE_ADDRESS],
         1000000000,
         500000000,
     );
@@ -2259,7 +2289,7 @@ fun test_redeem_fail_if_signer_mismatch() {
         let deusd_amount = 500000000;
 
         let public_key = x"15fffd5a17a3f7274979a1bba33d11d53c1d465667516d80dc6fe2b8fe4eaf01";
-        let signature = x"a0032095c7505fa4c95b9376b9d43313547cee567f3b4fb8f15081f97154bc7cb2e6b4b36b86f59fb233c4298edca360ebc9f88877d3b3be6b9184fd61553404";
+        let signature = x"7fd3a7eb15afd88593dc6d38cd12b35d765e9b030c86adf01f486fedfcce2e1a6ebfe0f159e367967d6f4c587e62ffaf1cfff741566848acedf71399aec7f506";
 
         deusd_minting::redeem<ETH>(
             &mut management,

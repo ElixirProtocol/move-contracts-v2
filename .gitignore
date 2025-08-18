@@ -4,3 +4,5 @@ build
 *.mvcov
 .trace
 node_modules
+
+.env

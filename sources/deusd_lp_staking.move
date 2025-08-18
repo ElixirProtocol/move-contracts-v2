@@ -378,12 +378,12 @@ fun get_or_create_balance_store<T>(management: &mut DeUSDLPStakingManagement): &
 /// The invariant is that the contract should never hold less of a token than the total staked and cooling down.
 /// We intentionally do not pass in the stake parameters because
 /// we want to ensure that the invariant is checked against the current state of the contract.
-fun check_invariant<T>(mangement: &DeUSDLPStakingManagement) {
+fun check_invariant<T>(management: &DeUSDLPStakingManagement) {
     let token_type = type_name::get<T>();
-    let stake_parameters = mangement.stake_parameters_by_token.borrow(token_type);
+    let stake_parameters = management.stake_parameters_by_token.borrow(token_type);
 
-    let contract_balance = if (df::exists_(&mangement.id, BalanceStoreKey<T> {})) {
-        let balance_ref = df::borrow<BalanceStoreKey<T>, Balance<T>>(&mangement.id, BalanceStoreKey<T> {});
+    let contract_balance = if (df::exists_(&management.id, BalanceStoreKey<T> {})) {
+        let balance_ref = df::borrow<BalanceStoreKey<T>, Balance<T>>(&management.id, BalanceStoreKey<T> {});
         balance_ref.value()
     } else {
         0

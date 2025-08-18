@@ -3,11 +3,13 @@ name = "deUSD"
 edition = "2024.beta"
 
 [addresses]
-elixir = "_"
+elixir = "0x0"
 initial_rewarder = "_"
 
+# Addresses for testing purposes
+test_coin = "0xccc"
+
 [dev-addresses]
-elixir = "0xee"
 initial_rewarder = "0xabc"
 
 [dependencies]
