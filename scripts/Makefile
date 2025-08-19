@@ -9,6 +9,12 @@ initialize-minting:
 			$(CUSTODIANS) \
 			$(max_mint_per_second) $(max_redeem_per_second)
 
+add-custodian:
+	sui client call --package $(PACKAGE_ADDRESS) --module deusd_minting --function add_custodian_address\
+		--args \
+			$(ADMIN_CAP_ID) $(DEUSD_MINTING_MANAGEMENT_ID) $(GLOBAL_CONFIG_ID) \
+			$(address) \
+
 add-role:
 	sui client call --package $(PACKAGE_ADDRESS) --module config --function add_role \
 		--args \

@@ -16,7 +16,7 @@ async function main() {
   const deusdMintingManager = new DeUSDMintingManager(
     NETWORK as "mainnet" | "testnet",
     PACKAGE_ADDRESS,
-    PRIVATE_KEY
+    PRIVATE_KEY,
   );
 
   try {
@@ -27,18 +27,18 @@ async function main() {
       GLOBAL_CONFIG_ID,
       {
         orderType: OrderType.MINT,
-        expiry: BigInt(Date.now() / 1000 + 60 * 10), // 10 minutes from now
-        nonce: BigInt(1), // update nonce with each request
+        expiry: BigInt(Math.floor(Date.now() / 1000) + 60 * 10), // 10 minutes from now
+        nonce: BigInt(2), // update nonce with each request
         benefactor: BENEFACTOR_ADDRESS,
         beneficiary: BENEFACTOR_ADDRESS, // use same address as BENEFACTOR_ADDRESS for testing
         collateralType: COLLATERAL_TYPE,
-        collateralAmount: BigInt(10000000),
-        deusdAmount: BigInt(10000000),
+        collateralAmount: BigInt(90000000),
+        deusdAmount: BigInt(90000000),
       },
       {
         addresses: [BENEFACTOR_ADDRESS, BENEFACTOR_ADDRESS],
         ratios: ["6000", "4000"],
-      }
+      },
     );
     console.log("Mint order result:", mintOrderResult);
   } catch (error) {
