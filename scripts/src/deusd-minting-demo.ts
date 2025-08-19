@@ -27,7 +27,7 @@ async function main() {
       GLOBAL_CONFIG_ID,
       {
         orderType: OrderType.MINT,
-        expiry: BigInt(Date.now() + 1000 * 60 * 10), // 10 minutes from now
+        expiry: BigInt(Date.now() / 1000 + 60 * 10), // 10 minutes from now
         nonce: BigInt(1), // update nonce with each request
         benefactor: BENEFACTOR_ADDRESS,
         beneficiary: BENEFACTOR_ADDRESS, // use same address as BENEFACTOR_ADDRESS for testing
