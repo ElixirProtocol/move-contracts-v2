@@ -4,13 +4,13 @@ edition = "2024.beta"
 
 [addresses]
 elixir = "0x0"
-initial_rewarder = "_"
+initial_rewarder = "0x337f3bad574e6338551b71932c449e20c81abb371364811de3ee93b58343eb3c"
 
 # Addresses for testing purposes
 test_coin = "0xccc"
 
 [dev-addresses]
-initial_rewarder = "0xabc"
+initial_rewarder = "0x337f3bad574e6338551b71932c449e20c81abb371364811de3ee93b58343eb3c"
 
 [dependencies]
 
