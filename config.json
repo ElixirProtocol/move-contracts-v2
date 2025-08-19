@@ -1,0 +1,63 @@
+{
+  "localnet": {
+    "rpc": "http://0.0.0.0:9000",
+    "ws": "wss://http://0.0.0.0:443",
+    "bluefin_foundation_base": "0x0663e22b3663f73bafd4cfc52e1e12c36b9a8b07320de9ef2c00f09149bbd747",
+    "bluefin_foundation_current": "0x0663e22b3663f73bafd4cfc52e1e12c36b9a8b07320de9ef2c00f09149bbd747",
+    "bluefin_bank": "0x58b1c9095c05ec0953a5b8f27406f0542d4b3b768f5a14f7a8c812d1b9afcc6b",
+    "bluefin_sequencer": "0x62f1f98f6a23e307895c676a9a685ddf6c34a29c348918eb2de88164cfef9832",
+    "bluefin_sub_accounts": "0xd1cd1bdf6907159e7bb06da3739add5d5b37dd015df6360db6053b487dc87cc6",
+    "bluefin_vault_store": "0x36a317125a5bd0687cb33f269c0c27d4a37feee773725ea8e29aa5512b18bee8",
+    "pyth": "0xb4e52b2c3d138020f22de059e488954dbdb4ba911b58786568cc81f18b555945",
+    "usdc": "0x0663e22b3663f73bafd4cfc52e1e12c36b9a8b07320de9ef2c00f09149bbd747"
+  },
+  "testnet": {
+    "rpc": "https://fullnode.testnet.sui.io:443",
+    "ws": "wss://fullnode.testnet.sui.io:443",
+    "bluefin_foundation_base": "0x962b86f22dd5f0d4dec32c5cf7e71f512b34c0076991ca619984896c88b06d32",
+    "bluefin_foundation_current": "0x83a7fc175b1aaac6418d44ad29907ed6742cab858b29f27c828597d0ece16b97",
+    "bluefin_bank": "0x19acb1769ae42aee6c1b3b50c07b62755b4e63cb9496950ff32ffc196a4498b2",
+    "bluefin_sequencer": "0xa3af2d0b06f3fd7747f3cffa3cdfd24dafc47bf805cc814799e195d46cbcb3b4",
+    "bluefin_sub_accounts": "0x1d81f5f8df1ccb6f271d7c3689b14022a9ba40cbd0a4902ab03f59b450e3ffc9",
+    "bluefin_vault_store": "0xb271fcfbb27cb4527653def98a81a267fd968d97e942d23f6e7cb5ff2f6172b8",
+    "pyth": "0x75d4ed7d02c77a847603e11f06f2c23fa02a34110b1a6729e6feaefec014c5c8",
+    "usdc": "0x962b86f22dd5f0d4dec32c5cf7e71f512b34c0076991ca619984896c88b06d32",
+    "bluefin_reward_coins": {
+      "SUI": "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+      "BLUE": "0x962b86f22dd5f0d4dec32c5cf7e71f512b34c0076991ca619984896c88b06d32::coin::COIN"
+    },
+    "bluefin_perpetuals": {
+      "ETH-PERP": "0x0da80450b646ef35568584ee3b109c6e395a1f35f340357554a520d7a2b9aae4",
+      "BTC-PERP": "0x53609520e6525acd109c4a65dd5fcbd128ac48876e432d8da0baea06d50c2648"
+    }
+  },
+  "mainnet": {
+    "rpc": "https://fullnode.mainnet.sui.io:443",
+    "ws": "wss://fullnode.mainnet.sui.io:443",
+    "bluefin_foundation_base": "0xc9ba51116d85cfbb401043f5e0710ab582c4b9b04a139b7df223f8f06bb66fa5",
+    "bluefin_foundation_current": "0x35e16744133c77a59a351d054ab7bd6291ba589d2fa98a898070b404e1bf058d",
+    "bluefin_bank": "0x39c65abefaee0a18ffa0e059a0074fcc9910216fa1a3550aa32c2e0ec1c03043",
+    "bluefin_sequencer": "0x0331a962dd201b75c8af844fe2f90236b24e88fdb197599e98e400b0a9391939",
+    "bluefin_sub_accounts": "0x3060f3a4af7d69bbf1348283e7cd70c0cdfb79ee432dfd6a66becd0ecab45c20",
+    "bluefin_vault_store": "0x15b236fbd65e338d37091bc829befc7b2b441f5ca7cad6fef61e5f050407d128",
+    "pyth": "0x8d97f1cd6ac663735be08d1d2b6d02a159e711586461306ce60a2b7a6a565a9e",
+    "wormhole": "0x5306f64e312b581766351c07af79c72fcb1cd25147157fdc2f8ad76de9a3fb6a",
+    "usdc": "0x5d4b302506645c37ff133b98c4b50a5ae14841659738d6d733d59d0d217a93bf",
+    "bluefin_reward_coins": {
+      "SUI": "0x0000000000000000000000000000000000000000000000000000000000000002::sui::SUI",
+      "BLUE": "0xe1b45a0e641b9955a20aa0ad1c1f4ad86aad8afb07296d4085e349a50e90bdca::blue::BLUE"
+    },
+    "bluefin_perpetuals": {
+      "ETH-PERP": "0x30b7baece69ecd1b1bea5c965f22e52ffbb3dd28b15b79449971945b2687fc35",
+      "BTC-PERP": "0x38d43822f621968460a642f47db2c5a20b3d59826c6dd34811c78ba3866cc2d1",
+      "SUI-PERP": "0xdade62fa7a4b4f1eac97c76d61e70b68c91d3c60ce399c7f741dee43e8d93167",
+      "SOL-PERP": "0x876905808eefa9104ae3b569cd21d364346da791f1638aab5d4f89af53b8baec",
+      "ARB-PERP": "0x2da0b91d57ba9e0877ec0b93da18902e627be687e909df7c2e5111f3b34e27ab",
+      "APT-PERP": "0xd9a014692e3002d196107d5c58657c451ae7f8d00ebd61d45b71fd9a98cabff4",
+      "AVAX-PERP": "0x1563fe1b1eda2b2427fa33d683c60464cc3a8912c0f9a9836fb6c3fd30810d0e",
+      "TIA-PERP": "0x69021f4991ac18fdbfc6b07914835811236008a797a51a56a6948ff3474bc8f6",
+      "MATIC-PERP": "0x18a2f1a773b66b1d568cfa56cadbc9bfe91a1a16a09c7338897273a60a293a4b",
+      "SEI-PERP": "0xcf84b2b99a65fd595e8bf03a9dc16c7002533ebdbc3ad035f9863594a9b356a1"
+    }
+  }
+}
