@@ -6,6 +6,7 @@ const PACKAGE_ADDRESS = process.env.PACKAGE_ADDRESS as string;
 const GLOBAL_CONFIG_ID = process.env.GLOBAL_CONFIG_ID as string;
 const DEUSD_MINTING_MANAGEMENT_ID = process.env
   .DEUSD_MINTING_MANAGEMENT_ID as string;
+const SDEUSD_MANAGEMENT_ID = process.env.SDEUSD_MANAGEMENT_ID as string;
 const DEUSD_CONFIG_ID = process.env.DEUSD_CONFIG_ID as string;
 const LOCKED_FUNDS_MANAGEMENT_ID = process.env
   .LOCKED_FUNDS_MANAGEMENT_ID as string;
@@ -20,27 +21,13 @@ async function main() {
   );
 
   try {
-    const mintOrderResult = await deusdMintingManager.mint(
-      DEUSD_MINTING_MANAGEMENT_ID,
-      LOCKED_FUNDS_MANAGEMENT_ID,
-      DEUSD_CONFIG_ID,
-      GLOBAL_CONFIG_ID,
-      {
-        orderType: OrderType.MINT,
-        expiry: BigInt(Math.floor(Date.now() / 1000) + 60 * 10), // 10 minutes from now
-        nonce: BigInt(4), // update nonce with each request
-        benefactor: BENEFACTOR_ADDRESS,
-        beneficiary: BENEFACTOR_ADDRESS, // use same address as BENEFACTOR_ADDRESS for testing
-        collateralType: COLLATERAL_TYPE,
-        collateralAmount: BigInt(90000000),
-        deusdAmount: BigInt(90000000),
-      },
-      {
-        addresses: [BENEFACTOR_ADDRESS, BENEFACTOR_ADDRESS],
-        ratios: ["6000", "4000"],
-      },
+    const user =
+      "0xc3a73e4ea73a30baabb4959bbf74dd3a7fd5cea6ce17bee3bc39717adbe60a2f";
+    const userCooldown = await deusdMintingManager.getUserCooldown(
+      SDEUSD_MANAGEMENT_ID,
+      user,
     );
-    console.log("Mint order result:", mintOrderResult);
+    console.log(userCooldown);
   } catch (error) {
     console.log("error", error);
   }

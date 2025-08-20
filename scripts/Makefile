@@ -9,6 +9,35 @@ initialize-minting:
 			$(CUSTODIANS) \
 			$(max_mint_per_second) $(max_redeem_per_second)
 
+deposit-to-sdeusd:
+	sui client call --package $(PACKAGE_ADDRESS) --module sdeusd --function deposit \
+		--args \
+			$(SDEUSD_MANAGEMENT_ID) $(GLOBAL_CONFIG_ID) \
+			$(coins) $(receiver) 0x6
+
+cooldown-sdeusd:
+	sui client call --package $(PACKAGE_ADDRESS) --module sdeusd --function cooldown_shares \
+		--args \
+			$(SDEUSD_MANAGEMENT_ID) $(GLOBAL_CONFIG_ID) \
+			$(coins) 0x6
+
+set-cooldown-duration:
+	sui client call --package $(PACKAGE_ADDRESS) --module sdeusd --function set_cooldown_duration \
+		--args \
+			$(ADMIN_CAP_ID) $(SDEUSD_MANAGEMENT_ID) $(GLOBAL_CONFIG_ID) \
+			$(duration) 
+
+convert-to-assets:
+	sui client call --package $(PACKAGE_ADDRESS) --module sdeusd --function convert_to_assets \
+		--args \
+			$(SDEUSD_MANAGEMENT_ID) $(shares) false 0x6 --dev-inspect \
+
+transfer-rewards:
+	sui client call --package $(PACKAGE_ADDRESS) --module sdeusd --function transfer_in_rewards \
+		--args \
+			$(SDEUSD_MANAGEMENT_ID) $(GLOBAL_CONFIG_ID) \
+			$(coins) 0x6
+
 add-custodian:
 	sui client call --package $(PACKAGE_ADDRESS) --module deusd_minting --function add_custodian_address\
 		--args \

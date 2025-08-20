@@ -48,8 +48,8 @@ const EInvalidZeroAddress: u64 = 11;
 
 // === Constants ===
 
-/// The vesting period over which rewards become available to stakers (8 hours in seconds)
-const VESTING_PERIOD: u64 = 8 * 3600;
+/// The vesting period over which rewards become available to stakers (7 days in seconds)
+const VESTING_PERIOD: u64 = 7 * 24 * 3600;
 /// Minimum non-zero shares amount to prevent donation attack
 const MIN_SHARES: u64 = 1_000_000; // 1 token with 6 decimals
 /// Maximum staking cooldown duration (90 days in seconds)

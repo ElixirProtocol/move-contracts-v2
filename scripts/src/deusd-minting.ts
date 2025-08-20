@@ -38,7 +38,7 @@ export class DeUSDMintingManager {
   constructor(
     network: "mainnet" | "testnet",
     packageId: string,
-    privateKey?: string
+    privateKey?: string,
   ) {
     this.client = new SuiClient({ url: getFullnodeUrl(network) });
     this.packageId = packageId;
@@ -49,13 +49,37 @@ export class DeUSDMintingManager {
     }
   }
 
+  async getUserCooldown(sdeusdManagementId: string, address: string) {
+    const obj = await this.client.getObject({
+      id: sdeusdManagementId,
+      options: {
+        showContent: true,
+      },
+    });
+
+    //@ts-ignore
+    const cooldownTableId = (obj.data?.content.fields).cooldowns.fields.id.id;
+    const parsedUserCooldownObject = (
+      await this.client.getDynamicFieldObject({
+        parentId: cooldownTableId,
+        name: {
+          type: "address",
+          value: address,
+        },
+      })
+    ).data?.content;
+
+    const userCooldown = (parsedUserCooldownObject as any).fields.value.fields;
+
+    return userCooldown;
+  }
   async mint(
     managementId: string,
     lockedFundsManagementId: string,
     deusdManagementId: string,
     globalConfigId: string,
     order: Order,
-    route: RouteConfig
+    route: RouteConfig,
   ): Promise<any> {
     if (!this.keypair) {
       throw new Error("Keypair not provided");
@@ -101,7 +125,7 @@ export class DeUSDMintingManager {
 
   calculateDomainSeparator(): Uint8Array {
     const addressBytes = bcs.Address.serialize(
-      normalizeSuiAddress(this.packageId)
+      normalizeSuiAddress(this.packageId),
     ).toBytes();
     let data = Buffer.from("deusd_minting", "ascii");
     data = Buffer.concat([addressBytes, data]);
@@ -130,19 +154,19 @@ export class DeUSDMintingManager {
     data.push(bcs.U64.serialize(order.expiry).toBytes());
     data.push(bcs.U64.serialize(order.nonce).toBytes());
     data.push(
-      bcs.Address.serialize(normalizeSuiAddress(order.benefactor)).toBytes()
+      bcs.Address.serialize(normalizeSuiAddress(order.benefactor)).toBytes(),
     );
     data.push(
-      bcs.Address.serialize(normalizeSuiAddress(order.beneficiary)).toBytes()
+      bcs.Address.serialize(normalizeSuiAddress(order.beneficiary)).toBytes(),
     );
 
     // struct tag string (type_name::get<T>())
     const collateralType = Buffer.from(
       getStructTypeString(parseStructType(order.collateralType)),
-      "ascii"
+      "ascii",
     );
     data.push(
-      bcs.vector(bcs.U8).serialize(Array.from(collateralType)).toBytes()
+      bcs.vector(bcs.U8).serialize(Array.from(collateralType)).toBytes(),
     );
 
     data.push(bcs.U64.serialize(order.collateralAmount).toBytes());
