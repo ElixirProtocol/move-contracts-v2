@@ -8,7 +8,7 @@ module elixir::sdeusd;
 // === Imports ===
 
 use elixir::clock_utils;
-use sui::clock::{Self, Clock};
+use sui::clock::{Clock};
 use sui::coin::{Self, Coin, TreasuryCap, DenyCapV2};
 use sui::balance::{Self, Balance};
 use sui::deny_list::DenyList;
@@ -48,8 +48,8 @@ const EInvalidZeroAddress: u64 = 11;
 
 // === Constants ===
 
-/// The vesting period over which rewards become available to stakers (7 days in seconds)
-const VESTING_PERIOD: u64 = 7 * 24 * 3600;
+/// The vesting period over which rewards become available to stakers (8 hour in seconds)
+const VESTING_PERIOD: u64 = 8 * 3600;
 /// Minimum non-zero shares amount to prevent donation attack
 const MIN_SHARES: u64 = 1_000_000; // 1 token with 6 decimals
 /// Maximum staking cooldown duration (90 days in seconds)
@@ -451,7 +451,7 @@ public fun unstake(
 
     let cooldown = management.cooldowns.borrow_mut(sender);
 
-    let current_time = clock::timestamp_ms(clock);
+    let current_time = clock_utils::timestamp_seconds(clock);
     assert!(
         current_time >= cooldown.cooldown_end || management.cooldown_duration == 0,
         EInvalidCooldown

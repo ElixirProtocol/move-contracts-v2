@@ -10,7 +10,6 @@ initial_rewarder = "0x337f3bad574e6338551b71932c449e20c81abb371364811de3ee93b583
 test_coin = "0xccc"
 
 [dev-addresses]
-initial_rewarder = "0x"
 
 [dependencies]
 

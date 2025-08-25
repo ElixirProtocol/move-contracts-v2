@@ -963,7 +963,7 @@ fun test_mint_with_different_receiver() {
 }
 
 #[test]
-#[expected_failure] // Remove specific error code as it's a framework internal error
+#[expected_failure]
 fun test_mint_insufficient_assets_fails() {
     let (mut ts, global_config, admin_cap, mut deusd_config, mut management) = setup_test();
 
@@ -3091,7 +3091,8 @@ fun test_unstake_success() {
     );
 
     // Advance time past cooldown period
-    test_utils::advance_time(&mut clock, sdeusd::cooldown_duration(&management) + 1);
+    let cooldown_duration_in_ms = sdeusd::cooldown_duration(&management) * 1000;
+    test_utils::advance_time(&mut clock, cooldown_duration_in_ms + 1);
 
     ts.next_tx(ALICE);
     // Unstake
@@ -3283,7 +3284,7 @@ fun test_unstake_exact_cooldown_end_time() {
     let (cooldown_end, _) = sdeusd::get_user_cooldown_info(&management, ALICE);
 
     // Set clock to exactly the cooldown end time
-    clock::set_for_testing(&mut clock, cooldown_end);
+    clock::set_for_testing(&mut clock, cooldown_end * 1000);
 
     ts.next_tx(ALICE);
     // Should be able to unstake at exact cooldown end time
@@ -3339,8 +3340,8 @@ fun test_unstake_multiple_times_same_user() {
     );
 
     // Advance time past cooldown period
-    let cooldown_duration = sdeusd::cooldown_duration(&management);
-    test_utils::advance_time(&mut clock, cooldown_duration + 1);
+    let cooldown_duration_in_ms = sdeusd::cooldown_duration(&management) * 1000;
+    test_utils::advance_time(&mut clock, cooldown_duration_in_ms + 1);
 
     ts.next_tx(ALICE);
     // First unstake
@@ -3368,7 +3369,7 @@ fun test_unstake_multiple_times_same_user() {
     );
 
     // Advance time again
-    test_utils::advance_time(&mut clock, cooldown_duration + 1);
+    test_utils::advance_time(&mut clock, cooldown_duration_in_ms + 1);
 
     ts.next_tx(ALICE);
     // Second unstake
@@ -3431,8 +3432,8 @@ fun test_unstake_with_different_receiver() {
     );
 
     // Advance time past cooldown period
-    let cooldown_duration = sdeusd::cooldown_duration(&management);
-    test_utils::advance_time(&mut clock, cooldown_duration + 1);
+    let cooldown_duration_in_ms = sdeusd::cooldown_duration(&management) * 1000;
+    test_utils::advance_time(&mut clock, cooldown_duration_in_ms + 1);
 
     ts.next_tx(ALICE);
     // Unstake to a different receiver (BOB)
@@ -3520,8 +3521,8 @@ fun test_staking_e2e() {
     );
 
     // Wait for cooldown to complete and unstake
-    let cooldown_duration = sdeusd::cooldown_duration(&management);
-    let new_time = clock::timestamp_ms(&clock) + cooldown_duration + 1;
+    let cooldown_duration_in_ms = sdeusd::cooldown_duration(&management) * 1000;
+    let new_time = clock::timestamp_ms(&clock) + cooldown_duration_in_ms + 1;
     clock::set_for_testing(&mut clock, new_time);
 
     sdeusd::unstake(

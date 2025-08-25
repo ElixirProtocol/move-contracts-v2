@@ -1,6 +1,10 @@
 include .env
 
-.PHONY: initialize-minting add-role remove-role add-supported-asset remove-supported-asset
+.PHONY: clean initialize-minting add-role remove-role add-supported-asset remove-supported-asset
+
+clean:
+	rm -rf build/
+	rm -rf scripts/test_coin/build/
 
 initialize-minting:
 	sui client call --package $(PACKAGE_ADDRESS) --module deusd_minting --function initialize \
