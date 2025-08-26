@@ -46,8 +46,8 @@ const EInvalidAmount: u64 = 6;
 const ESignatureExpired: u64 = 7;
 /// Unsupported asset.
 const EUnsupportedAsset: u64 = 8;
-/// Invalid custodian address.
-const EInvalidCustodianAddress: u64 = 9;
+/// Duplicate custodian address.
+const EDuplicateCustodianAddress: u64 = 9;
 /// Invalid nonce.
 const EInvalidNonce: u64 = 10;
 /// Not authorized.
@@ -58,6 +58,8 @@ const EInvalidSignature: u64 = 12;
 const EInvalidSigner: u64 = 13;
 /// Not enough amount for the operation.
 const ENotEnoughAmount: u64 = 14;
+/// Zero address provided.
+const EZeroAddress: u64 = 15;
 
 // === Constants ===
 
@@ -492,6 +494,9 @@ public fun deposit<T>(
 ) {
     assert_package_version_and_initialized(management, global_config);
 
+    let asset = type_name::get<T>();
+    assert!(management.supported_assets.contains(asset), EUnsupportedAsset);
+
     let amount = coins.value();
     assert!(amount > 0, EInvalidAmount);
 
@@ -766,7 +771,8 @@ fun add_custodian_address_internal(
     management: &mut DeUSDMintingManagement,
     custodian: address,
 ) {
-    assert!(custodian != @0x0 || management.custodian_addresses.contains(custodian), EInvalidCustodianAddress);
+    assert!(custodian != @0x0, EZeroAddress);
+    assert!(!management.custodian_addresses.contains(custodian), EDuplicateCustodianAddress);
     management.custodian_addresses.add(custodian);
 
     event::emit(CustodianAddressAdded { custodian });

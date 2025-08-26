@@ -506,3 +506,15 @@ fun test_has_role_nonexistent_member() {
     sui::test_utils::destroy(acl);
 }
 
+#[test]
+#[expected_failure(abort_code = acl::EInvalidRole)]
+fun test_has_role_invalid_role() {
+    let mut ctx = tx_context::dummy();
+
+    let acl = acl::new(&mut ctx);
+
+    acl::has_role(&acl, ALICE, INVALID_ROLE);
+
+    sui::test_utils::destroy(acl);
+}
+

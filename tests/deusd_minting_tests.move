@@ -194,7 +194,7 @@ fun test_add_custodian_address_fail_if_not_initialized() {
 }
 
 #[test]
-#[expected_failure(abort_code = deusd_minting::EInvalidCustodianAddress)]
+#[expected_failure(abort_code = deusd_minting::EZeroAddress)]
 fun test_add_custodian_address_fail_if_zero_address() {
     let (ts, global_config, admin_cap, deusd_config,  locked_funds_management, mut management) = setup_test();
 
@@ -210,6 +210,28 @@ fun test_add_custodian_address_fail_if_zero_address() {
 
     // This should fail because zero address is invalid
     deusd_minting::add_custodian_address(&admin_cap, &mut management, &global_config, @0x0);
+
+    clean_test(ts, global_config, admin_cap, deusd_config, locked_funds_management, management);
+}
+
+#[test]
+#[expected_failure(abort_code = deusd_minting::EDuplicateCustodianAddress)]
+fun test_add_custodian_address_fail_if_duplicate() {
+    let (ts, global_config, admin_cap, deusd_config,  locked_funds_management, mut management) = setup_test();
+
+    deusd_minting::initialize(
+        &admin_cap,
+        &mut management,
+        &global_config,
+        PACKAGE_ADDRESS,
+        vector[CUSTODIAN1],
+        1000000,
+        500000,
+    );
+
+    deusd_minting::add_custodian_address(&admin_cap, &mut management, &global_config, ALICE);
+    // This should fail because duplicate address
+    deusd_minting::add_custodian_address(&admin_cap, &mut management, &global_config, ALICE);
 
     clean_test(ts, global_config, admin_cap, deusd_config, locked_funds_management, management);
 }
@@ -589,6 +611,8 @@ fun test_transfer_to_custody_success() {
     // Grant collateral manager role to ALICE using ACL
     config::add_role(&admin_cap, &mut global_config, ALICE, roles::role_collateral_manager());
 
+    deusd_minting::add_supported_asset<ETH>(&admin_cap, &mut management, &global_config);
+
     let eth_amount = 5000000000;
     let eth_coin = coin::mint_for_testing<ETH>(eth_amount, ts.ctx());
     deusd_minting::deposit<ETH>(&mut management, &global_config, eth_coin, ts.ctx());
@@ -620,6 +644,8 @@ fun test_transfer_to_custody_fail_if_not_collateral_manager() {
         500000,
     );
 
+    deusd_minting::add_supported_asset<ETH>(&admin_cap, &mut management, &global_config);
+
     let eth_amount = 5000000000;
     let eth_coin = coin::mint_for_testing<ETH>(eth_amount, ts.ctx());
     deusd_minting::deposit<ETH>(&mut management, &global_config, eth_coin, ts.ctx());
@@ -646,6 +672,8 @@ fun test_transfer_to_custody_fail_if_zero_address() {
         1000000,
         500000,
     );
+
+    deusd_minting::add_supported_asset<ETH>(&admin_cap, &mut management, &global_config);
 
     let eth_amount = 5000000000;
     let eth_coin = coin::mint_for_testing<ETH>(eth_amount, ts.ctx());
@@ -675,6 +703,8 @@ fun test_transfer_to_custody_fail_if_invalid_custodian() {
         1000000,
         500000,
     );
+
+    deusd_minting::add_supported_asset<ETH>(&admin_cap, &mut management, &global_config);
 
     let eth_amount = 5000000000;
     let eth_coin = coin::mint_for_testing<ETH>(eth_amount, ts.ctx());
@@ -716,6 +746,9 @@ fun test_deposit_success() {
         500000,
     );
 
+    deusd_minting::add_supported_asset<ETH>(&admin_cap, &mut management, &global_config);
+    deusd_minting::add_supported_asset<USDC>(&admin_cap, &mut management, &global_config);
+
     ts.next_tx(ALICE);
     {
         // Deposit ETH
@@ -750,6 +783,34 @@ fun test_deposit_success() {
 }
 
 #[test]
+#[expected_failure(abort_code = deusd_minting::EUnsupportedAsset)]
+fun test_deposit_fail_if_not_supported_asset() {
+    let (mut ts, global_config, admin_cap, deusd_config, locked_funds_management, mut management) = setup_test();
+
+    deusd_minting::initialize(
+        &admin_cap,
+        &mut management,
+        &global_config,
+        PACKAGE_ADDRESS,
+        vector[CUSTODIAN1],
+        1000000,
+        500000,
+    );
+
+    deusd_minting::add_supported_asset<USDC>(&admin_cap, &mut management, &global_config);
+
+    ts.next_tx(ALICE);
+    {
+        // Try to deposit zero amount - should fail
+        let eth_coin = coin::mint_for_testing<ETH>(0, ts.ctx());
+        deusd_minting::deposit<ETH>(&mut management, &global_config, eth_coin, ts.ctx());
+    };
+
+    clean_test(ts, global_config, admin_cap, deusd_config, locked_funds_management, management);
+}
+
+
+#[test]
 #[expected_failure(abort_code = deusd_minting::EInvalidAmount)]
 fun test_deposit_fail_if_amount_is_zero() {
     let (mut ts, global_config, admin_cap, deusd_config, locked_funds_management, mut management) = setup_test();
@@ -763,6 +824,8 @@ fun test_deposit_fail_if_amount_is_zero() {
         1000000,
         500000,
     );
+
+    deusd_minting::add_supported_asset<ETH>(&admin_cap, &mut management, &global_config);
 
     ts.next_tx(ALICE);
     {
@@ -787,6 +850,8 @@ fun test_withdraw_success() {
         1000000,
         500000,
     );
+
+    deusd_minting::add_supported_asset<ETH>(&admin_cap, &mut management, &global_config);
 
     let eth_amount = 1000000000;
     let eth_coin = coin::mint_for_testing<ETH>(eth_amount, ts.ctx());
@@ -822,6 +887,8 @@ fun test_withdraw_fail_if_amount_is_zero() {
         500000,
     );
 
+    deusd_minting::add_supported_asset<ETH>(&admin_cap, &mut management, &global_config);
+
     let eth_amount = 1000000000;
     let eth_coin = coin::mint_for_testing<ETH>(eth_amount, ts.ctx());
     deusd_minting::deposit<ETH>(&mut management, &global_config, eth_coin, ts.ctx());
@@ -850,6 +917,8 @@ fun test_withdraw_fail_if_recipient_is_zero_address() {
         500000,
     );
 
+    deusd_minting::add_supported_asset<ETH>(&admin_cap, &mut management, &global_config);
+
     let eth_amount = 1000000000;
     let eth_coin = coin::mint_for_testing<ETH>(eth_amount, ts.ctx());
     deusd_minting::deposit<ETH>(&mut management, &global_config, eth_coin, ts.ctx());
@@ -877,6 +946,12 @@ fun test_withdraw_fail_if_insufficient_balance() {
         1000000,
         500000,
     );
+
+    ts.next_tx(ADMIN);
+    {
+        deusd_minting::add_supported_asset<ETH>(&admin_cap, &mut management, &global_config);
+        assert!(deusd_minting::is_supported_asset<ETH>(&management), 0);
+    };
 
     let eth_amount = 1000000000;
     let eth_coin = coin::mint_for_testing<ETH>(eth_amount, ts.ctx());

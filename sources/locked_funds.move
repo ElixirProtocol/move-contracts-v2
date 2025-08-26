@@ -216,7 +216,14 @@ fun update_user_collateral_coin_types<T>(
             if (coin_types.contains(&coin_type)) {
                 coin_types.remove(&coin_type);
             }
-        }
+        };
+
+        let balance_key = get_balance_store_key<T>(owner);
+        if (df::exists_(&management.id, balance_key)) {
+            let balance_store = df::remove<vector<u8>, BalanceStore<T>>(&mut management.id, balance_key);
+            let BalanceStore<T> { balance } = balance_store;
+            balance::destroy_zero(balance);
+        };
     }
 }
 
