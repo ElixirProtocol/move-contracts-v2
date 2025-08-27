@@ -7,13 +7,14 @@ module elixir::sdeusd;
 
 // === Imports ===
 
-use elixir::clock_utils;
+use std::u64;
 use sui::clock::{Clock};
 use sui::coin::{Self, Coin, TreasuryCap, DenyCapV2};
 use sui::balance::{Self, Balance};
 use sui::deny_list::DenyList;
 use sui::event;
 use sui::table::{Self, Table};
+use elixir::clock_utils;
 use elixir::set::{Self, Set};
 use elixir::config::GlobalConfig;
 use elixir::admin_cap::AdminCap;
@@ -48,6 +49,9 @@ const EInvalidZeroAddress: u64 = 11;
 
 // === Constants ===
 
+// use MAX_U64 to indicate no zero-supply period
+const NO_ZERO_SUPPLY_TIMESTAMP: u64 = 0xFFFFFFFFFFFFFFFF;
+
 /// The vesting period over which rewards become available to stakers (8 hour in seconds)
 const VESTING_PERIOD: u64 = 8 * 3600;
 /// Minimum non-zero shares amount to prevent donation attack
@@ -75,6 +79,11 @@ public struct SdeUSDManagement has key {
     vesting_amount: u64,
     /// The timestamp of the last asset distribution
     last_distribution_timestamp: u64,
+    /// The total unused reward amount in all vesting periods.
+    /// This could not include unused rewards from the last zero-supply period.
+    total_unused_reward_amount: u64,
+    /// The timestamp of the last time the total supply was zero
+    last_zero_supply_timestamp: u64,
     /// Current cooldown time period
     cooldown_duration: u64,
     /// Mapping of address to it's cooldown time
@@ -141,6 +150,11 @@ public struct UserUnblacklisted has copy, drop, store {
     is_full_blacklisting: bool,
 }
 
+public struct WithdrawUnusedRewards has copy, drop, store {
+    to: address,
+    amount: u64,
+}
+
 // === Initialization ===
 
 /// Initializes the sdeUSD contract, creating the treasury cap, management, user cooldowns, and user balances objects.
@@ -165,6 +179,8 @@ fun init(witness: SDEUSD, ctx: &mut TxContext) {
         silo_balance: balance::zero(),
         vesting_amount: 0,
         last_distribution_timestamp: 0,
+        total_unused_reward_amount: 0,
+        last_zero_supply_timestamp: 0,
         cooldown_duration: MAX_COOLDOWN_DURATION,
         cooldowns: table::new(ctx),
         soft_restricted_stakers: set::new(ctx),
@@ -264,8 +280,8 @@ public fun deposit(
     global_config.check_package_version();
 
     let sender = ctx.sender();
-    assert!(!is_soft_restricted_staker(management, sender), EOperationNotAllowed);
-    assert!(!is_soft_restricted_staker(management, receiver), EOperationNotAllowed);
+    assert!(!is_restricted_staker(management, sender), EOperationNotAllowed);
+    assert!(!is_restricted_staker(management, receiver), EOperationNotAllowed);
 
     let assets = assets_coin.value();
     assert!(assets > 0, EZeroAmount);
@@ -279,6 +295,8 @@ public fun deposit(
     transfer::public_transfer(shares_coin, receiver);
 
     check_min_shares(management);
+
+    update_state_after_supply_increased(management, clock);
 
     event::emit(Deposit {
         sender,
@@ -302,8 +320,8 @@ public fun mint(
     assert!(assets_coin.value() > 0, EZeroAmount);
 
     let sender = ctx.sender();
-    assert!(!is_soft_restricted_staker(management, sender), EOperationNotAllowed);
-    assert!(!is_soft_restricted_staker(management, receiver), EOperationNotAllowed);
+    assert!(!is_restricted_staker(management, sender), EOperationNotAllowed);
+    assert!(!is_restricted_staker(management, receiver), EOperationNotAllowed);
 
     let assets = preview_mint(management, shares, clock);
     assert!(assets > 0, EZeroAmount);
@@ -315,6 +333,8 @@ public fun mint(
     transfer::public_transfer(shares_coin, receiver);
 
     check_min_shares(management);
+
+    update_state_after_supply_increased(management, clock);
 
     event::emit(Deposit {
         sender,
@@ -348,6 +368,7 @@ public fun withdraw(
         owner,
         assets,
         shares_coin_to_use,
+        clock,
         ctx
     );
 }
@@ -375,6 +396,7 @@ public fun redeem(
         owner, 
         assets, 
         shares_coin,
+        clock,
         ctx
     );
 }
@@ -404,6 +426,7 @@ public fun cooldown_assets(
         sender,
         assets,
         shares_coin.split(shares, ctx),
+        clock,
         ctx,
     );
 }
@@ -431,6 +454,7 @@ public fun cooldown_shares(
         sender,
         assets,
         shares_coin.split(shares, ctx),
+        clock,
         ctx,
     );
 }
@@ -447,6 +471,7 @@ public fun unstake(
     
     let sender = ctx.sender();
 
+    assert!(!is_full_restricted(management, sender), EOperationNotAllowed);
     assert!(management.cooldowns.contains(sender), EOperationNotAllowed);
 
     let cooldown = management.cooldowns.borrow_mut(sender);
@@ -492,14 +517,59 @@ public fun set_cooldown_duration(
     });
 }
 
+public fun withdraw_unused_rewards(
+    _: &AdminCap,
+    management: &mut SdeUSDManagement,
+    global_config: &GlobalConfig,
+    to: address,
+    clock: &Clock,
+    ctx: &mut TxContext,
+) {
+    global_config.check_package_version();
+
+    // If there's active vesting, calculate and accumulate any current unused rewards
+    if (management.vesting_amount != 0) {
+        let current_time = clock_utils::timestamp_seconds(clock);
+        let end_distribution_timestamp = management.last_distribution_timestamp + VESTING_PERIOD;
+
+        if (current_time > end_distribution_timestamp) {
+            // Vesting completed - finalize all remaining unused rewards
+            if (management.last_zero_supply_timestamp != NO_ZERO_SUPPLY_TIMESTAMP && management.last_zero_supply_timestamp < end_distribution_timestamp) {
+                let remaining_unused_reward_amount = math_u64::mul_div(
+                    end_distribution_timestamp - u64::max(management.last_zero_supply_timestamp, management.last_distribution_timestamp),
+                    management.vesting_amount,
+                    VESTING_PERIOD,
+                    false
+                );
+                management.total_unused_reward_amount = management.total_unused_reward_amount + remaining_unused_reward_amount;
+            };
+            management.vesting_amount = 0;
+        }
+    };
+
+    let withdraw_amount = management.total_unused_reward_amount;
+    assert!(withdraw_amount > 0, EZeroAmount);
+
+    let unused_rewards_coin = coin::from_balance(management.deusd_balance.split(withdraw_amount), ctx);
+    transfer::public_transfer(unused_rewards_coin, to);
+
+    management.total_unused_reward_amount = 0;
+
+    event::emit(WithdrawUnusedRewards {
+        to,
+        amount: withdraw_amount,
+    })
+}
+
 // === View Functions ===
 
 /// Returns the amount of deUSD tokens that are vested in the contract.
 public fun total_assets(management: &SdeUSDManagement, clock: &Clock): u64 {
     let total_balance = management.deusd_balance.value();
     let unvested = get_unvested_amount(management, clock);
-    if (total_balance >= unvested) {
-        total_balance - unvested
+    let unused_reward_amount = get_total_unused_reward_amount(management, clock);
+    if (total_balance >= unvested + unused_reward_amount) {
+        total_balance - (unvested + unused_reward_amount)
     } else {
         0
     }
@@ -515,6 +585,30 @@ public fun get_unvested_amount(management: &SdeUSDManagement, clock: &Clock): u6
     };
 
     math_u64::mul_div(VESTING_PERIOD - time_since_last_distribution, management.vesting_amount, VESTING_PERIOD, false)
+}
+
+public fun get_total_unused_reward_amount(management: &SdeUSDManagement, clock: &Clock): u64 {
+    if (management.last_zero_supply_timestamp == NO_ZERO_SUPPLY_TIMESTAMP || management.vesting_amount == 0) {
+        // return management.unused_reward_amount + management.total_unused_reward_amount
+        return management.total_unused_reward_amount
+    };
+
+    let end_distribution_timestamp = management.last_distribution_timestamp + VESTING_PERIOD;
+    let current_time = clock_utils::timestamp_seconds(clock);
+    let unused_reward_start_time = u64::max(management.last_zero_supply_timestamp, management.last_distribution_timestamp);
+    let unused_reward_end_time = u64::min(current_time, end_distribution_timestamp);
+    let unused_reward_amount = if (unused_reward_end_time > unused_reward_start_time) {
+        math_u64::mul_div(
+            unused_reward_end_time - unused_reward_start_time,
+            management.vesting_amount,
+            VESTING_PERIOD,
+            false
+        )
+    } else {
+        0
+    };
+
+    management.total_unused_reward_amount + unused_reward_amount
 }
 
 /// Calculates the number of sdeUSD shares to mint for a given deposit amount.
@@ -556,16 +650,6 @@ public fun get_user_cooldown_info(management: &SdeUSDManagement, user: address):
     }
 }
 
-/// Get the underlying amount from a cooldown
-public fun cooldown_underlying_amount(cooldown: &UserCooldown): u64 {
-    cooldown.underlying_amount
-}
-
-/// Get the cooldown end time
-public fun cooldown_end_time(cooldown: &UserCooldown): u64 {
-    cooldown.cooldown_end
-}
-
 /// Get total supply of sdeUSD
 public fun total_supply(management: &SdeUSDManagement): u64 {
     management.treasury_cap.total_supply()
@@ -588,6 +672,10 @@ public fun is_full_restricted(management: &SdeUSDManagement, user: address): boo
 
 // === Helper Functions ===
 
+fun is_restricted_staker(management: &SdeUSDManagement, user: address): bool {
+    is_soft_restricted_staker(management, user) || is_full_restricted_staker(management, user)
+}
+
 fun is_soft_restricted_staker(management: &SdeUSDManagement, user: address): bool {
     management.soft_restricted_stakers.contains(user)
 }
@@ -599,8 +687,64 @@ fun is_full_restricted_staker(management: &SdeUSDManagement, user: address): boo
 fun update_vesting_amount(management: &mut SdeUSDManagement, new_vesting_amount: u64, clock: &Clock) {
     assert!(get_unvested_amount(management, clock) == 0, EStillVesting);
 
+    // If there was a zero-supply period, finalize unused rewards from that period
+    if (management.last_zero_supply_timestamp != NO_ZERO_SUPPLY_TIMESTAMP && management.vesting_amount > 0) {
+        let end_distribution_timestamp = management.last_distribution_timestamp + VESTING_PERIOD;
+        let current_time = clock_utils::timestamp_seconds(clock);
+
+        if (current_time >= end_distribution_timestamp && management.last_zero_supply_timestamp < end_distribution_timestamp) {
+            let unused_reward_amount = math_u64::mul_div(
+                end_distribution_timestamp - u64::max(management.last_zero_supply_timestamp, management.last_distribution_timestamp),
+                management.vesting_amount,
+                VESTING_PERIOD,
+                false
+            );
+            management.total_unused_reward_amount = management.total_unused_reward_amount + unused_reward_amount;
+        }
+    };
+
     management.vesting_amount = new_vesting_amount;
     management.last_distribution_timestamp = clock_utils::timestamp_seconds(clock);
+}
+
+fun update_state_after_supply_increased(management: &mut SdeUSDManagement, clock: &Clock) {
+    if (management.last_zero_supply_timestamp == NO_ZERO_SUPPLY_TIMESTAMP) {
+        return
+    };
+
+    let last_zero_supply_timestamp = management.last_zero_supply_timestamp;
+    management.last_zero_supply_timestamp = NO_ZERO_SUPPLY_TIMESTAMP;
+
+    if (management.vesting_amount == 0) {
+        return
+    };
+
+    // Accumulate unused rewards from the zero-supply period
+    let end_distribution_timestamp = management.last_distribution_timestamp + VESTING_PERIOD;
+    let current_time = clock_utils::timestamp_seconds(clock);
+    let unused_reward_start_time = u64::max(last_zero_supply_timestamp, management.last_distribution_timestamp);
+    let unused_reward_end_time = u64::min(current_time, end_distribution_timestamp);
+    let unused_reward_amount = if (unused_reward_end_time > unused_reward_start_time) {
+        math_u64::mul_div(
+            unused_reward_end_time - unused_reward_start_time,
+            management.vesting_amount,
+            VESTING_PERIOD,
+            false
+        )
+    } else {
+        0
+    };
+
+    management.total_unused_reward_amount = management.total_unused_reward_amount + unused_reward_amount;
+}
+
+fun update_state_after_supply_decreased(management: &mut SdeUSDManagement, clock: &Clock) {
+    if (total_supply(management) != 0) {
+        return
+    };
+
+    let current_time = clock_utils::timestamp_seconds(clock);
+    management.last_zero_supply_timestamp = current_time;
 }
 
 fun check_min_shares(management: &SdeUSDManagement) {
@@ -636,7 +780,6 @@ fun convert_to_assets(management: &SdeUSDManagement, shares: u64, rounding_up: b
     } else {
         math_u64::mul_div(shares, total_assets, total_supply, rounding_up)
     }
-
 }
 
 fun withdraw_to_user(
@@ -646,6 +789,7 @@ fun withdraw_to_user(
     owner: address,
     assets: u64,
     shares_coin: Coin<SDEUSD>,
+    clock: &Clock,
     ctx: &mut TxContext,
 ) {
     assert!(assets > 0, EZeroAmount);
@@ -664,6 +808,8 @@ fun withdraw_to_user(
 
     check_min_shares(management);
 
+    update_state_after_supply_decreased(management, clock);
+
     event::emit(Withdraw {
         sender,
         receiver,
@@ -678,6 +824,7 @@ fun withdraw_to_silo(
     sender: address,
     assets: u64,
     shares_coin: Coin<SDEUSD>,
+    clock: &Clock,
     ctx: &mut TxContext,
 ) {
     assert!(assets > 0, EZeroAmount);
@@ -693,6 +840,8 @@ fun withdraw_to_silo(
     management.silo_balance.join(coin::into_balance(assets_coin));
 
     check_min_shares(management);
+
+    update_state_after_supply_decreased(management, clock);
 
     event::emit(WithdrawToSilo {
         sender,
