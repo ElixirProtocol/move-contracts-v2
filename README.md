@@ -42,6 +42,8 @@ Allow operator to transfer rewards into th `sd
 
 ## Development
 
+**Note:** If you run into with any issues, try to run `make clean` to clean up the build cache and retry.
+
 ### Building the Project
 ```bash
 sui move build -d

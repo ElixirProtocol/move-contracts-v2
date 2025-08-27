@@ -2,7 +2,7 @@ module elixir::admin_cap;
 
 // === Structs ===
 
-public struct AdminCap has key {
+public struct AdminCap has key, store {
     id: UID,
 }
 

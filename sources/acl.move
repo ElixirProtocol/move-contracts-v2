@@ -35,6 +35,8 @@ public fun new(ctx: &mut TxContext): ACL {
 
 /// Check if a member has a role in the ACL.
 public fun has_role(acl: &ACL, member: address, role: u8): bool {
+    assert!(role < 128, EInvalidRole);
+
     acl.roles_by_member.contains(member) && *acl.roles_by_member.borrow(member) & (1 << role) > 0
 }
 
@@ -44,9 +46,15 @@ public fun set_roles(acl: &mut ACL, member: address, roles: u128) {
     assert!(member != @0x0, EZeroAddress);
 
     if (acl.roles_by_member.contains(member)) {
-        *acl.roles_by_member.borrow_mut(member) = roles;
+        if (roles == 0) {
+            acl.roles_by_member.remove(member);
+        } else {
+            *acl.roles_by_member.borrow_mut(member) = roles;
+        }
     } else {
-        acl.roles_by_member.push_back(member, roles);
+        if (roles != 0) {
+            acl.roles_by_member.push_back(member, roles);
+        }
     }
 }
 
@@ -70,6 +78,10 @@ public fun remove_role(acl: &mut ACL, member: address, role: u8) {
     if (acl.roles_by_member.contains(member)) {
         let roles = acl.roles_by_member.borrow_mut(member);
         *roles = *roles & (MAX_U128 - (1 << role));
+
+        if (*roles == 0) {
+            acl.roles_by_member.remove(member);
+        }
     };
 }
 
@@ -102,4 +114,11 @@ public fun get_roles(acl: &ACL, member: address): u128 {
     } else {
         0
     }
+}
+
+// === Tests ===
+
+#[test_only]
+public fun contains_member_for_test(acl: &ACL, member: address): bool {
+    acl.roles_by_member.contains(member)
 }

@@ -356,6 +356,22 @@ fun test_transfer_in_rewards_after_vesting_period_succeeds() {
     let start_time = 1000000;
     clock::set_for_testing(&mut clock, start_time);
 
+    ts.next_tx(ALICE);
+    let initial_assets = 100_000_000;
+    let mut deusd_coin = mint_deusd(&mut deusd_config, initial_assets, &mut ts);
+    let shares = 100_000_000;
+    sdeusd::mint(
+        &mut management,
+        &global_config,
+        &mut deusd_coin,
+        shares,
+        ALICE,
+        &clock,
+        ts.ctx()
+    );
+    deusd_coin.burn_for_testing();
+
+    ts.next_tx(ADMIN);
     // First rewards transfer
     let rewards_coin1 = mint_deusd(&mut deusd_config, 100_000_000, &mut ts);
     sdeusd::transfer_in_rewards(
@@ -375,7 +391,7 @@ fun test_transfer_in_rewards_after_vesting_period_succeeds() {
 
     // Verify vesting is complete
     assert_eq(sdeusd::get_unvested_amount(&management, &clock), 0);
-    assert_eq(sdeusd::total_assets(&management, &clock), 100_000_000);
+    assert_eq(sdeusd::total_assets(&management, &clock), initial_assets + 100_000_000);
 
     // Second rewards transfer should succeed
     let rewards_coin2 = mint_deusd(&mut deusd_config, 50_000_000, &mut ts);
@@ -389,7 +405,7 @@ fun test_transfer_in_rewards_after_vesting_period_succeeds() {
 
     // Verify second transfer updated vesting state
     assert_eq(sdeusd::get_unvested_amount(&management, &clock), 50_000_000);
-    assert_eq(sdeusd::total_assets(&management, &clock), 100_000_000); // Previous rewards fully vested
+    assert_eq(sdeusd::total_assets(&management, &clock), initial_assets + 100_000_000); // Previous rewards fully vested
 
     clock::destroy_for_testing(clock);
     clean_test(ts, global_config, admin_cap, deusd_config, management);
@@ -453,6 +469,12 @@ fun test_transfer_in_rewards_multiple_cycles() {
     let start_time = 1000000;
     clock::set_for_testing(&mut clock, start_time);
 
+    // Initial deposit to ensure supply is present
+    ts.next_tx(ALICE);
+    let initial_deusd = mint_deusd(&mut deusd_config, 1000_000_000, &mut ts);
+    sdeusd::deposit(&mut management, &global_config, initial_deusd, ALICE, &clock, ts.ctx());
+
+    ts.next_tx(ADMIN);
     // First cycle: 100 tokens
     let rewards_coin1 = mint_deusd(&mut deusd_config, 100_000_000, &mut ts);
     sdeusd::transfer_in_rewards(
@@ -482,7 +504,7 @@ fun test_transfer_in_rewards_multiple_cycles() {
 
     // Verify second cycle state
     assert_eq(sdeusd::get_unvested_amount(&management, &clock), 200_000_000);
-    assert_eq(sdeusd::total_assets(&management, &clock), 100_000_000); // First batch fully vested
+    assert_eq(sdeusd::total_assets(&management, &clock), 1100_000_000); // Initial deposit + first batch fully vested
 
     // Wait for second vesting
     let time2 = time1 + (8 * ONE_HOUR_MILLIS);
@@ -500,7 +522,7 @@ fun test_transfer_in_rewards_multiple_cycles() {
 
     // Verify third cycle state
     assert_eq(sdeusd::get_unvested_amount(&management, &clock), 50_000_000);
-    assert_eq(sdeusd::total_assets(&management, &clock), 300_000_000); // First two batches fully vested
+    assert_eq(sdeusd::total_assets(&management, &clock), 1300_000_000); // Initial deposit + first two batches fully vested
 
     clock::destroy_for_testing(clock);
     clean_test(ts, global_config, admin_cap, deusd_config, management);
@@ -518,9 +540,17 @@ fun test_transfer_in_rewards_vesting_state_updates() {
     let start_time = 1000000;
     clock::set_for_testing(&mut clock, start_time);
 
+    ts.next_tx(ALICE);
+    let initial_assets = 100_000_000;
+    let mut deusd_coin = mint_deusd(&mut deusd_config, initial_assets, &mut ts);
+    let shares = 100_000_000;
+    sdeusd::mint(&mut management, &global_config, &mut deusd_coin, shares, ALICE, &clock, ts.ctx());
+    deusd_coin.burn_for_testing();
+
     // Initial state - no vesting
     assert_eq(sdeusd::get_unvested_amount(&management, &clock), 0);
 
+    ts.next_tx(ADMIN);
     // Transfer rewards
     let rewards_coin = mint_deusd(&mut deusd_config, 120_000_000, &mut ts);
     sdeusd::transfer_in_rewards(
@@ -533,25 +563,25 @@ fun test_transfer_in_rewards_vesting_state_updates() {
 
     // Verify vesting state immediately after transfer
     assert_eq(sdeusd::get_unvested_amount(&management, &clock), 120_000_000);
-    assert_eq(sdeusd::total_assets(&management, &clock), 0);
+    assert_eq(sdeusd::total_assets(&management, &clock), initial_assets + 0);
 
     // Test at 25% vesting (2 hours)
     let time_25_percent = start_time + (2 * ONE_HOUR_MILLIS);
     clock::set_for_testing(&mut clock, time_25_percent);
     assert_eq(sdeusd::get_unvested_amount(&management, &clock), 90_000_000); // 75% left
-    assert_eq(sdeusd::total_assets(&management, &clock), 30_000_000); // 25% vested
+    assert_eq(sdeusd::total_assets(&management, &clock), initial_assets + 30_000_000); // 25% vested
 
     // Test at 75% vesting (6 hours)
     let time_75_percent = start_time + (6 * ONE_HOUR_MILLIS);
     clock::set_for_testing(&mut clock, time_75_percent);
     assert_eq(sdeusd::get_unvested_amount(&management, &clock), 30_000_000); // 25% left
-    assert_eq(sdeusd::total_assets(&management, &clock), 90_000_000); // 75% vested
+    assert_eq(sdeusd::total_assets(&management, &clock), initial_assets + 90_000_000); // 75% vested
 
     // Test at 100% vesting (8 hours)
     let time_100_percent = start_time + (8 * ONE_HOUR_MILLIS);
     clock::set_for_testing(&mut clock, time_100_percent);
     assert_eq(sdeusd::get_unvested_amount(&management, &clock), 0);
-    assert_eq(sdeusd::total_assets(&management, &clock), 120_000_000);
+    assert_eq(sdeusd::total_assets(&management, &clock), initial_assets + 120_000_000); // Fully vested
 
     clock::destroy_for_testing(clock);
     clean_test(ts, global_config, admin_cap, deusd_config, management);
@@ -925,6 +955,74 @@ fun test_mint_soft_restricted_receiver_fails() {
 }
 
 #[test]
+#[expected_failure(abort_code = sdeusd::EOperationNotAllowed)]
+fun test_mint_full_restricted_sender_fails() {
+    let (mut ts, mut global_config, admin_cap, mut deusd_config, mut management) = setup_test();
+
+    ts.next_tx(ADMIN);
+    let mut deny_list = deny_list::new_for_testing(ts.ctx());
+
+    // Grant blacklist manager role and blacklist ALICE
+    config::add_role(&admin_cap, &mut global_config, ADMIN, roles::role_blacklist_manager());
+    sdeusd::add_to_blacklist(&mut management, &global_config, &mut deny_list, ALICE, true, ts.ctx());
+
+    ts.next_tx(ALICE);
+    let clock = clock::create_for_testing(ts.ctx());
+
+    let mut deusd_coin = mint_deusd(&mut deusd_config, 1000_000_000, &mut ts);
+
+    // Try to mint as full restricted user
+    sdeusd::mint(
+        &mut management,
+        &global_config,
+        &mut deusd_coin,
+        1000_000_000,
+        ALICE,
+        &clock,
+        ts.ctx()
+    );
+
+    deusd_coin.burn_for_testing();
+    sui::test_utils::destroy(deny_list);
+    clock::destroy_for_testing(clock);
+    clean_test(ts, global_config, admin_cap, deusd_config, management);
+}
+
+#[test]
+#[expected_failure(abort_code = sdeusd::EOperationNotAllowed)]
+fun test_mint_full_restricted_receiver_fails() {
+    let (mut ts, mut global_config, admin_cap, mut deusd_config, mut management) = setup_test();
+
+    ts.next_tx(ADMIN);
+    let mut deny_list = deny_list::new_for_testing(ts.ctx());
+
+    // Grant blacklist manager role and blacklist BOB (receiver)
+    config::add_role(&admin_cap, &mut global_config, ADMIN, roles::role_blacklist_manager());
+    sdeusd::add_to_blacklist(&mut management, &global_config, &mut deny_list, BOB, true, ts.ctx()); // full restriction
+
+    ts.next_tx(ALICE);
+    let clock = clock::create_for_testing(ts.ctx());
+
+    let mut deusd_coin = mint_deusd(&mut deusd_config, 1000_000_000, &mut ts);
+
+    // Try to mint to soft restricted receiver
+    sdeusd::mint(
+        &mut management,
+        &global_config,
+        &mut deusd_coin,
+        1000_000_000,
+        BOB, // full restricted receiver
+        &clock,
+        ts.ctx()
+    );
+
+    deusd_coin.burn_for_testing();
+    sui::test_utils::destroy(deny_list);
+    clock::destroy_for_testing(clock);
+    clean_test(ts, global_config, admin_cap, deusd_config, management);
+}
+
+#[test]
 fun test_mint_with_different_receiver() {
     let (mut ts, global_config, admin_cap, mut deusd_config, mut management) = setup_test();
 
@@ -963,7 +1061,7 @@ fun test_mint_with_different_receiver() {
 }
 
 #[test]
-#[expected_failure] // Remove specific error code as it's a framework internal error
+#[expected_failure]
 fun test_mint_insufficient_assets_fails() {
     let (mut ts, global_config, admin_cap, mut deusd_config, mut management) = setup_test();
 
@@ -1127,6 +1225,71 @@ fun test_deposit_success() {
     assert_eq(shares_coin.value(), 500_000_000);
     shares_coin.burn_for_testing();
 
+    clock::destroy_for_testing(clock);
+    clean_test(ts, global_config, admin_cap, deusd_config, management);
+}
+
+#[test]
+#[expected_failure(abort_code = sdeusd::EOperationNotAllowed)]
+fun test_deposit_full_restricted_sender_fails() {
+    let (mut ts, mut global_config, admin_cap, mut deusd_config, mut management) = setup_test();
+
+    ts.next_tx(ADMIN);
+    let mut deny_list = deny_list::new_for_testing(ts.ctx());
+
+    // Grant blacklist manager role and blacklist ALICE
+    config::add_role(&admin_cap, &mut global_config, ADMIN, roles::role_blacklist_manager());
+    sdeusd::add_to_blacklist(&mut management, &global_config, &mut deny_list, ALICE, true, ts.ctx());
+
+    ts.next_tx(ALICE);
+    let clock = clock::create_for_testing(ts.ctx());
+
+    // Mint deUSD for restricted user
+    let deusd_coin = mint_deusd(&mut deusd_config, 1000_000_000, &mut ts);
+
+    // Try to deposit as full restricted user
+    sdeusd::deposit(
+        &mut management,
+        &global_config,
+        deusd_coin,
+        ALICE,
+        &clock,
+        ts.ctx()
+    );
+
+    sui::test_utils::destroy(deny_list);
+    clock::destroy_for_testing(clock);
+    clean_test(ts, global_config, admin_cap, deusd_config, management);
+}
+
+#[test]
+#[expected_failure(abort_code = sdeusd::EOperationNotAllowed)]
+fun test_deposit_full_restricted_receiver_fails() {
+    let (mut ts, mut global_config, admin_cap, mut deusd_config, mut management) = setup_test();
+
+    ts.next_tx(ADMIN);
+    let mut deny_list = deny_list::new_for_testing(ts.ctx());
+
+    // Grant blacklist manager role and blacklist ALICE
+    config::add_role(&admin_cap, &mut global_config, ADMIN, roles::role_blacklist_manager());
+    sdeusd::add_to_blacklist(&mut management, &global_config, &mut deny_list, BOB, true, ts.ctx());
+
+    ts.next_tx(ALICE);
+    let clock = clock::create_for_testing(ts.ctx());
+
+    // Mint deUSD for restricted user
+    let deusd_coin = mint_deusd(&mut deusd_config, 1000_000_000, &mut ts);
+
+    sdeusd::deposit(
+        &mut management,
+        &global_config,
+        deusd_coin,
+        BOB, // full restricted receiver
+        &clock,
+        ts.ctx()
+    );
+
+    sui::test_utils::destroy(deny_list);
     clock::destroy_for_testing(clock);
     clean_test(ts, global_config, admin_cap, deusd_config, management);
 }
@@ -2439,57 +2602,6 @@ fun test_redeem_with_rewards_affects_ratio() {
     clean_test(ts, global_config, admin_cap, deusd_config, management);
 }
 
-// === Vesting Tests ===
-
-#[test]
-fun test_vesting_mechanism() {
-    let (mut ts, mut global_config, admin_cap, mut deusd_config, mut management) = setup_test();
-
-    ts.next_tx(ADMIN);
-
-    // Grant rewarder role
-    config::add_role(&admin_cap, &mut global_config, ADMIN, roles::role_rewarder());
-
-    let mut clock = clock::create_for_testing(ts.ctx());
-    let start_time = 1000000;
-    clock::set_for_testing(&mut clock, start_time);
-
-    // Transfer rewards
-    let rewards_coin = mint_deusd(&mut deusd_config, 100_000_000, &mut ts);
-    sdeusd::transfer_in_rewards(
-        &mut management,
-        &global_config,
-        rewards_coin,
-        &clock,
-        ts.ctx()
-    );
-
-    // Initially all rewards are unvested
-    assert_eq(sdeusd::get_unvested_amount(&management, &clock), 100_000_000);
-    assert_eq(sdeusd::total_assets(&management, &clock), 0);
-
-    // After 4 hours (half vesting period), half should be vested
-    let half_vesting_time = start_time + VESTING_PERIOD_MILLIS / 2;
-    clock::set_for_testing(&mut clock, half_vesting_time);
-
-    let unvested_half = sdeusd::get_unvested_amount(&management, &clock);
-    let total_assets_half = sdeusd::total_assets(&management, &clock);
-
-    // Should be 50 tokens unvested and 50 available
-    assert_eq(unvested_half, 50_000_000);
-    assert_eq(total_assets_half, 50_000_000);
-
-    // After full vesting period (8 hours), all should be vested
-    let full_vesting_time = start_time + VESTING_PERIOD_MILLIS;
-    clock::set_for_testing(&mut clock, full_vesting_time);
-
-    assert_eq(sdeusd::get_unvested_amount(&management, &clock), 0);
-    assert_eq(sdeusd::total_assets(&management, &clock), 100_000_000);
-
-    clock::destroy_for_testing(clock);
-    clean_test(ts, global_config, admin_cap, deusd_config, management);
-}
-
 // === Cooldown Tests ===
 
 #[test]
@@ -3091,7 +3203,8 @@ fun test_unstake_success() {
     );
 
     // Advance time past cooldown period
-    test_utils::advance_time(&mut clock, sdeusd::cooldown_duration(&management) + 1);
+    let cooldown_duration_in_ms = sdeusd::cooldown_duration(&management) * 1000;
+    test_utils::advance_time(&mut clock, cooldown_duration_in_ms + 1);
 
     ts.next_tx(ALICE);
     // Unstake
@@ -3283,7 +3396,7 @@ fun test_unstake_exact_cooldown_end_time() {
     let (cooldown_end, _) = sdeusd::get_user_cooldown_info(&management, ALICE);
 
     // Set clock to exactly the cooldown end time
-    clock::set_for_testing(&mut clock, cooldown_end);
+    clock::set_for_testing(&mut clock, cooldown_end * 1000);
 
     ts.next_tx(ALICE);
     // Should be able to unstake at exact cooldown end time
@@ -3339,8 +3452,8 @@ fun test_unstake_multiple_times_same_user() {
     );
 
     // Advance time past cooldown period
-    let cooldown_duration = sdeusd::cooldown_duration(&management);
-    test_utils::advance_time(&mut clock, cooldown_duration + 1);
+    let cooldown_duration_in_ms = sdeusd::cooldown_duration(&management) * 1000;
+    test_utils::advance_time(&mut clock, cooldown_duration_in_ms + 1);
 
     ts.next_tx(ALICE);
     // First unstake
@@ -3368,7 +3481,7 @@ fun test_unstake_multiple_times_same_user() {
     );
 
     // Advance time again
-    test_utils::advance_time(&mut clock, cooldown_duration + 1);
+    test_utils::advance_time(&mut clock, cooldown_duration_in_ms + 1);
 
     ts.next_tx(ALICE);
     // Second unstake
@@ -3431,8 +3544,8 @@ fun test_unstake_with_different_receiver() {
     );
 
     // Advance time past cooldown period
-    let cooldown_duration = sdeusd::cooldown_duration(&management);
-    test_utils::advance_time(&mut clock, cooldown_duration + 1);
+    let cooldown_duration_in_ms = sdeusd::cooldown_duration(&management) * 1000;
+    test_utils::advance_time(&mut clock, cooldown_duration_in_ms + 1);
 
     ts.next_tx(ALICE);
     // Unstake to a different receiver (BOB)
@@ -3455,6 +3568,57 @@ fun test_unstake_with_different_receiver() {
 
     shares_coin.burn_for_testing();
     unstaked_coin.burn_for_testing();
+    clock::destroy_for_testing(clock);
+    clean_test(ts, global_config, admin_cap, deusd_config, management);
+}
+
+#[test]
+#[expected_failure(abort_code = sdeusd::EOperationNotAllowed)]
+fun test_unstake_full_restricted_user_fails() {
+    let (mut ts, mut global_config, admin_cap, mut deusd_config, mut management) = setup_test();
+
+    ts.next_tx(ADMIN);
+    let mut clock = clock::create_for_testing(ts.ctx());
+
+    ts.next_tx(ALICE);
+    let deusd_coin = mint_deusd(&mut deusd_config, 1000_000_000, &mut ts);
+    sdeusd::deposit(
+        &mut management,
+        &global_config,
+        deusd_coin,
+        ALICE,
+        &clock,
+        ts.ctx()
+    );
+
+    ts.next_tx(ALICE);
+    let mut shares_coin = ts.take_from_address<Coin<SDEUSD>>(ALICE);
+
+    // Start cooldown
+    let assets_to_cooldown = 500_000_000;
+    sdeusd::cooldown_assets(
+        &mut management,
+        &global_config,
+        assets_to_cooldown,
+        &mut shares_coin,
+        &clock,
+        ts.ctx()
+    );
+
+    // Advance time past cooldown period
+    let cooldown_duration_in_ms = sdeusd::cooldown_duration(&management) * 1000;
+    test_utils::advance_time(&mut clock, cooldown_duration_in_ms + 1);
+
+    ts.next_tx(ADMIN);
+    config::add_role(&admin_cap, &mut global_config, ADMIN, roles::role_blacklist_manager());
+    let mut deny_list = deny_list::new_for_testing(ts.ctx());
+    sdeusd::add_to_blacklist(&mut management, &global_config, &mut deny_list, ALICE, true, ts.ctx());
+
+    ts.next_tx(ALICE);
+    sdeusd::unstake(&mut management, &global_config, ALICE, &clock, ts.ctx());
+
+    shares_coin.burn_for_testing();
+    sui::test_utils::destroy(deny_list);
     clock::destroy_for_testing(clock);
     clean_test(ts, global_config, admin_cap, deusd_config, management);
 }
@@ -3520,8 +3684,8 @@ fun test_staking_e2e() {
     );
 
     // Wait for cooldown to complete and unstake
-    let cooldown_duration = sdeusd::cooldown_duration(&management);
-    let new_time = clock::timestamp_ms(&clock) + cooldown_duration + 1;
+    let cooldown_duration_in_ms = sdeusd::cooldown_duration(&management) * 1000;
+    let new_time = clock::timestamp_ms(&clock) + cooldown_duration_in_ms + 1;
     clock::set_for_testing(&mut clock, new_time);
 
     sdeusd::unstake(
@@ -3567,6 +3731,6 @@ public fun clean_test(
     ts.end();
 }
 
-fun mint_deusd(deusd_config: &mut DeUSDConfig, amount: u64, ts: &mut test_scenario::Scenario): coin::Coin<DEUSD> {
+public fun mint_deusd(deusd_config: &mut DeUSDConfig, amount: u64, ts: &mut test_scenario::Scenario): coin::Coin<DEUSD> {
     deusd::mint_for_test(deusd_config, amount, ts.ctx())
 }
