@@ -1,6 +1,6 @@
 include .env
 
-.PHONY: initialize-minting add-role remove-role has-role add-supported-asset deposit-to-locked-funds
+.PHONY: initialize-minting initialize-wdeusd-vault add-role remove-role has-role add-supported-asset deposit-to-locked-funds
 
 initialize-minting:
 	sui client call --package $(PACKAGE_ADDRESS) --module deusd_minting --function initialize \
@@ -8,6 +8,13 @@ initialize-minting:
 			$(ADMIN_CAP_ID) $(DEUSD_MINTING_MANAGEMENT_ID) $(GLOBAL_CONFIG_ID) $(PACKAGE_ADDRESS) \
 			$(CUSTODIANS) \
 			$(max_mint_per_second) $(max_redeem_per_second)
+
+initialize-wdeusd-vault:
+	sui client call --package $(PACKAGE_ADDRESS) --module wdeusd_vault --function initialize \
+		--type-args \
+			$(wdeusd_type) \
+        --args \
+            $(ADMIN_CAP_ID)
 
 deposit-to-sdeusd:
 	sui client call --package $(PACKAGE_ADDRESS) --module sdeusd --function deposit \
@@ -75,3 +82,30 @@ deposit-to-locked-funds:
 		--args \
 			$(LOCKED_FUNDS_MANAGEMENT_ID) $(GLOBAL_CONFIG_ID) $(coins)
 
+claim-deusd:
+	sui client call --package $(PACKAGE_ADDRESS) --module wdeusd_vault --function claim_deusd \
+		--type-args \
+			$(WDEUSD_TYPE) \
+		--args \
+			$(WDEUSD_VAULT_ID) $(DEUSD_CONFIG_ID) $(wdeusd_coins) $(to)
+
+return-deusd:
+	sui client call --package $(PACKAGE_ADDRESS) --module wdeusd_vault --function return_deusd \
+		--type-args \
+			$(WDEUSD_TYPE) \
+		--args \
+			$(WDEUSD_VAULT_ID) $(DEUSD_CONFIG_ID) $(deusd_coins) $(to)
+
+pause-wdeusd-vault:
+	sui client call --package $(PACKAGE_ADDRESS) --module wdeusd_vault --function pause \
+		--type-args \
+			$(WDEUSD_TYPE) \
+		--args \
+			$(ADMIN_CAP_ID) $(WDEUSD_VAULT_ID)
+
+unpause-wdeusd-vault:
+	sui client call --package $(PACKAGE_ADDRESS) --module wdeusd_vault --function unpause \
+		--type-args \
+			$(WDEUSD_TYPE) \
+		--args \
+			$(ADMIN_CAP_ID) $(WDEUSD_VAULT_ID)
