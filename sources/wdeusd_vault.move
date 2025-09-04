@@ -7,16 +7,22 @@ module elixir::wdeusd_vault;
 // === Imports ===
 
 use sui::balance::{Self, Balance};
-use sui::coin::{Self, Coin};
+use sui::coin::{Self, Coin, CoinMetadata};
 use sui::event;
 use elixir::admin_cap::AdminCap;
 use elixir::deusd::{Self, DEUSD, DeUSDConfig};
 
 // === Error codes ===
 
+/// The decimals of wdeUSD do not match deUSD decimals.
+const EDeUSDDecimalsMismatch: u64 = 0;
+/// The vault is paused.
 const EVaultPaused: u64 = 1;
+/// The vault is not paused.
 const EVaultNotPaused: u64 = 2;
+/// The amount is zero.
 const EInvalidAmount: u64 = 3;
+/// Insufficient funds in the vault.
 const EInsufficientFunds: u64 = 4;
 
 // === Structs ===
@@ -59,8 +65,11 @@ public struct DeUSDReturned has copy, drop {
 
 public fun initialize<W>(
     _: &AdminCap,
+    wdeusd_metadata: &CoinMetadata<W>,
     ctx: &mut TxContext,
 ) {
+    assert!(wdeusd_metadata.get_decimals() == deusd::decimals(), EDeUSDDecimalsMismatch);
+
     let vault = WDEUSDVault<W> {
         id: object::new(ctx),
         balance: balance::zero(),

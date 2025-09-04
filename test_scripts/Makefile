@@ -12,9 +12,9 @@ initialize-minting:
 initialize-wdeusd-vault:
 	sui client call --package $(PACKAGE_ADDRESS) --module wdeusd_vault --function initialize \
 		--type-args \
-			$(wdeusd_type) \
+			$(WDEUSD_TYPE) \
         --args \
-            $(ADMIN_CAP_ID)
+            $(ADMIN_CAP_ID) $(WDEUSD_COIN_METADATA_ID)
 
 deposit-to-sdeusd:
 	sui client call --package $(PACKAGE_ADDRESS) --module sdeusd --function deposit \

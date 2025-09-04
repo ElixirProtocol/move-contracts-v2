@@ -17,7 +17,7 @@ initialize-wdeusd-vault:
 		--type-args \
 			$(WDEUSD_TYPE) \
         --args \
-            $(ADMIN_CAP_ID)
+            $(ADMIN_CAP_ID) $(WDEUSD_COIN_METADATA_ID)
 
 add-role:
 	sui client call --package $(PACKAGE_ADDRESS) --module config --function add_role \
