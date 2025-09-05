@@ -1,10 +1,9 @@
 include .env
 
-.PHONY: clean initialize-minting add-role remove-role add-supported-asset remove-supported-asset
+.PHONY: clean initialize-minting initialize-wdeusd-vault add-role remove-role add-supported-asset remove-supported-asset
 
 clean:
 	rm -rf build/
-	rm -rf scripts/test_coin/build/
 
 initialize-minting:
 	sui client call --package $(PACKAGE_ADDRESS) --module deusd_minting --function initialize \
@@ -12,6 +11,13 @@ initialize-minting:
 			$(ADMIN_CAP_ID) $(DEUSD_MINTING_MANAGEMENT_ID) $(GLOBAL_CONFIG_ID) $(PACKAGE_ADDRESS) \
 			$(CUSTODIANS) \
 			$(max_mint_per_second) $(max_redeem_per_second)
+
+initialize-wdeusd-vault:
+	sui client call --package $(PACKAGE_ADDRESS) --module wdeusd_vault --function initialize \
+		--type-args \
+			$(WDEUSD_TYPE) \
+        --args \
+            $(ADMIN_CAP_ID) $(WDEUSD_COIN_METADATA_ID)
 
 add-role:
 	sui client call --package $(PACKAGE_ADDRESS) --module config --function add_role \

@@ -10,6 +10,10 @@ const EZeroAddress: u64 = 1;
 /// The amount is zero.
 const EZeroAmount: u64 = 2;
 
+// === Constants ===
+
+const DECIMALS: u8 = 6;
+
 // === Structs ===
 
 public struct DEUSD has drop {}
@@ -37,7 +41,7 @@ public struct Burn has copy, drop, store {
 fun init(witness: DEUSD, ctx: &mut TxContext) {
     let (treasury_cap, deny_cap, metadata) = coin::create_regulated_currency_v2(
         witness,
-        6,
+        DECIMALS,
         b"deUSD",
         b"Elixir's deUSD",
         b"Elixir's deUSD",
@@ -87,6 +91,12 @@ public(package) fun burn_from(
 
 public fun total_supply(config: &DeUSDConfig): u64 {
     config.treasury_cap.total_supply()
+}
+
+// === Views ===
+
+public fun decimals(): u8 {
+    DECIMALS
 }
 
 // === Tests ===
