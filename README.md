@@ -25,6 +25,9 @@ Access Control List for efficiently member roles management.
 #### `deusd.move`
 Implement `deUSD` token.
 
+#### `wdeusd_vault.move`
+Implement `wdeUSD` vault to facilitate bridging `deUSD` from `Ethereum` to `Sui`.
+
 #### `deusd_minting.move`
 Main minting and redemption module that processes collateral deposits and deUSD issuance.
 
@@ -59,4 +62,31 @@ sui move test
 
 ```bash
 sui client publish
+```
+
+## Publish and initialize the package
+
+### Publish the package
+
+Follow the guide in the previous section to publish the package.
+
+After publishing, check the publishing transaction to get the corresponding configurations (object IDs). Then, create a new .env file in the root folder from .env.example and update the values accordingly.
+
+### Initialize minting contract
+
+Run the following command to initialize the minting contract:
+
+```bash
+make initialize-minting
+```
+
+### Initialize wdeusd vault contract
+
+Requirements: 
+- The `wdeUSD` coin must be created by Sui bridge with 6 decimals before initializing the vault. Then update `WDEUSD_COIN_METADATA_ID` and `WDEUSD_TYPE` in the `.env` file.
+
+Run the following command to initialize the vault contract:
+
+```bash
+make initialize-wdeusd-vault
 ```
