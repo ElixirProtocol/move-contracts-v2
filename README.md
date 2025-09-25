@@ -43,6 +43,10 @@ Staked deUSD implementation following ERC4626 vault standard.
 #### `staking_rewards_distributor.move`
 Allow operator to transfer rewards into th `sd
 
+## Integration documentation
+
+- [External minting and burning deUSD](./docs/external_mint_burn.md)
+
 ## Development
 
 **Note:** If you run into with any issues, try to run `make clean` to clean up the build cache and retry.
@@ -89,4 +93,23 @@ Run the following command to initialize the vault contract:
 
 ```bash
 make initialize-wdeusd-vault
+```
+
+## Functions
+
+### `deUSD` module
+
+#### Create `DeUSDTreasuryCap` for external contracts to mint/burn `deUSD` directly
+
+The `DeUSDTreasuryCap` should be used for cross-chain bridges to mint/burn `deUSD`.
+
+```bash
+make create-deusd-treasury-cap to=${owner_account_address}
+```
+
+#### Active/de-active a created `DeUSDTreasuryCap`
+This function should be used if a `DeUSDTreasuryCap` is compromised.
+
+```bash
+make set-deusd-treasury-cap-status treasury_cap_id=${deusd_treasury_cap_id} is_active=false
 ```

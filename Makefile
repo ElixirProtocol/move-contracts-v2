@@ -42,3 +42,28 @@ set-operator:
 	sui client call --package $(PACKAGE_ADDRESS) --module staking_rewards_distributor --function set_operator \
 		--args \
 			$(ADMIN_CAP_ID) $(STAKING_REWARDS_DISTRIBUTOR_ID) $(GLOBAL_CONFIG_ID) $(operator)
+
+create-deusd-treasury-cap:
+	sui client call --package $(PACKAGE_ADDRESS) --module deusd --function create_treasury_cap \
+		--args \
+			$(ADMIN_CAP_ID) $(DEUSD_CONFIG_ID) $(GLOBAL_CONFIG_ID) $(to)
+
+get-treasury-caps:
+	sui client call --dev-inspect --package $(PACKAGE_ADDRESS) --module deusd --function get_treasury_caps \
+		--args \
+			$(DEUSD_CONFIG_ID)
+
+set-deusd-treasury-cap-status:
+	sui client call --package $(PACKAGE_ADDRESS) --module deusd --function set_treasury_cap_status \
+		--args \
+			$(ADMIN_CAP_ID) $(DEUSD_CONFIG_ID) $(GLOBAL_CONFIG_ID) $(treasury_cap_id) $(is_active)
+
+mint-deusd-with-cap:
+	sui client call --package $(PACKAGE_ADDRESS) --module deusd --function mint_with_cap \
+		--args \
+			$(treasury_cap_id) $(DEUSD_CONFIG_ID) $(GLOBAL_CONFIG_ID) $(to) $(amount)
+
+burn-deusd-with-cap:
+	sui client call --package $(PACKAGE_ADDRESS) --module deusd --function burn_with_cap \
+		--args \
+			$(treasury_cap_id) $(DEUSD_CONFIG_ID) $(GLOBAL_CONFIG_ID) $(coin_id) $(from)
