@@ -85,7 +85,7 @@ public fun burn_deusd_example(
 
 In this option, your contract will own the `DeUSDTreasuryCap` and can call mint/burn functions without requiring the owner account of the `DeUSDTreasuryCap` to sign transactions.
 
-First, transfer the `DeUSDTreasuryCap` to your contract by adding a transfer function in your contract and calling the `deusd::transfer_treasury_cap` function from the account that owns the `DeUSDTreasuryCap` from step 1.
+First, transfer the `DeUSDTreasuryCap` to your contract by adding a transfer function in your contract and using the standard Sui object transfer mechanism (such as `transfer::transfer` or `transfer::share_object`) from the account that owns the `DeUSDTreasuryCap` from step 1.
 
 ```move
 // YourContract.move
@@ -126,8 +126,8 @@ public fun mint_deusd_example(
     // Implement your logic here
 
     deusd::mint_with_cap(
-        deusd_config,
         &treasury_cap_holder.treasury_cap,
+        deusd_config,
         deusd_global_config,
         to,
         amount,
@@ -149,8 +149,8 @@ public fun burn_deusd_example(
     // Implement your logic here
 
     deusd::burn_with_cap(
-        deusd_config,
         &treasury_cap_holder.treasury_cap,
+        deusd_config,
         deusd_global_config,
         deusd_coin,
         from,
