@@ -32,12 +32,12 @@ async function main() {
         benefactor: BENEFACTOR_ADDRESS,
         beneficiary: BENEFACTOR_ADDRESS, // use same address as BENEFACTOR_ADDRESS for testing
         collateralType: COLLATERAL_TYPE,
-        collateralAmount: BigInt(90000000),
-        deusdAmount: BigInt(90000000),
+        collateralAmount: BigInt(5000000),
+        deusdAmount: BigInt(5000000),
       },
       {
-        addresses: [BENEFACTOR_ADDRESS, BENEFACTOR_ADDRESS],
-        ratios: ["6000", "4000"],
+        addresses: [BENEFACTOR_ADDRESS],
+        ratios: ["10000"],
       },
     );
     console.log("Mint order result:", mintOrderResult);
