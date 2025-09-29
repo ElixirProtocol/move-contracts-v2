@@ -52,7 +52,7 @@ remove-role:
 			$(address) $(role)
 
 add-supported-asset:
-	sui client call --package $(PACKAGE_ADDRESS) --module deusd_minting --function remove_supported_asset \
+	sui client call --package $(PACKAGE_ADDRESS) --module deusd_minting --function add_supported_asset \
 		--type-args \
 			$(asset_type) \
 		--args \
