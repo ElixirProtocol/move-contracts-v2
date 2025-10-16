@@ -5,6 +5,8 @@ include .env
 clean:
 	rm -rf build/
 
+upgrade-package:
+	sui client upgrade --upgrade-capability $(UPGRADE_CAP_ID) --verify-deps
 upgrade-package-version:
 	sui client call --package $(PACKAGE_ADDRESS) --module config --function upgrade_package_version \
 		--args \
