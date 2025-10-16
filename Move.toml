@@ -4,7 +4,6 @@ edition = "2024.beta"
 
 [addresses]
 elixir = "0x0"
-# elixir = "0xd3d9fa3b654479e9cf8c9d63fad475a4ec70efb5bf310de94908ea227ee3afaf"
 initial_rewarder = "0x337f3bad574e6338551b71932c449e20c81abb371364811de3ee93b58343eb3c"
 
 # Addresses for testing purposes
