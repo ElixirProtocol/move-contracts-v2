@@ -34,6 +34,14 @@ public struct DeUSDConfig has key {
     id: UID,
     treasury_cap: TreasuryCap<DEUSD>,
     deny_cap: DenyCapV2<DEUSD>,
+}
+
+/// Maps deUSD treasury cap IDs to their active status.
+/// Only active treasury caps can be used to mint and burn deUSD tokens.
+/// We create a new configuration object instead of using the `DeUSDTreasuryCap` object directly,
+/// to maintain compatibility with the existing `DeUSDTreasuryCap` structure in the published package.
+public struct DeUSDTreasuryCapConfig has key {
+    id: UID,
     is_active_deusd_treasury_cap: LinkedTable<ID, bool>,
 }
 
@@ -63,6 +71,14 @@ public struct DeUSDTreasuryCapStatusChanged has copy, drop {
     is_active: bool,
 }
 
+public struct DeUSDConfigDeleted has copy, drop {
+    caps_owner: address,
+}
+
+public struct DeUSDTreasuryCapConfigInitialized has copy, drop {}
+
+public struct DeUSDConfigInitialized has copy, drop {}
+
 // === Initialization ===
 
 fun init(witness: DEUSD, ctx: &mut TxContext) {
@@ -82,12 +98,72 @@ fun init(witness: DEUSD, ctx: &mut TxContext) {
         id: object::new(ctx),
         treasury_cap,
         deny_cap,
-        is_active_deusd_treasury_cap: linked_table::new(ctx),
     };
     transfer::share_object(management);
 }
 
 // === Functions ===
+
+/// Initialize the deUSD treasury cap configuration.
+/// Only callable by an admin.
+/// This function should be called only once.
+public fun initialize_deusd_treasury_cap_config(
+    _admin_cap: &AdminCap,
+    global_config: &GlobalConfig,
+    ctx: &mut TxContext,
+) {
+    global_config.check_package_version();
+
+    let config = DeUSDTreasuryCapConfig {
+        id: object::new(ctx),
+        is_active_deusd_treasury_cap: linked_table::new(ctx),
+    };
+    transfer::share_object(config);
+
+    event::emit(DeUSDTreasuryCapConfigInitialized {});
+}
+
+/// Delete the deUSD configuration and transfer the capabilities to the specified address.
+/// Only callable by an admin.
+public fun delete_deusd_config(
+    _: &AdminCap,
+    config: DeUSDConfig,
+    global_config: &GlobalConfig,
+    caps_owner: address,
+) {
+    global_config.check_package_version();
+    assert!(caps_owner != @0x0, EZeroAddress);
+
+    let DeUSDConfig { id, treasury_cap, deny_cap } = config;
+    id.delete();
+
+    transfer::public_transfer(treasury_cap, caps_owner);
+    transfer::public_transfer(deny_cap, caps_owner);
+
+    event::emit(DeUSDConfigDeleted { caps_owner });
+}
+
+/// Initialize the deUSD configuration.
+/// Anyone with both the treasury and deny capabilities can call this function.
+/// This function will be called when we want to re-initialize the deUSD configuration
+/// after deleting it by calling `delete_deusd_config` function.
+public fun initialize_deusd_config(
+    global_config: &GlobalConfig,
+    treasury_cap: TreasuryCap<DEUSD>,
+    deny_cap: DenyCapV2<DEUSD>,
+    ctx: &mut TxContext,
+) {
+    global_config.check_package_version();
+
+    let config = DeUSDConfig {
+        id: object::new(ctx),
+        treasury_cap,
+        deny_cap,
+    };
+    transfer::share_object(config);
+
+    event::emit(DeUSDConfigInitialized {});
+}
 
 /// Mint new tokens to the specified account.
 public(package) fun mint(
@@ -121,7 +197,7 @@ public(package) fun burn_from(
 /// Only callable by an admin.
 public fun create_treasury_cap(
     _: &AdminCap,
-    deusd_config: &mut DeUSDConfig,
+    treasury_cap_config: &mut DeUSDTreasuryCapConfig,
     global_config: &GlobalConfig,
     to: address,
     ctx: &mut TxContext,
@@ -130,7 +206,7 @@ public fun create_treasury_cap(
     assert!(to != @0x0, EZeroAddress);
 
     let cap = DeUSDTreasuryCap { id: object::new(ctx) };
-    deusd_config.is_active_deusd_treasury_cap.push_back(object::id(&cap), true);
+    treasury_cap_config.is_active_deusd_treasury_cap.push_back(object::id(&cap), true);
 
     transfer::transfer(cap, to);
 
@@ -141,16 +217,16 @@ public fun create_treasury_cap(
 /// Only callable by an admin.
 public fun set_treasury_cap_status(
     _: &AdminCap,
-    deusd_config: &mut DeUSDConfig,
+    treasury_cap_config: &mut DeUSDTreasuryCapConfig,
     global_config: &GlobalConfig,
     deusd_treasury_cap_id: ID,
     is_active: bool,
 ) {
     global_config.check_package_version();
 
-    assert!(deusd_config.is_active_deusd_treasury_cap.contains(deusd_treasury_cap_id), ENotDeUSDTreasuryCapID);
+    assert!(treasury_cap_config.is_active_deusd_treasury_cap.contains(deusd_treasury_cap_id), ENotDeUSDTreasuryCapID);
 
-    let old_is_active = deusd_config.is_active_deusd_treasury_cap.borrow_mut(deusd_treasury_cap_id);
+    let old_is_active = treasury_cap_config.is_active_deusd_treasury_cap.borrow_mut(deusd_treasury_cap_id);
     if (*old_is_active != is_active) {
         *old_is_active = is_active;
 
@@ -165,6 +241,7 @@ public fun set_treasury_cap_status(
 public fun mint_with_cap(
     treasury_cap: &DeUSDTreasuryCap,
     deusd_config: &mut DeUSDConfig,
+    treasury_cap_config: &DeUSDTreasuryCapConfig,
     global_config: &GlobalConfig,
     to: address,
     amount: u64,
@@ -172,7 +249,7 @@ public fun mint_with_cap(
 ) {
     global_config.check_package_version();
 
-    assert_is_active_deusd_treasury_cap(deusd_config, treasury_cap);
+    assert_is_active_deusd_treasury_cap(treasury_cap_config, treasury_cap);
     assert!(to != @0x0, EZeroAddress);
     assert!(amount > 0, EZeroAmount);
 
@@ -185,12 +262,13 @@ public fun mint_with_cap(
 public fun burn_with_cap(
     treasury_cap: &DeUSDTreasuryCap,
     deusd_config: &mut DeUSDConfig,
+    treasury_cap_config: &DeUSDTreasuryCapConfig,
     global_config: &GlobalConfig,
     coin: Coin<DEUSD>,
     from: address,
 ) {
     global_config.check_package_version();
-    assert_is_active_deusd_treasury_cap(deusd_config, treasury_cap);
+    assert_is_active_deusd_treasury_cap(treasury_cap_config, treasury_cap);
 
     event::emit(Burn {
         from,
@@ -211,7 +289,7 @@ public fun decimals(): u8 {
 }
 
 /// Get all deUSD treasury caps with their active status.
-public fun get_treasury_caps(config: &DeUSDConfig): vector<DeUSDTreasuryCapView> {
+public fun get_treasury_caps(config: &DeUSDTreasuryCapConfig): vector<DeUSDTreasuryCapView> {
     let mut caps = vector::empty<DeUSDTreasuryCapView>();
     let mut cap_id_opt = config.is_active_deusd_treasury_cap.front();
     while (cap_id_opt.is_some()) {
@@ -226,7 +304,7 @@ public fun get_treasury_caps(config: &DeUSDConfig): vector<DeUSDTreasuryCapView>
 }
 
 public fun is_active_deusd_treasury_cap(
-    config: &DeUSDConfig,
+    config: &DeUSDTreasuryCapConfig,
     cap_id: ID,
 ): bool {
     *config.is_active_deusd_treasury_cap.borrow(cap_id)
@@ -235,7 +313,7 @@ public fun is_active_deusd_treasury_cap(
 // === Internal Functions ===
 
 fun assert_is_active_deusd_treasury_cap(
-    config: &DeUSDConfig,
+    config: &DeUSDTreasuryCapConfig,
     treasury_cap: &DeUSDTreasuryCap,
 ) {
     let cap_id = object::id(treasury_cap);

@@ -14,7 +14,7 @@ const EPackageVersionMismatch: u64 = 2;
 
 // === Constants ===
 
-const PACKAGE_VERSION: u64 = 1;
+const PACKAGE_VERSION: u64 = 2;
 
 // === Structs ===
 

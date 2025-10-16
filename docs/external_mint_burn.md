@@ -6,7 +6,8 @@ This document guides other contracts on how to mint and burn `deUSD` tokens dire
 
 ### Prerequisites
 
-- Contact the Elixir team to obtain the object IDs of `DeUSDConfig` and `GlobalConfig` from the deployed `deusd` package. These configurations are required to call mint and burn functions.
+- Contact the Elixir team to obtain the object IDs of `DeUSDConfig`, `DeUSDTreasuryCapConfig` and `GlobalConfig`
+from the deployed `deusd` package. These configurations are required to call mint and burn functions.
 
 ### 1. Create a `DeUSDTreasuryCap`
 
@@ -15,7 +16,7 @@ As a developer of an external contract, request the Elixir team to create a `DeU
 ```move
 public fun create_treasury_cap(
     _: &AdminCap,
-    deusd_config: &mut DeUSDConfig,
+    treasury_cap_config: &mut DeUSDTreasuryCapConfig,
     global_config: &GlobalConfig,
     to: address,
     ctx: &mut TxContext,
@@ -38,6 +39,7 @@ Below are examples of mint and burn functions in your contract:
 public fun mint_deusd_example(
     deusd_treasury_cap: &DeUSDTreasuryCap,
     deusd_config: &mut DeUSDConfig,
+    deusd_treasury_cap_config: &mut DeUSDTreasuryCapConfig,
     deusd_global_config: &GlobalConfig,
     to: address,
     amount: u64,
@@ -49,6 +51,7 @@ public fun mint_deusd_example(
     deusd::mint_with_cap(
         deusd_treasury_cap,
         deusd_config,
+        treasury_cap_config,
         deusd_global_config,
         to,
         amount,
@@ -61,6 +64,7 @@ public fun mint_deusd_example(
 public fun burn_deusd_example(
     deusd_treasury_cap: &DeUSDTreasuryCap,
     deusd_config: &mut DeUSDConfig,
+    deusd_treasury_cap_config: &mut DeUSDTreasuryCapConfig,
     deusd_global_config: &GlobalConfig,
     deusd_coin: Coin<DeUSD>,
     from: address,
@@ -72,6 +76,7 @@ public fun burn_deusd_example(
     deusd::burn_with_cap(
         deusd_treasury_cap,
         deusd_config,
+        deusd_treasury_cap_config,
         deusd_global_config,
         deusd_coin,
         from,
@@ -117,6 +122,7 @@ Then, write mint and burn functions in your contract that call the `deusd::mint_
 public fun mint_deusd_example(
     treasury_cap_holder: &DeUSDTreasuryCapHolder,
     deusd_config: &mut DeUSDConfig,
+    deusd_treasury_cap_config: &mut DeUSDTreasuryCapConfig,
     deusd_global_config: &GlobalConfig,
     to: address,
     amount: u64,
@@ -128,6 +134,7 @@ public fun mint_deusd_example(
     deusd::mint_with_cap(
         &treasury_cap_holder.treasury_cap,
         deusd_config,
+        deusd_treasury_cap_config,
         deusd_global_config,
         to,
         amount,
@@ -140,6 +147,7 @@ public fun mint_deusd_example(
 public fun burn_deusd_example(
     treasury_cap_holder: &DeUSDTreasuryCapHolder,
     deusd_config: &mut DeUSDConfig,
+    deusd_treasury_cap_config: &mut DeUSDTreasuryCapConfig,
     deusd_global_config: &GlobalConfig,
     deusd_coin: Coin<DeUSD>,
     from: address,
@@ -151,6 +159,7 @@ public fun burn_deusd_example(
     deusd::burn_with_cap(
         &treasury_cap_holder.treasury_cap,
         deusd_config,
+        deusd_treasury_cap_config,
         deusd_global_config,
         deusd_coin,
         from,

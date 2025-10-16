@@ -68,6 +68,14 @@ sui move test
 sui client publish
 ```
 
+### Upgrading package
+
+- Run the following command to get the upgrade object, get `UPGRADE_CAPABILITY` from the publishing transaction:
+
+```bash
+sui client upgrade -c <UPGRADE_CAPABILITY>
+```
+
 ## Publish and initialize the package
 
 ### Publish the package
@@ -75,6 +83,28 @@ sui client publish
 Follow the guide in the previous section to publish the package.
 
 After publishing, check the publishing transaction to get the corresponding configurations (object IDs). Then, create a new .env file in the root folder from .env.example and update the values accordingly.
+
+### Upgrade the package
+
+Follow the guide in the previous section to upgrade the package. 
+Remember to update the new value of `PACKAGE_VERSION` in the `config.move` module and commit this changes before upgrading.
+After upgrading, check the upgrading transaction to get the new package ID and update the `PACKAGE_ID` in the `.env` file.
+
+Then, run the following command to get upgrade package version:
+
+```bash
+make upgrade-package-version
+```
+
+### Initialize deUSD treasury cap config
+
+Run the following command to initialize the deUSD treasury cap config:
+
+```bash
+make initialize-deusd-treasury-cap-config
+```
+
+**Note**: This step is required to allow external contracts to mint/burn deUSD via `DeUSDTreasuryCap` and should be done only once.
 
 ### Initialize minting contract
 
@@ -94,6 +124,37 @@ Run the following command to initialize the vault contract:
 ```bash
 make initialize-wdeusd-vault
 ```
+
+### Delete and re-initialize `deUSD` config
+
+This is required if you want to transfer the `deUSD`'s treasury cap to another account to allow the new account 
+to mint/burn `deUSD` directly, not used in normal operations because the contract will not be able to mint/burn `deUSD` 
+util the new `deUSD` config is initialized.
+
+#### Delete `deUSD` config
+
+Actor: admin of the contract.
+
+Run the following command to delete the `deUSD` config:
+
+```bash
+make delete-deusd-config caps_owner=${owners_of_treasury_cap_account_address}
+```
+
+**Note**: this command will transfer both `TreasuryCap` and `DenyCapV2` to the `caps_owner` address. 
+You can find the object IDs of `TreasuryCap` and `DenyCapV2` by checking the content of the `DeUSDConfig` before deleting it.
+
+#### Re-initialize `deUSD` config
+
+Actor: anyone who owns the `TreasuryCap` and `DenyCapV2`.
+
+Run the following command to re-initialize the `deUSD` config.
+
+```bash
+make initialize-deusd-config treasury_cap=${treasury_cap_id}  deny_cap=${deny_cap_id}
+```
+
+After re-initializing the `deUSD` config, please update the `DEUSD_CONFIG_ID` in the `.env` file.
 
 ## Functions
 

@@ -5,6 +5,26 @@ include .env
 clean:
 	rm -rf build/
 
+upgrade-package-version:
+	sui client call --package $(PACKAGE_ADDRESS) --module config --function upgrade_package_version \
+		--args \
+			$(ADMIN_CAP_ID) $(GLOBAL_CONFIG_ID)
+
+initialize-deusd-config:
+	sui client call --package $(PACKAGE_ADDRESS) --module deusd --function initialize_deusd_config \
+		--args \
+			$(GLOBAL_CONFIG_ID) $(treasury_cap) $(deny_cap)
+
+initialize-deusd-treasury-cap-config:
+	sui client call --package $(PACKAGE_ADDRESS) --module deusd --function initialize_deusd_treasury_cap_config \
+		--args \
+		$(ADMIN_CAP_ID) $(GLOBAL_CONFIG_ID)
+
+delete-deusd-config:
+	sui client call --package $(PACKAGE_ADDRESS) --module deusd --function delete_deusd_config \
+		--args \
+			$(ADMIN_CAP_ID) $(DEUSD_CONFIG_ID) $(GLOBAL_CONFIG_ID) $(caps_owner)
+
 initialize-minting:
 	sui client call --package $(PACKAGE_ADDRESS) --module deusd_minting --function initialize \
 		--args \
@@ -46,24 +66,24 @@ set-operator:
 create-deusd-treasury-cap:
 	sui client call --package $(PACKAGE_ADDRESS) --module deusd --function create_treasury_cap \
 		--args \
-			$(ADMIN_CAP_ID) $(DEUSD_CONFIG_ID) $(GLOBAL_CONFIG_ID) $(to)
+			$(ADMIN_CAP_ID) $(DEUSD_TREASURY_CAP_CONFIG_ID) $(GLOBAL_CONFIG_ID) $(to)
 
 get-treasury-caps:
 	sui client call --dev-inspect --package $(PACKAGE_ADDRESS) --module deusd --function get_treasury_caps \
 		--args \
-			$(DEUSD_CONFIG_ID)
+			$(DEUSD_TREASURY_CAP_CONFIG_ID)
 
 set-deusd-treasury-cap-status:
 	sui client call --package $(PACKAGE_ADDRESS) --module deusd --function set_treasury_cap_status \
 		--args \
-			$(ADMIN_CAP_ID) $(DEUSD_CONFIG_ID) $(GLOBAL_CONFIG_ID) $(treasury_cap_id) $(is_active)
+			$(ADMIN_CAP_ID) $(DEUSD_TREASURY_CAP_CONFIG_ID) $(GLOBAL_CONFIG_ID) $(treasury_cap_id) $(is_active)
 
 mint-deusd-with-cap:
 	sui client call --package $(PACKAGE_ADDRESS) --module deusd --function mint_with_cap \
 		--args \
-			$(treasury_cap_id) $(DEUSD_CONFIG_ID) $(GLOBAL_CONFIG_ID) $(to) $(amount)
+			$(treasury_cap_id) $(DEUSD_CONFIG_ID) $(DEUSD_TREASURY_CAP_CONFIG_ID) $(GLOBAL_CONFIG_ID) $(to) $(amount)
 
 burn-deusd-with-cap:
 	sui client call --package $(PACKAGE_ADDRESS) --module deusd --function burn_with_cap \
 		--args \
-			$(treasury_cap_id) $(DEUSD_CONFIG_ID) $(GLOBAL_CONFIG_ID) $(coin_id) $(from)
+			$(treasury_cap_id) $(DEUSD_CONFIG_ID) $(DEUSD_TREASURY_CAP_CONFIG_ID) $(GLOBAL_CONFIG_ID) $(coin_id) $(from)
