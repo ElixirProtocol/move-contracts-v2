@@ -8,7 +8,7 @@ use elixir::locked_funds;
 use elixir::locked_funds::LockedFundsManagement;
 use elixir::deusd;
 use elixir::deusd_minting::DeUSDMintingManagement;
-use elixir::deusd::DeUSDConfig;
+use elixir::deusd::{DeUSDConfig, DeUSDTreasuryCapConfig};
 use elixir::sdeusd::SdeUSDManagement;
 use elixir::staking_rewards_distributor::{Self, StakingRewardsDistributor};
 use elixir::admin_cap::AdminCap;
@@ -37,6 +37,18 @@ public fun setup_deusd(ts: &mut test_scenario::Scenario, admin: address): DeUSDC
 
     ts.next_tx(admin);
     ts.take_shared<DeUSDConfig>()
+}
+
+public fun setup_deusd_treasury_cap_config(
+    ts: &mut test_scenario::Scenario,
+    admin_cap: &AdminCap,
+    global_config: &GlobalConfig,
+    admin: address,
+): (DeUSDTreasuryCapConfig) {
+    deusd::initialize_deusd_treasury_cap_config(admin_cap, global_config, ts.ctx());
+
+    ts.next_tx(admin);
+    ts.take_shared<DeUSDTreasuryCapConfig>()
 }
 
 public fun setup_locked_funds(ts: &mut test_scenario::Scenario, admin: address): LockedFundsManagement {
