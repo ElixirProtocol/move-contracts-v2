@@ -13,7 +13,7 @@ use sui::clock;
 use sui::coin;
 use sui::coin::Coin;
 use sui::deny_list;
-use sui::test_utils::assert_eq;
+use std::unit_test::assert_eq;
 
 const ADMIN: address = @0xad;
 const ALICE: address = @0xa11ce;
@@ -247,8 +247,8 @@ fun test_transfer_in_rewards_success() {
     );
 
     // Check that rewards were added to balance but are still vesting
-    assert_eq(sdeusd::get_unvested_amount(&management, &clock), 100_000_000);
-    assert_eq(sdeusd::total_assets(&management, &clock), 0); // Should be 0 since all rewards are vesting
+    assert_eq!(sdeusd::get_unvested_amount(&management, &clock), 100_000_000);
+    assert_eq!(sdeusd::total_assets(&management, &clock), 0); // Should be 0 since all rewards are vesting
 
     clock::destroy_for_testing(clock);
     clean_test(ts, global_config, admin_cap, deusd_config, management);
@@ -383,15 +383,15 @@ fun test_transfer_in_rewards_after_vesting_period_succeeds() {
     );
 
     // Verify first transfer vesting state
-    assert_eq(sdeusd::get_unvested_amount(&management, &clock), 100_000_000);
+    assert_eq!(sdeusd::get_unvested_amount(&management, &clock), 100_000_000);
 
     // Advance time past vesting period (8+ hours)
     let post_vesting_time = start_time + (9 * ONE_HOUR_MILLIS);
     clock::set_for_testing(&mut clock, post_vesting_time);
 
     // Verify vesting is complete
-    assert_eq(sdeusd::get_unvested_amount(&management, &clock), 0);
-    assert_eq(sdeusd::total_assets(&management, &clock), initial_assets + 100_000_000);
+    assert_eq!(sdeusd::get_unvested_amount(&management, &clock), 0);
+    assert_eq!(sdeusd::total_assets(&management, &clock), initial_assets + 100_000_000);
 
     // Second rewards transfer should succeed
     let rewards_coin2 = mint_deusd(&mut deusd_config, 50_000_000, &mut ts);
@@ -404,8 +404,8 @@ fun test_transfer_in_rewards_after_vesting_period_succeeds() {
     );
 
     // Verify second transfer updated vesting state
-    assert_eq(sdeusd::get_unvested_amount(&management, &clock), 50_000_000);
-    assert_eq(sdeusd::total_assets(&management, &clock), initial_assets + 100_000_000); // Previous rewards fully vested
+    assert_eq!(sdeusd::get_unvested_amount(&management, &clock), 50_000_000);
+    assert_eq!(sdeusd::total_assets(&management, &clock), initial_assets + 100_000_000); // Previous rewards fully vested
 
     clock::destroy_for_testing(clock);
     clean_test(ts, global_config, admin_cap, deusd_config, management);
@@ -438,7 +438,7 @@ fun test_transfer_in_rewards_exactly_at_vesting_end() {
     clock::set_for_testing(&mut clock, vesting_end_time);
 
     // Verify vesting is exactly complete
-    assert_eq(sdeusd::get_unvested_amount(&management, &clock), 0);
+    assert_eq!(sdeusd::get_unvested_amount(&management, &clock), 0);
 
     // Second rewards transfer should succeed at exact vesting end
     let rewards_coin2 = mint_deusd(&mut deusd_config, 75_000_000, &mut ts);
@@ -451,7 +451,7 @@ fun test_transfer_in_rewards_exactly_at_vesting_end() {
     );
 
     // Verify second transfer state
-    assert_eq(sdeusd::get_unvested_amount(&management, &clock), 75_000_000);
+    assert_eq!(sdeusd::get_unvested_amount(&management, &clock), 75_000_000);
 
     clock::destroy_for_testing(clock);
     clean_test(ts, global_config, admin_cap, deusd_config, management);
@@ -486,7 +486,7 @@ fun test_transfer_in_rewards_multiple_cycles() {
     );
 
     // Verify initial vesting state
-    assert_eq(sdeusd::get_unvested_amount(&management, &clock), 100_000_000);
+    assert_eq!(sdeusd::get_unvested_amount(&management, &clock), 100_000_000);
 
     // Wait for full vesting + extra time
     let time1 = start_time + (10 * ONE_HOUR_MILLIS);
@@ -503,8 +503,8 @@ fun test_transfer_in_rewards_multiple_cycles() {
     );
 
     // Verify second cycle state
-    assert_eq(sdeusd::get_unvested_amount(&management, &clock), 200_000_000);
-    assert_eq(sdeusd::total_assets(&management, &clock), 1100_000_000); // Initial deposit + first batch fully vested
+    assert_eq!(sdeusd::get_unvested_amount(&management, &clock), 200_000_000);
+    assert_eq!(sdeusd::total_assets(&management, &clock), 1100_000_000); // Initial deposit + first batch fully vested
 
     // Wait for second vesting
     let time2 = time1 + (8 * ONE_HOUR_MILLIS);
@@ -521,8 +521,8 @@ fun test_transfer_in_rewards_multiple_cycles() {
     );
 
     // Verify third cycle state
-    assert_eq(sdeusd::get_unvested_amount(&management, &clock), 50_000_000);
-    assert_eq(sdeusd::total_assets(&management, &clock), 1300_000_000); // Initial deposit + first two batches fully vested
+    assert_eq!(sdeusd::get_unvested_amount(&management, &clock), 50_000_000);
+    assert_eq!(sdeusd::total_assets(&management, &clock), 1300_000_000); // Initial deposit + first two batches fully vested
 
     clock::destroy_for_testing(clock);
     clean_test(ts, global_config, admin_cap, deusd_config, management);
@@ -548,7 +548,7 @@ fun test_transfer_in_rewards_vesting_state_updates() {
     deusd_coin.burn_for_testing();
 
     // Initial state - no vesting
-    assert_eq(sdeusd::get_unvested_amount(&management, &clock), 0);
+    assert_eq!(sdeusd::get_unvested_amount(&management, &clock), 0);
 
     ts.next_tx(ADMIN);
     // Transfer rewards
@@ -562,26 +562,26 @@ fun test_transfer_in_rewards_vesting_state_updates() {
     );
 
     // Verify vesting state immediately after transfer
-    assert_eq(sdeusd::get_unvested_amount(&management, &clock), 120_000_000);
-    assert_eq(sdeusd::total_assets(&management, &clock), initial_assets + 0);
+    assert_eq!(sdeusd::get_unvested_amount(&management, &clock), 120_000_000);
+    assert_eq!(sdeusd::total_assets(&management, &clock), initial_assets + 0);
 
     // Test at 25% vesting (2 hours)
     let time_25_percent = start_time + (2 * ONE_HOUR_MILLIS);
     clock::set_for_testing(&mut clock, time_25_percent);
-    assert_eq(sdeusd::get_unvested_amount(&management, &clock), 90_000_000); // 75% left
-    assert_eq(sdeusd::total_assets(&management, &clock), initial_assets + 30_000_000); // 25% vested
+    assert_eq!(sdeusd::get_unvested_amount(&management, &clock), 90_000_000); // 75% left
+    assert_eq!(sdeusd::total_assets(&management, &clock), initial_assets + 30_000_000); // 25% vested
 
     // Test at 75% vesting (6 hours)
     let time_75_percent = start_time + (6 * ONE_HOUR_MILLIS);
     clock::set_for_testing(&mut clock, time_75_percent);
-    assert_eq(sdeusd::get_unvested_amount(&management, &clock), 30_000_000); // 25% left
-    assert_eq(sdeusd::total_assets(&management, &clock), initial_assets + 90_000_000); // 75% vested
+    assert_eq!(sdeusd::get_unvested_amount(&management, &clock), 30_000_000); // 25% left
+    assert_eq!(sdeusd::total_assets(&management, &clock), initial_assets + 90_000_000); // 75% vested
 
     // Test at 100% vesting (8 hours)
     let time_100_percent = start_time + (8 * ONE_HOUR_MILLIS);
     clock::set_for_testing(&mut clock, time_100_percent);
-    assert_eq(sdeusd::get_unvested_amount(&management, &clock), 0);
-    assert_eq(sdeusd::total_assets(&management, &clock), initial_assets + 120_000_000); // Fully vested
+    assert_eq!(sdeusd::get_unvested_amount(&management, &clock), 0);
+    assert_eq!(sdeusd::total_assets(&management, &clock), initial_assets + 120_000_000); // Fully vested
 
     clock::destroy_for_testing(clock);
     clean_test(ts, global_config, admin_cap, deusd_config, management);
@@ -633,11 +633,11 @@ fun test_multiple_reward_distributions() {
 
     // Check that first distribution is half vested
     let unvested_before_second = sdeusd::get_unvested_amount(&management, &clock);
-    assert_eq(unvested_before_second, 50_000_000); // 50 remaining from first
+    assert_eq!(unvested_before_second, 50_000_000); // 50 remaining from first
 
     // Wait for first distribution to complete before second
     clock::set_for_testing(&mut clock, start_time + VESTING_PERIOD_MILLIS);
-    assert_eq(sdeusd::get_unvested_amount(&management, &clock), 0); // Should be fully vested
+    assert_eq!(sdeusd::get_unvested_amount(&management, &clock), 0); // Should be fully vested
 
     // Now add second reward distribution
     let rewards2 = 50_000_000;
@@ -652,7 +652,7 @@ fun test_multiple_reward_distributions() {
 
     // Check that second distribution is fully unvested
     let unvested_amount = sdeusd::get_unvested_amount(&management, &clock);
-    assert_eq(unvested_amount, 50_000_000); // Only the second distribution
+    assert_eq!(unvested_amount, 50_000_000); // Only the second distribution
 
     clock::destroy_for_testing(clock);
     clean_test(ts, global_config, admin_cap, deusd_config, management);
@@ -672,8 +672,8 @@ fun test_preview_functions() {
 
     let mut clock = clock::create_for_testing(ts.ctx());
 
-    assert_eq(sdeusd::preview_mint(&management, 1000_000_000, &clock), 1000_000_000);
-    assert_eq(sdeusd::preview_deposit(&management, 1000_000_000, &clock), 1000_000_000);
+    assert_eq!(sdeusd::preview_mint(&management, 1000_000_000, &clock), 1000_000_000);
+    assert_eq!(sdeusd::preview_deposit(&management, 1000_000_000, &clock), 1000_000_000);
 
     // ALICE deposits first
     ts.next_tx(ALICE);
@@ -692,10 +692,10 @@ fun test_preview_functions() {
     shares_coin.burn_for_testing();
 
     // Test preview functions with 1:1 ratio
-    assert_eq(sdeusd::preview_mint(&management, 1000_000_000, &clock), 1000_000_000);
-    assert_eq(sdeusd::preview_deposit(&management, 1000_000_000, &clock), 1000_000_000);
-    assert_eq(sdeusd::preview_withdraw(&management, 500_000_000, &clock), 500_000_000);
-    assert_eq(sdeusd::preview_redeem(&management, 500_000_000, &clock), 500_000_000);
+    assert_eq!(sdeusd::preview_mint(&management, 1000_000_000, &clock), 1000_000_000);
+    assert_eq!(sdeusd::preview_deposit(&management, 1000_000_000, &clock), 1000_000_000);
+    assert_eq!(sdeusd::preview_withdraw(&management, 500_000_000, &clock), 500_000_000);
+    assert_eq!(sdeusd::preview_redeem(&management, 500_000_000, &clock), 500_000_000);
 
     // Add rewards to change the share price
     ts.next_tx(ADMIN);
@@ -712,22 +712,22 @@ fun test_preview_functions() {
     // Advance a half vesting period
     test_utils::advance_time(&mut clock, VESTING_PERIOD_MILLIS / 2);
 
-    assert_eq(sdeusd::total_assets(&management, &clock), 1100_000_000);
+    assert_eq!(sdeusd::total_assets(&management, &clock), 1100_000_000);
 
     // Now, the ratio should be 1100 assets to 1000 shares
-    assert_eq(sdeusd::preview_mint(&management, 1000_000_000, &clock), 1100_000_000);
-    assert_eq(sdeusd::preview_deposit(&management, 1100_000_000, &clock), 1000_000_000);
-    assert_eq(sdeusd::preview_withdraw(&management, 550_000_000, &clock), 500_000_000);
-    assert_eq(sdeusd::preview_redeem(&management, 500_000_000, &clock), 550_000_000);
+    assert_eq!(sdeusd::preview_mint(&management, 1000_000_000, &clock), 1100_000_000);
+    assert_eq!(sdeusd::preview_deposit(&management, 1100_000_000, &clock), 1000_000_000);
+    assert_eq!(sdeusd::preview_withdraw(&management, 550_000_000, &clock), 500_000_000);
+    assert_eq!(sdeusd::preview_redeem(&management, 500_000_000, &clock), 550_000_000);
 
     // Advance a half vesting period to complete the vesting
     test_utils::advance_time(&mut clock, VESTING_PERIOD_MILLIS / 2);
 
     // Now, the ratio should be 1200 assets to 1000 shares
-    assert_eq(sdeusd::preview_mint(&management, 1000_000_000, &clock), 1200_000_000);
-    assert_eq(sdeusd::preview_deposit(&management, 1200_000_000, &clock), 1000_000_000);
-    assert_eq(sdeusd::preview_withdraw(&management, 600_000_000, &clock), 500_000_000);
-    assert_eq(sdeusd::preview_redeem(&management, 500_000_000, &clock), 600_000_000);
+    assert_eq!(sdeusd::preview_mint(&management, 1000_000_000, &clock), 1200_000_000);
+    assert_eq!(sdeusd::preview_deposit(&management, 1200_000_000, &clock), 1000_000_000);
+    assert_eq!(sdeusd::preview_withdraw(&management, 600_000_000, &clock), 500_000_000);
+    assert_eq!(sdeusd::preview_redeem(&management, 500_000_000, &clock), 600_000_000);
 
     clock::destroy_for_testing(clock);
     clean_test(ts, global_config, admin_cap, deusd_config, management);
@@ -761,8 +761,8 @@ fun test_mint_success() {
     let shares_coin = ts.take_from_address<Coin<SDEUSD>>(ALICE);
 
     // Should receive exactly the requested shares (1:1 ratio initially)
-    assert_eq(shares_coin.value(), shares);
-    assert_eq(sdeusd::total_supply(&management), shares);
+    assert_eq!(shares_coin.value(), shares);
+    assert_eq!(sdeusd::total_supply(&management), shares);
 
     shares_coin.burn_for_testing();
     deusd_coin.burn_for_testing();
@@ -818,7 +818,7 @@ fun test_mint_min_shares_success() {
 
     ts.next_tx(ALICE);
     let shares_coin = ts.take_from_address<Coin<SDEUSD>>(ALICE);
-    assert_eq(shares_coin.value(), 1_000_000);
+    assert_eq!(shares_coin.value(), 1_000_000);
     shares_coin.burn_for_testing();
 
     deusd_coin.burn_for_testing();
@@ -1047,13 +1047,13 @@ fun test_mint_with_different_receiver() {
     // Check that BOB received the shares
     ts.next_tx(BOB);
     let shares_coin = ts.take_from_address<Coin<SDEUSD>>(BOB);
-    assert_eq(shares_coin.value(), shares);
+    assert_eq!(shares_coin.value(), shares);
     test_scenario::return_to_address(BOB, shares_coin);
 
     // Check that Alice still has remaining deUSD
     ts.next_tx(ALICE);
     let remaining_balance = deusd_coin.value();
-    assert_eq(remaining_balance, initial_balance - shares);
+    assert_eq!(remaining_balance, initial_balance - shares);
 
     deusd_coin.burn_for_testing();
     clock::destroy_for_testing(clock);
@@ -1132,7 +1132,7 @@ fun test_mint_with_existing_supply_and_rewards() {
     let mut deusd_coin = mint_deusd(&mut deusd_config, 550_000_000, &mut ts);
     let shares_to_mint = 500_000_000;
 
-    assert_eq(sdeusd::preview_mint(&management, shares_to_mint, &clock), 550_000_000);
+    assert_eq!(sdeusd::preview_mint(&management, shares_to_mint, &clock), 550_000_000);
 
     sdeusd::mint(
         &mut management,
@@ -1147,10 +1147,10 @@ fun test_mint_with_existing_supply_and_rewards() {
     // Check that BOB received the shares
     ts.next_tx(BOB);
     let shares_coin = ts.take_from_address<Coin<SDEUSD>>(BOB);
-    assert_eq(shares_coin.value(), shares_to_mint);
+    assert_eq!(shares_coin.value(), shares_to_mint);
     test_scenario::return_to_address(BOB, shares_coin);
 
-    assert_eq(deusd_coin.value(), 0);
+    assert_eq!(deusd_coin.value(), 0);
 
     deusd_coin.burn_for_testing();
     clock::destroy_for_testing(clock);
@@ -1208,7 +1208,7 @@ fun test_deposit_success() {
 
     ts.next_tx(BOB);
     let deusd_coin = mint_deusd(&mut deusd_config, 550_000_000, &mut ts);
-    assert_eq(sdeusd::preview_deposit(&management, 550_000_000, &clock), 500_000_000);
+    assert_eq!(sdeusd::preview_deposit(&management, 550_000_000, &clock), 500_000_000);
 
     ts.next_tx(ALICE);
     sdeusd::deposit(
@@ -1222,7 +1222,7 @@ fun test_deposit_success() {
 
     ts.next_tx(ALICE);
     let shares_coin = ts.take_from_address<Coin<SDEUSD>>(ALICE);
-    assert_eq(shares_coin.value(), 500_000_000);
+    assert_eq!(shares_coin.value(), 500_000_000);
     shares_coin.burn_for_testing();
 
     clock::destroy_for_testing(clock);
@@ -1337,7 +1337,7 @@ fun test_deposit_min_shares_success() {
 
     ts.next_tx(ALICE);
     let shares_coin = ts.take_from_address<Coin<SDEUSD>>(ALICE);
-    assert_eq(shares_coin.value(), 1_000_000);
+    assert_eq!(shares_coin.value(), 1_000_000);
     shares_coin.burn_for_testing();
 
     clock::destroy_for_testing(clock);
@@ -1464,12 +1464,12 @@ fun test_deposit_with_receiver_different_from_sender() {
     // Check that BOB received the shares
     ts.next_tx(BOB);
     let shares_coin = ts.take_from_address<Coin<SDEUSD>>(BOB);
-    assert_eq(shares_coin.value(), 1000_000_000); // 1:1 ratio for first deposit
+    assert_eq!(shares_coin.value(), 1000_000_000); // 1:1 ratio for first deposit
     test_scenario::return_to_address(BOB, shares_coin);
 
     // Check total assets and supply
-    assert_eq(sdeusd::total_assets(&management, &clock), 1000_000_000);
-    assert_eq(sdeusd::total_supply(&management), 1000_000_000);
+    assert_eq!(sdeusd::total_assets(&management, &clock), 1000_000_000);
+    assert_eq!(sdeusd::total_supply(&management), 1000_000_000);
 
     clock::destroy_for_testing(clock);
     clean_test(ts, global_config, admin_cap, deusd_config, management);
@@ -1520,8 +1520,8 @@ fun test_withdraw_success_when_no_cooldown() {
     let withdrawn_coin = ts.take_from_address<Coin<DEUSD>>(ALICE);
 
     // Check results
-    assert_eq(withdrawn_coin.value(), withdraw_assets);
-    assert_eq(shares_coin.value(), 500_000_000); // Remaining shares
+    assert_eq!(withdrawn_coin.value(), withdraw_assets);
+    assert_eq!(shares_coin.value(), 500_000_000); // Remaining shares
 
     withdrawn_coin.burn_for_testing();
     shares_coin.burn_for_testing();
@@ -1650,8 +1650,8 @@ fun test_withdraw_min_shares_remaining_success() {
         ts.ctx()
     );
 
-    assert_eq(shares_coin.value(), 1_000_000); // Remaining shares should be exactly min shares
-    assert_eq(sdeusd::total_supply(&management), 1_000_000);
+    assert_eq!(shares_coin.value(), 1_000_000); // Remaining shares should be exactly min shares
+    assert_eq!(sdeusd::total_supply(&management), 1_000_000);
 
     shares_coin.burn_for_testing();
     clock::destroy_for_testing(clock);
@@ -1903,8 +1903,8 @@ fun test_withdraw_with_different_receiver_and_owner() {
     let withdrawn_coin = ts.take_from_address<Coin<DEUSD>>(BOB);
 
     // Check results
-    assert_eq(withdrawn_coin.value(), withdraw_assets);
-    assert_eq(shares_coin.value(), 500_000_000); // Remaining shares
+    assert_eq!(withdrawn_coin.value(), withdraw_assets);
+    assert_eq!(shares_coin.value(), 500_000_000); // Remaining shares
 
     withdrawn_coin.burn_for_testing();
     shares_coin.burn_for_testing();
@@ -1955,7 +1955,7 @@ fun test_withdraw_partial_amount() {
 
     ts.next_tx(ALICE);
     let withdrawn_coin1 = ts.take_from_address<Coin<DEUSD>>(ALICE);
-    assert_eq(withdrawn_coin1.value(), withdraw1);
+    assert_eq!(withdrawn_coin1.value(), withdraw1);
 
     let withdraw2 = 2000_000_000;
     sdeusd::withdraw(
@@ -1971,12 +1971,12 @@ fun test_withdraw_partial_amount() {
 
     ts.next_tx(ALICE);
     let withdrawn_coin2 = ts.take_from_address<Coin<DEUSD>>(ALICE);
-    assert_eq(withdrawn_coin2.value(), withdraw2);
+    assert_eq!(withdrawn_coin2.value(), withdraw2);
 
     // Check final shares match expected amount
     let remaining_assets = initial_deposit - withdraw1 - withdraw2;
     let expected_remaining_shares = remaining_assets; // 1:1 ratio
-    assert_eq(shares_coin.value(), expected_remaining_shares);
+    assert_eq!(shares_coin.value(), expected_remaining_shares);
 
     withdrawn_coin1.burn_for_testing();
     withdrawn_coin2.burn_for_testing();
@@ -2033,7 +2033,7 @@ fun test_withdraw_with_rewards_affects_ratio() {
     let withdraw_assets = 550_000_000;
     let expected_shares_burned = 500_000_000;
 
-    assert_eq(sdeusd::preview_withdraw(&management, withdraw_assets, &clock), expected_shares_burned);
+    assert_eq!(sdeusd::preview_withdraw(&management, withdraw_assets, &clock), expected_shares_burned);
 
     let mut shares_coin = ts.take_from_address<Coin<SDEUSD>>(ALICE);
     let shares_before = shares_coin.value();
@@ -2050,11 +2050,11 @@ fun test_withdraw_with_rewards_affects_ratio() {
 
     ts.next_tx(ALICE);
     let withdrawn_coin = ts.take_from_address<Coin<DEUSD>>(ALICE);
-    assert_eq(withdrawn_coin.value(), withdraw_assets);
+    assert_eq!(withdrawn_coin.value(), withdraw_assets);
 
     let shares_after = shares_coin.value();
     let actual_shares_burned = shares_before - shares_after;
-    assert_eq(actual_shares_burned, expected_shares_burned);
+    assert_eq!(actual_shares_burned, expected_shares_burned);
 
     withdrawn_coin.burn_for_testing();
     shares_coin.burn_for_testing();
@@ -2106,8 +2106,8 @@ fun test_redeem_success_when_no_cooldown() {
 
     ts.next_tx(ALICE);
     let redeemed_coin = ts.take_from_address<Coin<DEUSD>>(ALICE);
-    assert_eq(redeemed_coin.value(), redeem_shares); // 1:1 ratio initially
-    assert_eq(shares_coin.value(), deposit_amount - redeem_shares); // Remaining shares
+    assert_eq!(redeemed_coin.value(), redeem_shares); // 1:1 ratio initially
+    assert_eq!(shares_coin.value(), deposit_amount - redeem_shares); // Remaining shares
 
     redeemed_coin.burn_for_testing();
     shares_coin.burn_for_testing();
@@ -2229,7 +2229,7 @@ fun test_redeem_with_different_receiver_and_owner() {
 
     ts.next_tx(ALICE);
     let redeemed_coin = ts.take_from_address<Coin<DEUSD>>(BOB);
-    assert_eq(redeemed_coin.value(), redeem_shares);
+    assert_eq!(redeemed_coin.value(), redeem_shares);
 
     redeemed_coin.burn_for_testing();
     shares_coin.burn_for_testing();
@@ -2272,7 +2272,7 @@ fun test_redeem_min_shares_remaining_success() {
         ts.ctx()
     );
 
-    assert_eq(sdeusd::total_supply(&management), 1_000_000); // Remaining shares should be exactly min shares
+    assert_eq!(sdeusd::total_supply(&management), 1_000_000); // Remaining shares should be exactly min shares
 
     shares_coin.burn_for_testing();
     clock::destroy_for_testing(clock);
@@ -2579,7 +2579,7 @@ fun test_redeem_with_rewards_affects_ratio() {
     let redeem_shares = 500_000_000;
     let expected_assets = 550_000_000; // 10:11 ratio after rewards
 
-    assert_eq(sdeusd::preview_redeem(&management, redeem_shares, &clock), expected_assets);
+    assert_eq!(sdeusd::preview_redeem(&management, redeem_shares, &clock), expected_assets);
 
     let shares_to_redeem = shares_coin.split(redeem_shares, ts.ctx());
     sdeusd::redeem(
@@ -2594,7 +2594,7 @@ fun test_redeem_with_rewards_affects_ratio() {
 
     ts.next_tx(ALICE);
     let redeemed_coin = ts.take_from_address<Coin<DEUSD>>(ALICE);
-    assert_eq(redeemed_coin.value(), expected_assets);
+    assert_eq!(redeemed_coin.value(), expected_assets);
 
     redeemed_coin.burn_for_testing();
     shares_coin.burn_for_testing();
@@ -2639,10 +2639,10 @@ fun test_cooldown_assets_success() {
     );
 
     // Check that shares were burned and cooldown was set
-    assert_eq(shares_coin.value(), 500_000_000);
+    assert_eq!(shares_coin.value(), 500_000_000);
 
     let (cooldown_end, cooldown_amount) = sdeusd::get_user_cooldown_info(&management, ALICE);
-    assert_eq(cooldown_amount, assets_to_cooldown);
+    assert_eq!(cooldown_amount, assets_to_cooldown);
     assert!(cooldown_end > 0);
 
     shares_coin.burn_for_testing();
@@ -2854,8 +2854,8 @@ fun test_cooldown_assets_multiple_accumulate() {
     );
 
     let (cooldown_end_1, cooldown_amount_1) = sdeusd::get_user_cooldown_info(&management, ALICE);
-    assert_eq(cooldown_end_1, start_time + cooldown_duration);
-    assert_eq(cooldown_amount_1, 300_000_000);
+    assert_eq!(cooldown_end_1, start_time + cooldown_duration);
+    assert_eq!(cooldown_amount_1, 300_000_000);
 
     test_utils::advance_time(&mut clock, ONE_HOUR_MILLIS);
 
@@ -2870,8 +2870,8 @@ fun test_cooldown_assets_multiple_accumulate() {
     );
 
     let (cooldown_end_2, cooldown_amount_2) = sdeusd::get_user_cooldown_info(&management, ALICE);
-    assert_eq(cooldown_amount_2, 500_000_000);
-    assert_eq(cooldown_end_2, start_time + ONE_HOUR_SECONDS + cooldown_duration);
+    assert_eq!(cooldown_amount_2, 500_000_000);
+    assert_eq!(cooldown_end_2, start_time + ONE_HOUR_SECONDS + cooldown_duration);
 
     shares_coin.burn_for_testing();
     clock::destroy_for_testing(clock);
@@ -2912,11 +2912,11 @@ fun test_cooldown_shares_success() {
     );
 
     // Check that shares were burned and cooldown was set
-    assert_eq(shares_coin_to_cooldown.value(), 0); // Remaining shares
+    assert_eq!(shares_coin_to_cooldown.value(), 0); // Remaining shares
 
     let (cooldown_end, cooldown_amount) = sdeusd::get_user_cooldown_info(&management, ALICE);
     assert!(cooldown_end > 0);
-    assert_eq(cooldown_amount, 500_000_000);
+    assert_eq!(cooldown_amount, 500_000_000);
 
     shares_coin.burn_for_testing();
     shares_coin_to_cooldown.destroy_zero();
@@ -3081,7 +3081,7 @@ fun test_cooldown_shares_multiple_accumulate() {
     );
 
     let (cooldown_end_1, cooldown_amount_1) = sdeusd::get_user_cooldown_info(&management, ALICE);
-    assert_eq(cooldown_amount_1, 300_000_000);
+    assert_eq!(cooldown_amount_1, 300_000_000);
 
     // Second cooldown - 200 shares, should accumulate
     let mut shares_coin_2 = shares_coin.split(200_000_000, ts.ctx());
@@ -3094,8 +3094,8 @@ fun test_cooldown_shares_multiple_accumulate() {
     );
 
     let (cooldown_end_2, cooldown_amount_2) = sdeusd::get_user_cooldown_info(&management, ALICE);
-    assert_eq(cooldown_amount_2, 500_000_000);
-    assert_eq(cooldown_end_2, cooldown_end_1);
+    assert_eq!(cooldown_amount_2, 500_000_000);
+    assert_eq!(cooldown_end_2, cooldown_end_1);
 
     shares_coin.burn_for_testing();
     shares_coin_1.destroy_zero();
@@ -3158,8 +3158,8 @@ fun test_cooldown_shares_with_changed_ratio() {
     );
 
     let (cooldown_end, cooldown_amount) = sdeusd::get_user_cooldown_info(&management, ALICE);
-    assert_eq(cooldown_end, current_time + cooldown_duration);
-    assert_eq(cooldown_amount, expected_assets);
+    assert_eq!(cooldown_end, current_time + cooldown_duration);
+    assert_eq!(cooldown_amount, expected_assets);
 
     shares_coin.burn_for_testing();
     shares_to_cooldown.destroy_zero();
@@ -3218,12 +3218,12 @@ fun test_unstake_success() {
 
     ts.next_tx(ALICE);
     let unstaked_coin = ts.take_from_address<Coin<DEUSD>>(BOB);
-    assert_eq(unstaked_coin.value(), assets_to_cooldown);
+    assert_eq!(unstaked_coin.value(), assets_to_cooldown);
 
     // Check that cooldown was cleared
     let (cooldown_end, cooldown_amount) = sdeusd::get_user_cooldown_info(&management, ALICE);
-    assert_eq(cooldown_amount, 0);
-    assert_eq(cooldown_end, 0);
+    assert_eq!(cooldown_amount, 0);
+    assert_eq!(cooldown_end, 0);
 
     shares_coin.burn_for_testing();
     unstaked_coin.burn_for_testing();
@@ -3346,12 +3346,12 @@ fun test_unstake_with_zero_cooldown_duration() {
 
     ts.next_tx(ALICE);
     let unstaked_coin = ts.take_from_address<Coin<DEUSD>>(ALICE);
-    assert_eq(unstaked_coin.value(), assets_to_cooldown);
+    assert_eq!(unstaked_coin.value(), assets_to_cooldown);
 
     // Check that cooldown was cleared
     let (cooldown_end, cooldown_amount) = sdeusd::get_user_cooldown_info(&management, ALICE);
-    assert_eq(cooldown_amount, 0);
-    assert_eq(cooldown_end, 0);
+    assert_eq!(cooldown_amount, 0);
+    assert_eq!(cooldown_end, 0);
 
     shares_coin.burn_for_testing();
     unstaked_coin.burn_for_testing();
@@ -3410,7 +3410,7 @@ fun test_unstake_exact_cooldown_end_time() {
 
     ts.next_tx(ALICE);
     let unstaked_coin = ts.take_from_address<Coin<DEUSD>>(ALICE);
-    assert_eq(unstaked_coin.value(), assets_to_cooldown);
+    assert_eq!(unstaked_coin.value(), assets_to_cooldown);
 
     shares_coin.burn_for_testing();
     unstaked_coin.burn_for_testing();
@@ -3467,7 +3467,7 @@ fun test_unstake_multiple_times_same_user() {
 
     ts.next_tx(ALICE);
     let unstaked_coin1 = ts.take_from_address<Coin<DEUSD>>(ALICE);
-    assert_eq(unstaked_coin1.value(), assets_to_cooldown1);
+    assert_eq!(unstaked_coin1.value(), assets_to_cooldown1);
 
     // Second cooldown cycle
     let assets_to_cooldown2 = 200_000_000;
@@ -3495,12 +3495,12 @@ fun test_unstake_multiple_times_same_user() {
 
     ts.next_tx(ALICE);
     let unstaked_coin2 = ts.take_from_address<Coin<DEUSD>>(BOB);
-    assert_eq(unstaked_coin2.value(), assets_to_cooldown2);
+    assert_eq!(unstaked_coin2.value(), assets_to_cooldown2);
 
     // Check that cooldown was cleared
     let (cooldown_end, cooldown_amount) = sdeusd::get_user_cooldown_info(&management, ALICE);
-    assert_eq(cooldown_amount, 0);
-    assert_eq(cooldown_end, 0);
+    assert_eq!(cooldown_amount, 0);
+    assert_eq!(cooldown_end, 0);
 
     shares_coin.burn_for_testing();
     unstaked_coin1.burn_for_testing();
@@ -3559,12 +3559,12 @@ fun test_unstake_with_different_receiver() {
 
     ts.next_tx(ALICE);
     let unstaked_coin = ts.take_from_address<Coin<DEUSD>>(BOB);
-    assert_eq(unstaked_coin.value(), assets_to_cooldown);
+    assert_eq!(unstaked_coin.value(), assets_to_cooldown);
 
     // Check that cooldown was cleared for ALICE
     let (cooldown_end, cooldown_amount) = sdeusd::get_user_cooldown_info(&management, ALICE);
-    assert_eq(cooldown_amount, 0);
-    assert_eq(cooldown_end, 0);
+    assert_eq!(cooldown_amount, 0);
+    assert_eq!(cooldown_end, 0);
 
     shares_coin.burn_for_testing();
     unstaked_coin.burn_for_testing();
@@ -3649,7 +3649,7 @@ fun test_staking_e2e() {
 
     ts.next_tx(ALICE);
     let mut shares_coin = ts.take_from_address<Coin<SDEUSD>>(ALICE);
-    assert_eq(shares_coin.value(), initial_deposit);
+    assert_eq!(shares_coin.value(), initial_deposit);
 
     // Admin adds rewards
     ts.next_tx(ADMIN);
@@ -3669,7 +3669,7 @@ fun test_staking_e2e() {
 
     // Check that total assets increased
     let total_assets = sdeusd::total_assets(&management, &clock);
-    assert_eq(total_assets, initial_deposit + rewards);
+    assert_eq!(total_assets, initial_deposit + rewards);
 
     // Alice starts cooldown for half her position
     ts.next_tx(ALICE);
@@ -3698,7 +3698,7 @@ fun test_staking_e2e() {
 
     ts.next_tx(ALICE);
     let unstaked_coin = ts.take_from_address<Coin<DEUSD>>(ALICE);
-    assert_eq(unstaked_coin.value(), cooldown_assets);
+    assert_eq!(unstaked_coin.value(), cooldown_assets);
 
     shares_coin.burn_for_testing();
     unstaked_coin.burn_for_testing();

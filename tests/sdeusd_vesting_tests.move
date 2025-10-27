@@ -10,7 +10,7 @@ use elixir::config;
 use elixir::roles;
 use sui::clock;
 use sui::coin::Coin;
-use sui::test_utils::assert_eq;
+use std::unit_test::assert_eq;
 
 const ADMIN: address = @0xad;
 const ALICE: address = @0xa11ce;
@@ -53,8 +53,8 @@ fun test_vesting_mechanism() {
     );
 
     // Initially all rewards are unvested
-    assert_eq(sdeusd::get_unvested_amount(&management, &clock), 100_000_000);
-    assert_eq(sdeusd::total_assets(&management, &clock), initial_assets + 0);
+    assert_eq!(sdeusd::get_unvested_amount(&management, &clock), 100_000_000);
+    assert_eq!(sdeusd::total_assets(&management, &clock), initial_assets + 0);
 
     // After 4 hours (half vesting period), half should be vested
     let half_vesting_time = start_time + VESTING_PERIOD_MILLIS / 2;
@@ -64,15 +64,15 @@ fun test_vesting_mechanism() {
     let total_assets_half = sdeusd::total_assets(&management, &clock);
 
     // Should be 50 tokens unvested and 100 (initial) + 50 available
-    assert_eq(unvested_half, 50_000_000);
-    assert_eq(total_assets_half, initial_assets + 50_000_000);
+    assert_eq!(unvested_half, 50_000_000);
+    assert_eq!(total_assets_half, initial_assets + 50_000_000);
 
     // After full vesting period (8 hours), all should be vested
     let full_vesting_time = start_time + VESTING_PERIOD_MILLIS;
     clock::set_for_testing(&mut clock, full_vesting_time);
 
-    assert_eq(sdeusd::get_unvested_amount(&management, &clock), 0);
-    assert_eq(sdeusd::total_assets(&management, &clock), initial_assets + 100_000_000);
+    assert_eq!(sdeusd::get_unvested_amount(&management, &clock), 0);
+    assert_eq!(sdeusd::total_assets(&management, &clock), initial_assets + 100_000_000);
 
     clock::destroy_for_testing(clock);
     clean_test(ts, global_config, admin_cap, deusd_config, management);
@@ -105,17 +105,17 @@ fun test_unused_rewards_during_vesting() {
     sdeusd::transfer_in_rewards(&mut management, &global_config, rewards_coin, &clock, ts.ctx());
 
     // Verify initial state: all rewards unvested, no unused rewards
-    assert_eq(sdeusd::get_unvested_amount(&management, &clock), rewards_amount);
-    assert_eq(sdeusd::get_total_unused_reward_amount(&management, &clock), 0);
-    assert_eq(sdeusd::total_assets(&management, &clock), initial_assets);
+    assert_eq!(sdeusd::get_unvested_amount(&management, &clock), rewards_amount);
+    assert_eq!(sdeusd::get_total_unused_reward_amount(&management, &clock), 0);
+    assert_eq!(sdeusd::total_assets(&management, &clock), initial_assets);
 
     // Advance 4 hours (half vesting period)
     test_utils::advance_time(&mut clock, 4 * ONE_HOUR_MILLIS);
 
     // At 4 hours: 400 tokens vested, 400 tokens still vesting
-    assert_eq(sdeusd::get_unvested_amount(&management, &clock), 400_000_000);
-    assert_eq(sdeusd::get_total_unused_reward_amount(&management, &clock), 0);
-    assert_eq(sdeusd::total_assets(&management, &clock), initial_assets + 400_000_000);
+    assert_eq!(sdeusd::get_unvested_amount(&management, &clock), 400_000_000);
+    assert_eq!(sdeusd::get_total_unused_reward_amount(&management, &clock), 0);
+    assert_eq!(sdeusd::total_assets(&management, &clock), initial_assets + 400_000_000);
 
     // ALICE withdraws everything, bringing supply to zero
     ts.next_tx(ALICE);
@@ -123,10 +123,10 @@ fun test_unused_rewards_during_vesting() {
     sdeusd::redeem(&mut management, &global_config, shares_coin, ALICE, ALICE, &clock, ts.ctx());
 
     // Verify supply is now zero
-    assert_eq(sdeusd::total_supply(&management), 0);
+    assert_eq!(sdeusd::total_supply(&management), 0);
 
     // After supply goes to zero, unused rewards should still be 0 because no time has passed
-    assert_eq(sdeusd::get_total_unused_reward_amount(&management, &clock), 0);
+    assert_eq!(sdeusd::get_total_unused_reward_amount(&management, &clock), 0);
 
     // Advance 2 more hours (6 hours total from start)
     test_utils::advance_time(&mut clock, 2 * ONE_HOUR_MILLIS);
@@ -135,7 +135,7 @@ fun test_unused_rewards_during_vesting() {
     // From hour 4 to hour 6 = 2 hours of unused rewards
     // 2/8 * 800 = 200 tokens unused
     let expected_unused = 200_000_000;
-    assert_eq(sdeusd::get_total_unused_reward_amount(&management, &clock), expected_unused);
+    assert_eq!(sdeusd::get_total_unused_reward_amount(&management, &clock), expected_unused);
 
     clock::destroy_for_testing(clock);
     clean_test(ts, global_config, admin_cap, deusd_config, management);
@@ -173,7 +173,7 @@ fun test_unused_rewards_supply_returns_before_vesting_ends() {
     sdeusd::redeem(&mut management, &global_config, shares_coin, ALICE, ALICE, &clock, ts.ctx());
 
     // Supply goes to zero at hour 2
-    assert_eq(sdeusd::total_supply(&management), 0);
+    assert_eq!(sdeusd::total_supply(&management), 0);
 
     // Advance to hour 6 (4 hours of zero supply)
     test_utils::advance_time(&mut clock, 4 * ONE_HOUR_MILLIS);
@@ -185,19 +185,19 @@ fun test_unused_rewards_supply_returns_before_vesting_ends() {
     sdeusd::deposit(&mut management, &global_config, bob_deusd_coin, BOB, &clock, ts.ctx());
 
     // Now, supply = assets = 500_000_000 (no rewards added to assets yet)
-    assert_eq(sdeusd::total_supply(&management), 500_000_000);
+    assert_eq!(sdeusd::total_supply(&management), 500_000_000);
 
     // The unused reward amount should now reflect the 4 hours of zero supply
     // From hour 2 to hour 6 = 4 hours = 4/8 * 800 = 400 tokens unused
     let expected_unused = 400_000_000;
-    assert_eq(sdeusd::get_total_unused_reward_amount(&management, &clock), expected_unused);
+    assert_eq!(sdeusd::get_total_unused_reward_amount(&management, &clock), expected_unused);
 
     // Total assets calculation at hour 6:
     // Contract balance = BOB's 500 + remaining rewards 600 = 1100
     // Unvested rewards: (8-6)/8 * 800 = 200 tokens
     // Unused rewards: 4/8 * 800 = 400 tokens
     // Total assets = 1100 - 200 - 400 = 500 tokens (only BOB's deposit is available)
-    assert_eq(sdeusd::total_assets(&management, &clock), 500_000_000);
+    assert_eq!(sdeusd::total_assets(&management, &clock), 500_000_000);
 
     clock::destroy_for_testing(clock);
     clean_test(ts, global_config, admin_cap, deusd_config, management);
@@ -246,13 +246,13 @@ fun test_unused_rewards_supply_returns_after_vesting_ends() {
     // Zero supply period: hour 3 to hour 8 (when vesting ended) = 5 hours
     // 5/8 * 800 = 500 tokens unused
     let expected_unused = 500_000_000;
-    assert_eq(sdeusd::get_total_unused_reward_amount(&management, &clock), expected_unused);
+    assert_eq!(sdeusd::get_total_unused_reward_amount(&management, &clock), expected_unused);
 
     // Since vesting ended, no more rewards are actively vesting
-    assert_eq(sdeusd::get_unvested_amount(&management, &clock), 0);
+    assert_eq!(sdeusd::get_unvested_amount(&management, &clock), 0);
 
     // Total assets should be: BOB's deposit only (all original rewards are unused)
-    assert_eq(sdeusd::total_assets(&management, &clock), bob_assets);
+    assert_eq!(sdeusd::total_assets(&management, &clock), bob_assets);
 
     clock::destroy_for_testing(clock);
     clean_test(ts, global_config, admin_cap, deusd_config, management);
@@ -296,7 +296,7 @@ fun test_unused_rewards_multiple_zero_supply_periods() {
 
     // Check unused rewards after first zero period
     // 2 hours unused: 2/8 * 800 = 200 tokens
-    assert_eq(sdeusd::get_total_unused_reward_amount(&management, &clock), 200_000_000);
+    assert_eq!(sdeusd::get_total_unused_reward_amount(&management, &clock), 200_000_000);
 
     // Second zero period: hours 5-7 (2 more hours)
     clock::set_for_testing(&mut clock, start_time + (5 * ONE_HOUR_MILLIS));
@@ -314,7 +314,7 @@ fun test_unused_rewards_multiple_zero_supply_periods() {
     // First period: 2 hours = 200 tokens
     // Second period: 2 more hours = 200 more tokens
     // Total: 400 tokens unused
-    assert_eq(sdeusd::get_total_unused_reward_amount(&management, &clock), 400_000_000);
+    assert_eq!(sdeusd::get_total_unused_reward_amount(&management, &clock), 400_000_000);
 
     clock::destroy_for_testing(clock);
     clean_test(ts, global_config, admin_cap, deusd_config, management);
@@ -351,8 +351,8 @@ fun test_unused_rewards_exactly_at_vesting_boundaries() {
     sdeusd::redeem(&mut management, &global_config, shares_coin, ALICE, ALICE, &clock, ts.ctx());
 
     // Since supply went to zero exactly at vesting end, no rewards should be unused
-    assert_eq(sdeusd::get_total_unused_reward_amount(&management, &clock), 0);
-    assert_eq(sdeusd::get_unvested_amount(&management, &clock), 0);
+    assert_eq!(sdeusd::get_total_unused_reward_amount(&management, &clock), 0);
+    assert_eq!(sdeusd::get_unvested_amount(&management, &clock), 0);
 
     // Advance time and supply returns
     clock::set_for_testing(&mut clock, vesting_end_time + ONE_HOUR_MILLIS);
@@ -361,7 +361,7 @@ fun test_unused_rewards_exactly_at_vesting_boundaries() {
     sdeusd::deposit(&mut management, &global_config, bob_deusd_coin, BOB, &clock, ts.ctx());
 
     // Still no unused rewards since vesting was complete when supply went to zero
-    assert_eq(sdeusd::get_total_unused_reward_amount(&management, &clock), 0);
+    assert_eq!(sdeusd::get_total_unused_reward_amount(&management, &clock), 0);
 
     clock::destroy_for_testing(clock);
     clean_test(ts, global_config, admin_cap, deusd_config, management);
@@ -416,7 +416,7 @@ fun test_unused_rewards_with_multiple_vesting_periods() {
     // Unused from second period: (11-9)/8 * 600 = 150 tokens
     // Total unused: 200 + 150 = 350 tokens
     let expected_unused = 350_000_000;
-    assert_eq(sdeusd::get_total_unused_reward_amount(&management, &clock), expected_unused);
+    assert_eq!(sdeusd::get_total_unused_reward_amount(&management, &clock), expected_unused);
 
     clock::destroy_for_testing(clock);
     clean_test(ts, global_config, admin_cap, deusd_config, management);
@@ -468,9 +468,9 @@ fun test_get_unused_reward_amount_consistency() {
     // Hour 3: 0 unused (just went to zero)
     // Hour 5: 2/8 * 800 = 200 unused
     // Hour 7: 4/8 * 800 = 400 unused
-    assert_eq(unused_at_hour_3, 0);
-    assert_eq(unused_at_hour_5, 200_000_000);
-    assert_eq(unused_at_hour_7, 400_000_000);
+    assert_eq!(unused_at_hour_3, 0);
+    assert_eq!(unused_at_hour_5, 200_000_000);
+    assert_eq!(unused_at_hour_7, 400_000_000);
 
     // Supply returns at hour 7
     ts.next_tx(BOB);
@@ -479,12 +479,12 @@ fun test_get_unused_reward_amount_consistency() {
 
     // After supply returns, unused amount should be stable (committed to state)
     let unused_after_return = sdeusd::get_total_unused_reward_amount(&management, &clock);
-    assert_eq(unused_after_return, 400_000_000);
+    assert_eq!(unused_after_return, 400_000_000);
 
     // Advance time and check that unused amount doesn't change anymore
     clock::set_for_testing(&mut clock, start_time + (10 * ONE_HOUR_MILLIS));
     let unused_later = sdeusd::get_total_unused_reward_amount(&management, &clock);
-    assert_eq(unused_later, 400_000_000); // Should remain the same
+    assert_eq!(unused_later, 400_000_000); // Should remain the same
 
     clock::destroy_for_testing(clock);
     clean_test(ts, global_config, admin_cap, deusd_config, management);
@@ -507,8 +507,8 @@ fun test_initial_state_and_first_zero_supply_transition() {
     sdeusd::deposit(&mut management, &global_config, initial_deusd, ALICE, &clock, ts.ctx());
 
     // Verify initial state is correct
-    assert_eq(sdeusd::get_total_unused_reward_amount(&management, &clock), 0);
-    assert_eq(sdeusd::total_supply(&management), 1000_000_000);
+    assert_eq!(sdeusd::get_total_unused_reward_amount(&management, &clock), 0);
+    assert_eq!(sdeusd::total_supply(&management), 1000_000_000);
 
     // Start rewards while supply is present
     ts.next_tx(ADMIN);
@@ -519,11 +519,11 @@ fun test_initial_state_and_first_zero_supply_transition() {
     clock::set_for_testing(&mut clock, start_time + (4 * ONE_HOUR_MILLIS));
 
     // Since supply has never gone to zero, no unused rewards should be calculated
-    assert_eq(sdeusd::get_total_unused_reward_amount(&management, &clock), 0);
+    assert_eq!(sdeusd::get_total_unused_reward_amount(&management, &clock), 0);
 
     // Normal vesting should continue
     let remaining_unvested = 200_000_000; // 4/8 * 400 remaining
-    assert_eq(sdeusd::get_unvested_amount(&management, &clock), remaining_unvested);
+    assert_eq!(sdeusd::get_unvested_amount(&management, &clock), remaining_unvested);
 
     clock::destroy_for_testing(clock);
     clean_test(ts, global_config, admin_cap, deusd_config, management);
@@ -561,7 +561,7 @@ fun test_zero_supply_at_exact_vesting_start() {
 
     // All time since vesting start should count as unused
     let expected_unused = 400_000_000; // 4/8 * 800
-    assert_eq(sdeusd::get_total_unused_reward_amount(&management, &clock), expected_unused);
+    assert_eq!(sdeusd::get_total_unused_reward_amount(&management, &clock), expected_unused);
 
     clock::destroy_for_testing(clock);
     clean_test(ts, global_config, admin_cap, deusd_config, management);
@@ -605,7 +605,7 @@ fun test_unused_rewards_calculation_precision() {
     // Zero period was 2.2 hours = 2.2/8 * 777,777,777 = 213,888,888.425...
     // Should be rounded down to 213,888,888
     let expected_unused = 213_888_888;
-    assert_eq(sdeusd::get_total_unused_reward_amount(&management, &clock), expected_unused);
+    assert_eq!(sdeusd::get_total_unused_reward_amount(&management, &clock), expected_unused);
 
     clock::destroy_for_testing(clock);
     clean_test(ts, global_config, admin_cap, deusd_config, management);
@@ -633,14 +633,14 @@ fun test_vesting_zero_supply_cooldown() {
 
     // Verify initial state
     let unused_initial = sdeusd::get_total_unused_reward_amount(&management, &clock);
-    assert_eq(unused_initial, 0); // No time passed yet
+    assert_eq!(unused_initial, 0); // No time passed yet
     let unvested_initial = sdeusd::get_unvested_amount(&management, &clock);
-    assert_eq(unvested_initial, 400_000_000);
+    assert_eq!(unvested_initial, 400_000_000);
 
     // Move to 2 hours (25% of vesting period) - still zero supply
     clock::set_for_testing(&mut clock, start_time + (2 * ONE_HOUR_MILLIS));
     let unused_early = sdeusd::get_total_unused_reward_amount(&management, &clock);
-    assert_eq(unused_early, 100_000_000); // 25% of rewards are now unused due to zero supply
+    assert_eq!(unused_early, 100_000_000); // 25% of rewards are now unused due to zero supply
 
     // User deposits during vesting period
     ts.next_tx(ALICE);
@@ -652,7 +652,7 @@ fun test_vesting_zero_supply_cooldown() {
     let unused_mid = sdeusd::get_total_unused_reward_amount(&management, &clock);
     // From 0-2 hours: 100 unused (zero supply)
     // From 2-4 hours: rewards distributed to Alice (no additional unused)
-    assert_eq(unused_mid, 100_000_000);
+    assert_eq!(unused_mid, 100_000_000);
 
     // Alice initiates cooldown for all her shares, which moves them to silo (effectively zero supply)
     ts.next_tx(ALICE);
@@ -667,7 +667,7 @@ fun test_vesting_zero_supply_cooldown() {
     // From 2-4 hours: 0 unused (Alice had supply)
     // From 4-6 hours: 100 unused (zero supply due to cooldown)
     // Total: 200M unused
-    assert_eq(unused_late, 200_000_000);
+    assert_eq!(unused_late, 200_000_000);
 
     // Complete vesting (8 hours total)
     clock::set_for_testing(&mut clock, start_time + (8 * ONE_HOUR_MILLIS + ONE_SECOND_MILLIS));
@@ -678,10 +678,10 @@ fun test_vesting_zero_supply_cooldown() {
     // From 2-4 hours: 0 unused (Alice had supply)
     // From 4-8 hours: 200 unused (zero supply due to cooldown)
     // Total: 300 unused out of 400M total
-    assert_eq(unused_final, 300_000_000);
+    assert_eq!(unused_final, 300_000_000);
 
     let unvested_final = sdeusd::get_unvested_amount(&management, &clock);
-    assert_eq(unvested_final, 0); // All should be vested now
+    assert_eq!(unvested_final, 0); // All should be vested now
 
     // Unstake after cooldown period
     clock::set_for_testing(&mut clock, start_time + (12 * ONE_HOUR_MILLIS));
@@ -694,10 +694,10 @@ fun test_vesting_zero_supply_cooldown() {
 
     ts.next_tx(ADMIN);
     let unused_rewards = ts.take_from_address<Coin<DEUSD>>(ADMIN);
-    assert_eq(unused_rewards.value(), 300_000_000);
+    assert_eq!(unused_rewards.value(), 300_000_000);
     unused_rewards.burn_for_testing();
 
-    assert_eq(sdeusd::get_total_unused_reward_amount(&management, &clock), 0);
+    assert_eq!(sdeusd::get_total_unused_reward_amount(&management, &clock), 0);
 
     clock::destroy_for_testing(clock);
     clean_test(ts, global_config, admin_cap, deusd_config, management);
@@ -745,16 +745,16 @@ fun test_withdraw_unused_rewards() {
 
     // Check unused rewards calculation
     let expected_unused = 400_000_000; // 4 hours of rewards during zero supply
-    assert_eq(sdeusd::get_total_unused_reward_amount(&management, &clock), expected_unused);
+    assert_eq!(sdeusd::get_total_unused_reward_amount(&management, &clock), expected_unused);
 
     // Withdraw unused rewards
     sdeusd::withdraw_unused_rewards(&admin_cap, &mut management, &global_config, BOB, &clock, ts.ctx());
 
     // Verify state was updated correctly
-    assert_eq(sdeusd::get_total_unused_reward_amount(&management, &clock), 0);
-    assert_eq(sdeusd::get_unvested_amount(&management, &clock), 0);
-    assert_eq(sdeusd::total_assets(&management, &clock), 0);
-    assert_eq(sdeusd::total_supply(&management), 0);
+    assert_eq!(sdeusd::get_total_unused_reward_amount(&management, &clock), 0);
+    assert_eq!(sdeusd::get_unvested_amount(&management, &clock), 0);
+    assert_eq!(sdeusd::total_assets(&management, &clock), 0);
+    assert_eq!(sdeusd::total_supply(&management), 0);
 
     clock::destroy_for_testing(clock);
     clean_test(ts, global_config, admin_cap, deusd_config, management);
@@ -823,7 +823,7 @@ fun test_withdraw_unused_rewards_during_active_vesting() {
 
     // After supply returns, unused rewards should be accumulated in total_unused_reward_amount
     let expected_unused = 200_000_000; // 2 hours of zero supply
-    assert_eq(sdeusd::get_total_unused_reward_amount(&management, &clock), expected_unused);
+    assert_eq!(sdeusd::get_total_unused_reward_amount(&management, &clock), expected_unused);
 
     // Advance time but vesting is still active
     let current_time = zero_supply_end + ONE_HOUR_MILLIS; // 5 hours total, still within 8-hour vesting
@@ -834,7 +834,7 @@ fun test_withdraw_unused_rewards_during_active_vesting() {
     sdeusd::withdraw_unused_rewards(&admin_cap, &mut management, &global_config, BOB, &clock, ts.ctx());
 
     // Verify: unused rewards withdrawn, but vesting continues normally
-    assert_eq(sdeusd::get_total_unused_reward_amount(&management, &clock), 0);
+    assert_eq!(sdeusd::get_total_unused_reward_amount(&management, &clock), 0);
     assert!(sdeusd::get_unvested_amount(&management, &clock) > 0); // Still vesting
 
     clock::destroy_for_testing(clock);
@@ -936,14 +936,14 @@ fun test_withdraw_unused_rewards_multiple_zero_supply_periods() {
 
     // Expected unused: 1 hour (1-2h) + 2 hours (4-6h) + 2 hours (6-8h) = 5 hours = 500 tokens
     let expected_unused = 500_000_000;
-    assert_eq(sdeusd::get_total_unused_reward_amount(&management, &clock), expected_unused);
+    assert_eq!(sdeusd::get_total_unused_reward_amount(&management, &clock), expected_unused);
 
     // Withdraw unused rewards
     ts.next_tx(ADMIN);
     sdeusd::withdraw_unused_rewards(&admin_cap, &mut management, &global_config, ADMIN, &clock, ts.ctx());
 
     // Verify complete cleanup
-    assert_eq(sdeusd::get_total_unused_reward_amount(&management, &clock), 0);
+    assert_eq!(sdeusd::get_total_unused_reward_amount(&management, &clock), 0);
 
     clock::destroy_for_testing(clock);
     clean_test(ts, global_config, admin_cap, deusd_config, management);
@@ -989,7 +989,7 @@ fun test_withdraw_unused_rewards_state_consistency() {
 
     // Now unused rewards should be in total_unused_reward_amount
     let unused_rewards_before = sdeusd::get_total_unused_reward_amount(&management, &clock);
-    assert_eq(unused_rewards_before, 300_000_000); // Should have accumulated unused rewards
+    assert_eq!(unused_rewards_before, 300_000_000); // Should have accumulated unused rewards
 
     // Get total assets before withdrawal
     let total_assets_before = sdeusd::total_assets(&management, &clock);
@@ -1000,9 +1000,9 @@ fun test_withdraw_unused_rewards_state_consistency() {
 
     // Verify total_assets not changed after withdrawal
     let total_assets_after = sdeusd::total_assets(&management, &clock);
-    assert_eq(total_assets_after, total_assets_before);
+    assert_eq!(total_assets_after, total_assets_before);
 
-    assert_eq(sdeusd::get_total_unused_reward_amount(&management, &clock), 0);
+    assert_eq!(sdeusd::get_total_unused_reward_amount(&management, &clock), 0);
 
     clock::destroy_for_testing(clock);
     clean_test(ts, global_config, admin_cap, deusd_config, management);
@@ -1046,15 +1046,15 @@ fun test_withdraw_unused_rewards_edge_timing() {
     sdeusd::deposit(&mut management, &global_config, bob_deusd, BOB, &clock, ts.ctx());
 
     // All rewards should be unused (entire vesting period was zero supply)
-    assert_eq(sdeusd::get_total_unused_reward_amount(&management, &clock), rewards_amount);
+    assert_eq!(sdeusd::get_total_unused_reward_amount(&management, &clock), rewards_amount);
 
     // Withdraw unused rewards
     ts.next_tx(ADMIN);
     sdeusd::withdraw_unused_rewards(&admin_cap, &mut management, &global_config, ADMIN, &clock, ts.ctx());
 
     // Verify complete cleanup
-    assert_eq(sdeusd::get_total_unused_reward_amount(&management, &clock), 0);
-    assert_eq(sdeusd::get_unvested_amount(&management, &clock), 0);
+    assert_eq!(sdeusd::get_total_unused_reward_amount(&management, &clock), 0);
+    assert_eq!(sdeusd::get_unvested_amount(&management, &clock), 0);
 
     clock::destroy_for_testing(clock);
     clean_test(ts, global_config, admin_cap, deusd_config, management);
@@ -1100,16 +1100,16 @@ fun test_withdraw_unused_rewards_sequential_vesting_periods() {
 
     // Check unused rewards: 2/8 * 400 = 100 tokens
     let unused_after_first_zero = sdeusd::get_total_unused_reward_amount(&management, &clock);
-    assert_eq(unused_after_first_zero, 100_000_000);
+    assert_eq!(unused_after_first_zero, 100_000_000);
 
     // Wait for first vesting to complete
     clock::set_for_testing(&mut clock, start_time + (8 * ONE_HOUR_MILLIS + ONE_SECOND_MILLIS));
-    assert_eq(sdeusd::get_unvested_amount(&management, &clock), 0);
+    assert_eq!(sdeusd::get_unvested_amount(&management, &clock), 0);
 
     // Withdraw first batch of unused rewards
     ts.next_tx(ADMIN);
     sdeusd::withdraw_unused_rewards(&admin_cap, &mut management, &global_config, ADMIN, &clock, ts.ctx());
-    assert_eq(sdeusd::get_total_unused_reward_amount(&management, &clock), 0);
+    assert_eq!(sdeusd::get_total_unused_reward_amount(&management, &clock), 0);
 
     // Second vesting period (Hours 8-16) ===
     // Start second vesting: 600 tokens over 8 hours
@@ -1131,16 +1131,16 @@ fun test_withdraw_unused_rewards_sequential_vesting_periods() {
 
     // Check unused rewards: 3/8 * 600 = 225 tokens
     let unused_after_second_zero = sdeusd::get_total_unused_reward_amount(&management, &clock);
-    assert_eq(unused_after_second_zero, 225_000_000);
+    assert_eq!(unused_after_second_zero, 225_000_000);
 
     // Wait for second vesting to complete
     clock::set_for_testing(&mut clock, start_time + (16 * ONE_HOUR_MILLIS + ONE_SECOND_MILLIS));
-    assert_eq(sdeusd::get_unvested_amount(&management, &clock), 0);
+    assert_eq!(sdeusd::get_unvested_amount(&management, &clock), 0);
 
     // Withdraw second batch of unused rewards
     ts.next_tx(ADMIN);
     sdeusd::withdraw_unused_rewards(&admin_cap, &mut management, &global_config, ADMIN, &clock, ts.ctx());
-    assert_eq(sdeusd::get_total_unused_reward_amount(&management, &clock), 0);
+    assert_eq!(sdeusd::get_total_unused_reward_amount(&management, &clock), 0);
 
     // Third vesting period
     // Start third vesting: 800 tokens over 8 hours
@@ -1162,16 +1162,16 @@ fun test_withdraw_unused_rewards_sequential_vesting_periods() {
 
     // Check unused rewards: 3/8 * 800 = 300 tokens
     let unused_after_third_zero = sdeusd::get_total_unused_reward_amount(&management, &clock);
-    assert_eq(unused_after_third_zero, 300_000_000);
+    assert_eq!(unused_after_third_zero, 300_000_000);
 
     // Complete third vesting
     clock::set_for_testing(&mut clock, start_time + (24 * ONE_HOUR_MILLIS + ONE_SECOND_MILLIS));
-    assert_eq(sdeusd::get_unvested_amount(&management, &clock), 0);
+    assert_eq!(sdeusd::get_unvested_amount(&management, &clock), 0);
 
     // Final withdrawal
     ts.next_tx(ADMIN);
     sdeusd::withdraw_unused_rewards(&admin_cap, &mut management, &global_config, ADMIN, &clock, ts.ctx());
-    assert_eq(sdeusd::get_total_unused_reward_amount(&management, &clock), 0);
+    assert_eq!(sdeusd::get_total_unused_reward_amount(&management, &clock), 0);
 
     // Total withdrawn across all periods: 100 + 225 + 300 = 625 tokens
     // This represents the rewards that were unused due to zero supply periods
@@ -1181,7 +1181,7 @@ fun test_withdraw_unused_rewards_sequential_vesting_periods() {
     let unused_rewards_3 = ts.take_from_address<Coin<DEUSD>>(ADMIN);
 
     let total_unused = unused_rewards_1.value() + unused_rewards_2.value() + unused_rewards_3.value();
-    assert_eq(total_unused, 625_000_000);
+    assert_eq!(total_unused, 625_000_000);
 
     unused_rewards_1.burn_for_testing();
     unused_rewards_2.burn_for_testing();
@@ -1209,22 +1209,22 @@ fun test_get_total_unused_reward_amount() {
     sdeusd::transfer_in_rewards(&mut management, &global_config, reward_coin, &clock, ts.ctx());
 
     let unused_at_start = sdeusd::get_total_unused_reward_amount(&management, &clock);
-    assert_eq(unused_at_start, 0); // No time has passed yet
+    assert_eq!(unused_at_start, 0); // No time has passed yet
 
     // 2 hours after vesting started (25% of vesting period)
     clock::set_for_testing(&mut clock, start_time + 2 * ONE_HOUR_MILLIS);
     let unused_after_2h = sdeusd::get_total_unused_reward_amount(&management, &clock);
-    assert_eq(unused_after_2h, 200000);
+    assert_eq!(unused_after_2h, 200000);
 
     // 4 hours after vesting started (50% of vesting period)
     clock::set_for_testing(&mut clock, start_time + 4 * ONE_HOUR_MILLIS);
     let unused_after_4h = sdeusd::get_total_unused_reward_amount(&management, &clock);
-    assert_eq(unused_after_4h, 400000);
+    assert_eq!(unused_after_4h, 400000);
 
     // 8 hours after vesting started (100% of vesting period)
     clock::set_for_testing(&mut clock, start_time + 8 * ONE_HOUR_MILLIS);
     let unused_after_8h = sdeusd::get_total_unused_reward_amount(&management, &clock);
-    assert_eq(unused_after_8h, 800000);
+    assert_eq!(unused_after_8h, 800000);
 
     clock::destroy_for_testing(clock);
     clean_test(ts, global_config, admin_cap, deusd_config, management);

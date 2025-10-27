@@ -2,9 +2,9 @@
 module elixir::locked_funds_tests;
 
 use std::type_name;
+use std::unit_test::assert_eq;
 use sui::coin::{Self, Coin};
 use sui::test_scenario;
-use sui::test_utils::assert_eq;
 use elixir::config;
 use elixir::locked_funds::{Self, LockedFundsManagement};
 
@@ -34,8 +34,8 @@ fun test_deposit_success() {
         let btc_amount = locked_funds::get_user_collateral_amount<BTC>(&management, ALICE);
         let coin_types = locked_funds::get_user_collateral_coin_types(&management, ALICE);
 
-        assert_eq(btc_amount, 1000_000_000);
-        assert_eq(coin_types.length(), 1);
+        assert_eq!(btc_amount, 1000_000_000);
+        assert_eq!(coin_types.length(), 1);
         assert!(coin_types.contains(&type_name::get<BTC>()), 0);
 
         // Alice deposits more 100_000_000 BTC
@@ -48,12 +48,12 @@ fun test_deposit_success() {
 
         // Check updated collateral
         let updated_btc_amount = locked_funds::get_user_collateral_amount<BTC>(&management, ALICE);
-        assert_eq(updated_btc_amount, 1100_000_000);
+        assert_eq!(updated_btc_amount, 1100_000_000);
         let eth_coin = locked_funds::get_user_collateral_amount<ETH>(&management, ALICE);
-        assert_eq(eth_coin, 5000_000_000);
+        assert_eq!(eth_coin, 5000_000_000);
 
         let updated_coin_types = locked_funds::get_user_collateral_coin_types(&management, ALICE);
-        assert_eq(updated_coin_types.length(), 2);
+        assert_eq!(updated_coin_types.length(), 2);
         assert!(updated_coin_types.contains(&type_name::get<BTC>()), 0);
         assert!(updated_coin_types.contains(&type_name::get<ETH>()), 0);
     };
@@ -67,8 +67,8 @@ fun test_deposit_success() {
         // Check Bob's collateral
         let bob_eth_amount = locked_funds::get_user_collateral_amount<ETH>(&management, BOB);
         let bob_coin_types = locked_funds::get_user_collateral_coin_types(&management, BOB);
-        assert_eq(bob_eth_amount, 1000_000_000);
-        assert_eq(bob_coin_types.length(), 1);
+        assert_eq!(bob_eth_amount, 1000_000_000);
+        assert_eq!(bob_coin_types.length(), 1);
         assert!(bob_coin_types.contains(&type_name::get<ETH>()), 0);
     };
 
@@ -123,15 +123,15 @@ fun test_withdraw_success() {
 
     ts.next_tx(ALICE);
     let withdrawn_btc = ts.take_from_sender<Coin<BTC>>();
-    assert_eq(withdrawn_btc.value(), 400_000_000);
+    assert_eq!(withdrawn_btc.value(), 400_000_000);
     withdrawn_btc.burn_for_testing();
 
     // Check Alice's remaining collateral
     let remaining_btc_amount = locked_funds::get_user_collateral_amount<BTC>(&management, ALICE);
-    assert_eq(remaining_btc_amount, 600_000_000);
+    assert_eq!(remaining_btc_amount, 600_000_000);
 
     let coin_types = locked_funds::get_user_collateral_coin_types(&management, ALICE);
-    assert_eq(coin_types.length(), 2);
+    assert_eq!(coin_types.length(), 2);
     assert!(coin_types.contains(&type_name::get<BTC>()), 0);
     assert!(coin_types.contains(&type_name::get<ETH>()), 0);
 
@@ -140,15 +140,15 @@ fun test_withdraw_success() {
 
     ts.next_tx(ALICE);
     let withdrawn_btc = ts.take_from_sender<Coin<BTC>>();
-    assert_eq(withdrawn_btc.value(), 600_000_000);
+    assert_eq!(withdrawn_btc.value(), 600_000_000);
     withdrawn_btc.burn_for_testing();
 
     // Check Alice's remaining collateral
     let remaining_btc_amount = locked_funds::get_user_collateral_amount<BTC>(&management, ALICE);
-    assert_eq(remaining_btc_amount, 0);
+    assert_eq!(remaining_btc_amount, 0);
 
     let coin_types = locked_funds::get_user_collateral_coin_types(&management, ALICE);
-    assert_eq(coin_types.length(), 1);
+    assert_eq!(coin_types.length(), 1);
     assert!(coin_types.contains(&type_name::get<ETH>()), 0);
 
     config::destroy_for_test(global_config);
@@ -214,7 +214,7 @@ fun test_withdraw_internal() {
 
     ts.next_tx(ALICE);
     let withdrawn_btc = locked_funds::withdraw_internal<BTC>(&mut management, ALICE, 100_000_000, ts.ctx());
-    assert_eq(withdrawn_btc.value(), 100_000_000);
+    assert_eq!(withdrawn_btc.value(), 100_000_000);
     withdrawn_btc.burn_for_testing();
 
     config::destroy_for_test(global_config);

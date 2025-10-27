@@ -1,9 +1,9 @@
 #[test_only]
 module elixir::deusd_minting_tests;
 
+use std::unit_test::assert_eq;
 use sui::coin::{Self, Coin};
 use sui::test_scenario;
-use sui::test_utils::{assert_eq};
 use sui::test_scenario::Scenario;
 use test_coin::test_coins::{ETH, USDC};
 use elixir::locked_funds::LockedFundsManagement;
@@ -42,9 +42,9 @@ fun test_initialization() {
     );
 
     // Test basic initialization
-    assert_eq(x"29168617060ffecbc997a42a1d75d4a109f3be2c52ccb4e043dccafccce0e3c1", deusd_minting::get_domain_separator(&management));
-    assert_eq(1000000, deusd_minting::get_max_mint_per_second(&management));
-    assert_eq(2000000, deusd_minting::get_max_redeem_per_second(&management));
+    assert_eq!(x"29168617060ffecbc997a42a1d75d4a109f3be2c52ccb4e043dccafccce0e3c1", deusd_minting::get_domain_separator(&management));
+    assert_eq!(1000000, deusd_minting::get_max_mint_per_second(&management));
+    assert_eq!(2000000, deusd_minting::get_max_redeem_per_second(&management));
 
     clean_test(ts, global_config, admin_cap, deusd_config, locked_funds_management, management);
 }
@@ -170,12 +170,12 @@ fun test_add_custodian_address_success() {
     );
 
     let custodian_addresses = deusd_minting::get_custodian_addresses_for_test(&management);
-    assert_eq(custodian_addresses.length(), 1);
+    assert_eq!(custodian_addresses.length(), 1);
     assert!(custodian_addresses.contains(CUSTODIAN1), 0);
 
     deusd_minting::add_custodian_address(&admin_cap, &mut management, &global_config, CUSTODIAN2);
     let custodian_addresses = deusd_minting::get_custodian_addresses_for_test(&management);
-    assert_eq(custodian_addresses.length(), 2);
+    assert_eq!(custodian_addresses.length(), 2);
     assert!(custodian_addresses.contains(CUSTODIAN1), 0);
     assert!(custodian_addresses.contains(CUSTODIAN2), 1);
 
@@ -253,7 +253,7 @@ fun test_remove_custodian_address_success() {
     // Remove custodian
     deusd_minting::remove_custodian_address(&admin_cap, &mut management, &global_config, CUSTODIAN2);
     let custodian_addresses = deusd_minting::get_custodian_addresses_for_test(&management);
-    assert_eq(custodian_addresses.length(), 1);
+    assert_eq!(custodian_addresses.length(), 1);
     assert!(custodian_addresses.contains(CUSTODIAN1), 0);
     assert!(!custodian_addresses.contains(CUSTODIAN2), 1);
 
@@ -286,10 +286,10 @@ fun test_set_max_mint_per_second_success() {
     );
 
     deusd_minting::set_max_mint_per_second(&admin_cap, &mut management, &global_config, 2000000);
-    assert_eq(2000000, deusd_minting::get_max_mint_per_second(&management));
+    assert_eq!(2000000, deusd_minting::get_max_mint_per_second(&management));
 
     deusd_minting::set_max_mint_per_second(&admin_cap, &mut management, &global_config, 3000000);
-    assert_eq(3000000, deusd_minting::get_max_mint_per_second(&management));
+    assert_eq!(3000000, deusd_minting::get_max_mint_per_second(&management));
 
     clean_test(ts, global_config, admin_cap, deusd_config, locked_funds_management, management);
 }
@@ -320,10 +320,10 @@ fun test_set_max_redeem_per_second_success() {
     );
 
     deusd_minting::set_max_redeem_per_second(&admin_cap, &mut management, &global_config, 1500000);
-    assert_eq(1500000, deusd_minting::get_max_redeem_per_second(&management));
+    assert_eq!(1500000, deusd_minting::get_max_redeem_per_second(&management));
 
     deusd_minting::set_max_redeem_per_second(&admin_cap, &mut management, &global_config, 2500000);
-    assert_eq(2500000, deusd_minting::get_max_redeem_per_second(&management));
+    assert_eq!(2500000, deusd_minting::get_max_redeem_per_second(&management));
 
     clean_test(ts, global_config, admin_cap, deusd_config, locked_funds_management, management);
 }
@@ -360,8 +360,8 @@ fun test_disable_mint_redeem_success() {
     ts.next_tx(GATEKEEPER);
     deusd_minting::disable_mint_redeem(&mut management, &global_config, ts.ctx());
 
-    assert_eq(0, deusd_minting::get_max_mint_per_second(&management));
-    assert_eq(0, deusd_minting::get_max_redeem_per_second(&management));
+    assert_eq!(0, deusd_minting::get_max_mint_per_second(&management));
+    assert_eq!(0, deusd_minting::get_max_redeem_per_second(&management));
 
     clean_test(ts, global_config, admin_cap, deusd_config, locked_funds_management, management);
 }
@@ -619,7 +619,7 @@ fun test_transfer_to_custody_success() {
 
     ts.next_tx(ALICE);
     deusd_minting::transfer_to_custody<ETH>(&mut management, &global_config, CUSTODIAN1, 1000000000, ts.ctx());
-    assert_eq(deusd_minting::get_balance<ETH>(&management), 4000000000); // Remaining balance after transfer
+    assert_eq!(deusd_minting::get_balance<ETH>(&management), 4000000000); // Remaining balance after transfer
 
     ts.next_tx(ALICE);
     let custody_eth_coin = ts.take_from_address<Coin<ETH>>(CUSTODIAN1);
@@ -757,7 +757,7 @@ fun test_deposit_success() {
 
         deusd_minting::deposit<ETH>(&mut management, &global_config, eth_coin, ts.ctx());
 
-        assert_eq(deusd_minting::get_balance<ETH>(&management), eth_amount);
+        assert_eq!(deusd_minting::get_balance<ETH>(&management), eth_amount);
 
         // Deposit USDC
         let usdc_amount = 2000000;
@@ -765,7 +765,7 @@ fun test_deposit_success() {
 
         deusd_minting::deposit<USDC>(&mut management, &global_config, usdc_coin, ts.ctx());
 
-        assert_eq(deusd_minting::get_balance<USDC>(&management), usdc_amount);
+        assert_eq!(deusd_minting::get_balance<USDC>(&management), usdc_amount);
     };
 
     ts.next_tx(ADMIN);
@@ -776,7 +776,7 @@ fun test_deposit_success() {
 
         deusd_minting::deposit<ETH>(&mut management, &global_config, eth_coin, ts.ctx());
 
-        assert_eq(deusd_minting::get_balance<ETH>(&management), 3000000000);
+        assert_eq!(deusd_minting::get_balance<ETH>(&management), 3000000000);
     };
 
     clean_test(ts, global_config, admin_cap, deusd_config, locked_funds_management, management);
@@ -861,11 +861,11 @@ fun test_withdraw_success() {
     {
         // Withdraw ETH
         deusd_minting::withdraw<ETH>(&admin_cap, &mut management, &global_config, 400000000, ALICE, ts.ctx());
-        assert_eq(deusd_minting::get_balance<ETH>(&management), 600000000); // Remaining balance after withdrawal
+        assert_eq!(deusd_minting::get_balance<ETH>(&management), 600000000); // Remaining balance after withdrawal
 
         ts.next_tx(ADMIN);
         let withdrawn_coin = ts.take_from_address<Coin<ETH>>(ALICE);
-        assert_eq(withdrawn_coin.value(), 400000000);
+        assert_eq!(withdrawn_coin.value(), 400000000);
         withdrawn_coin.burn_for_testing();
     };
 
