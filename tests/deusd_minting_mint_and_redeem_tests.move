@@ -1,11 +1,11 @@
 #[test_only]
 module elixir::deusd_minting_mint_and_redeem_tests;
 
-use elixir::deusd;
+use std::unit_test::assert_eq;
 use sui::coin::{Self, Coin};
 use sui::clock;
-use sui::test_utils::assert_eq;
 use test_coin::test_coins::{ETH, USDC};
+use elixir::deusd;
 use elixir::locked_funds;
 use elixir::deusd::DEUSD;
 use elixir::deusd_minting_tests::{setup_test, clean_test};
@@ -97,20 +97,20 @@ fun test_mint_success() {
 
         // Check that the minting was successful
         let deusd_coin = ts.take_from_sender<Coin<DEUSD>>();
-        assert_eq(deusd_coin.value(), deusd_amount);
+        assert_eq!(deusd_coin.value(), deusd_amount);
         deusd_coin.burn_for_testing();
 
         // Check that collaterals were distributed correctly
         let custodian1_eth_coin = ts.take_from_address<Coin<ETH>>(CUSTODIAN1);
-        assert_eq(custodian1_eth_coin.value(), 500000000);
+        assert_eq!(custodian1_eth_coin.value(), 500000000);
         custodian1_eth_coin.burn_for_testing();
 
         let custodian2_eth_coin = ts.take_from_address<Coin<ETH>>(CUSTODIAN2);
-        assert_eq(custodian2_eth_coin.value(), 300000000);
+        assert_eq!(custodian2_eth_coin.value(), 300000000);
         custodian2_eth_coin.burn_for_testing();
 
         let contract_eth_amount = deusd_minting::get_balance<ETH>(&management);
-        assert_eq(contract_eth_amount, 200000000);
+        assert_eq!(contract_eth_amount, 200000000);
     };
 
     // Mint up to the maximum allowed for the current second
@@ -153,18 +153,18 @@ fun test_mint_success() {
 
         // Check that the minting was successful
         let deusd_coin = ts.take_from_sender<Coin<DEUSD>>();
-        assert_eq(deusd_coin.value(), deusd_amount);
+        assert_eq!(deusd_coin.value(), deusd_amount);
         deusd_coin.burn_for_testing();
 
         // Check that collaterals were distributed correctly
         let custodian1_eth_coin = ts.take_from_address<Coin<ETH>>(CUSTODIAN1);
-        assert_eq(custodian1_eth_coin.value(), 1200000000);
+        assert_eq!(custodian1_eth_coin.value(), 1200000000);
         custodian1_eth_coin.burn_for_testing();
 
         let contract_eth_amount = deusd_minting::get_balance<ETH>(&management);
-        assert_eq(contract_eth_amount, 1000000001); // 200000000 from previous mint + 80000001 from this mint
+        assert_eq!(contract_eth_amount, 1000000001); // 200000000 from previous mint + 80000001 from this mint
 
-        assert_eq(get_minted_per_second(&management, 1000000000), 1000000000);
+        assert_eq!(get_minted_per_second(&management, 1000000000), 1000000000);
     };
 
     // Mint again in the next second to test the mint limit
@@ -208,18 +208,18 @@ fun test_mint_success() {
 
         // Check that the minting was successful
         let deusd_coin = ts.take_from_sender<Coin<DEUSD>>();
-        assert_eq(deusd_coin.value(), deusd_amount);
+        assert_eq!(deusd_coin.value(), deusd_amount);
         deusd_coin.burn_for_testing();
 
         // Check that collaterals were distributed correctly
         let custodian1_eth_coin = ts.take_from_address<Coin<ETH>>(CUSTODIAN1);
-        assert_eq(custodian1_eth_coin.value(), 1200000001);
+        assert_eq!(custodian1_eth_coin.value(), 1200000001);
         custodian1_eth_coin.burn_for_testing();
 
         let contract_eth_amount = deusd_minting::get_balance<ETH>(&management);
-        assert_eq(contract_eth_amount, 1800000001); // 1000000001 from previous mints + 80000000 from this mint
+        assert_eq!(contract_eth_amount, 1800000001); // 1000000001 from previous mints + 80000000 from this mint
 
-        assert_eq(get_minted_per_second(&management, 1000000001), 500000000);
+        assert_eq!(get_minted_per_second(&management, 1000000001), 500000000);
     };
 
     sui::clock::destroy_for_testing(clock);
@@ -1317,17 +1317,17 @@ fun test_mint_single_custodian_route() {
 
         ts.next_tx(beneficiary);
         let deusd_coin = ts.take_from_sender<Coin<DEUSD>>();
-        assert_eq(deusd_coin.value(), deusd_amount);
+        assert_eq!(deusd_coin.value(), deusd_amount);
         deusd_coin.burn_for_testing();
 
         // Check that all collateral went to CUSTODIAN1
         let custodian1_eth_coin = ts.take_from_address<Coin<ETH>>(CUSTODIAN1);
-        assert_eq(custodian1_eth_coin.value(), collateral_amount);
+        assert_eq!(custodian1_eth_coin.value(), collateral_amount);
         custodian1_eth_coin.burn_for_testing();
 
         // Contract should have no balance
         let contract_eth_amount = deusd_minting::get_balance<ETH>(&management);
-        assert_eq(contract_eth_amount, 0);
+        assert_eq!(contract_eth_amount, 0);
     };
 
     sui::clock::destroy_for_testing(clock);
@@ -1410,17 +1410,17 @@ fun test_redeem_success() {
         );
 
         let deusd_supply_after = deusd::total_supply(&deusd_config);
-        assert_eq(deusd_supply_before - deusd_supply_after, deusd_amount);
+        assert_eq!(deusd_supply_before - deusd_supply_after, deusd_amount);
 
         ts.next_tx(beneficiary);
         let beneficiary_eth_coin = ts.take_from_sender<Coin<ETH>>();
-        assert_eq(beneficiary_eth_coin.value(), collateral_amount);
+        assert_eq!(beneficiary_eth_coin.value(), collateral_amount);
         beneficiary_eth_coin.burn_for_testing();
 
         let contract_eth_amount = deusd_minting::get_balance<ETH>(&management);
-        assert_eq(contract_eth_amount, 9000000000);
+        assert_eq!(contract_eth_amount, 9000000000);
 
-        assert_eq(deusd_minting::get_redeemed_per_second(&management, 1000000000), 500000000);
+        assert_eq!(deusd_minting::get_redeemed_per_second(&management, 1000000000), 500000000);
     };
 
     ts.next_tx(REDEEMER2);
@@ -1457,17 +1457,17 @@ fun test_redeem_success() {
         );
 
         let deusd_supply_after = deusd::total_supply(&deusd_config);
-        assert_eq(deusd_supply_before - deusd_supply_after, deusd_amount);
+        assert_eq!(deusd_supply_before - deusd_supply_after, deusd_amount);
 
         ts.next_tx(beneficiary);
         let beneficiary_usdc_coin = ts.take_from_sender<Coin<USDC>>();
-        assert_eq(beneficiary_usdc_coin.value(), collateral_amount);
+        assert_eq!(beneficiary_usdc_coin.value(), collateral_amount);
         beneficiary_usdc_coin.burn_for_testing();
 
         let contract_usdc_amount = deusd_minting::get_balance<USDC>(&management);
-        assert_eq(contract_usdc_amount, 0);
+        assert_eq!(contract_usdc_amount, 0);
 
-        assert_eq(deusd_minting::get_redeemed_per_second(&management, 1000000001), 100000000);
+        assert_eq!(deusd_minting::get_redeemed_per_second(&management, 1000000001), 100000000);
     };
 
     sui::clock::destroy_for_testing(clock);
@@ -1542,17 +1542,17 @@ fun test_redeem_fail_if_not_redeemer() {
         );
 
         let deusd_supply_after = deusd::total_supply(&deusd_config);
-        assert_eq(deusd_supply_before - deusd_supply_after, deusd_amount);
+        assert_eq!(deusd_supply_before - deusd_supply_after, deusd_amount);
 
         ts.next_tx(beneficiary);
         let beneficiary_eth_coin = ts.take_from_sender<Coin<ETH>>();
-        assert_eq(beneficiary_eth_coin.value(), collateral_amount);
+        assert_eq!(beneficiary_eth_coin.value(), collateral_amount);
         beneficiary_eth_coin.burn_for_testing();
 
         let contract_eth_amount = deusd_minting::get_balance<ETH>(&management);
-        assert_eq(contract_eth_amount, 9000000000);
+        assert_eq!(contract_eth_amount, 9000000000);
 
-        assert_eq(deusd_minting::get_redeemed_per_second(&management, 1000000000), 500000000);
+        assert_eq!(deusd_minting::get_redeemed_per_second(&management, 1000000000), 500000000);
     };
 
     sui::clock::destroy_for_testing(clock);
@@ -1870,17 +1870,17 @@ fun test_redeem_fail_if_asset_not_supported() {
         );
 
         let deusd_supply_after = deusd::total_supply(&deusd_config);
-        assert_eq(deusd_supply_before - deusd_supply_after, deusd_amount);
+        assert_eq!(deusd_supply_before - deusd_supply_after, deusd_amount);
 
         ts.next_tx(beneficiary);
         let beneficiary_eth_coin = ts.take_from_sender<Coin<ETH>>();
-        assert_eq(beneficiary_eth_coin.value(), collateral_amount);
+        assert_eq!(beneficiary_eth_coin.value(), collateral_amount);
         beneficiary_eth_coin.burn_for_testing();
 
         let contract_eth_amount = deusd_minting::get_balance<ETH>(&management);
-        assert_eq(contract_eth_amount, 9000000000);
+        assert_eq!(contract_eth_amount, 9000000000);
 
-        assert_eq(deusd_minting::get_redeemed_per_second(&management, 1000000000), 500000000);
+        assert_eq!(deusd_minting::get_redeemed_per_second(&management, 1000000000), 500000000);
     };
 
     sui::clock::destroy_for_testing(clock);

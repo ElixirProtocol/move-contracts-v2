@@ -1,13 +1,13 @@
 #[test_only]
 module elixir::deusd_lp_staking_tests;
 
+use std::unit_test::assert_eq;
 use sui::clock;
 use sui::coin;
 use sui::test_scenario;
 use elixir::admin_cap::{Self, AdminCap};
 use elixir::config::{Self, GlobalConfig};
 use elixir::deusd_lp_staking::{Self, DeUSDLPStakingManagement};
-use sui::test_utils::assert_eq;
 
 // Test coin types
 public struct TestCoin has drop {}
@@ -32,10 +32,10 @@ fun test_initialization() {
     ts.next_tx(@elixir);
     let mut staking_management = ts.take_shared<DeUSDLPStakingManagement>();
 
-    assert_eq(deusd_lp_staking::get_current_epoch(&staking_management), 0);
+    assert_eq!(deusd_lp_staking::get_current_epoch(&staking_management), 0);
 
     deusd_lp_staking::set_epoch(&admin_cap, &mut staking_management, &global_config, 1);
-    assert_eq(deusd_lp_staking::get_current_epoch(&staking_management), 1);
+    assert_eq!(deusd_lp_staking::get_current_epoch(&staking_management), 1);
 
     sui::test_utils::destroy(admin_cap);
     config::destroy_for_test(global_config);
@@ -70,11 +70,11 @@ fun test_update_stake_parameters() {
     let (param_epoch, param_stake_limit, param_cooldown, total_staked, total_cooling_down) =
         deusd_lp_staking::get_stake_parameters<TestCoin>(&staking_management);
 
-    assert_eq(param_epoch, epoch);
-    assert_eq(param_stake_limit, stake_limit);
-    assert_eq(param_cooldown, cooldown);
-    assert_eq(total_staked, 0);
-    assert_eq(total_cooling_down, 0);
+    assert_eq!(param_epoch, epoch);
+    assert_eq!(param_stake_limit, stake_limit);
+    assert_eq!(param_cooldown, cooldown);
+    assert_eq!(total_staked, 0);
+    assert_eq!(total_cooling_down, 0);
 
     sui::test_utils::destroy(admin_cap);
     config::destroy_for_test(global_config);
@@ -109,11 +109,11 @@ fun test_update_existing_stake_parameters() {
     let (epoch, stake_limit, cooldown, total_staked, total_cooling_down) =
         deusd_lp_staking::get_stake_parameters<TestCoin>(&staking_management);
 
-    assert_eq(epoch, 2);
-    assert_eq(stake_limit, 2000);
-    assert_eq(cooldown, 172800);
-    assert_eq(total_staked, 0); // Should remain unchanged
-    assert_eq(total_cooling_down, 0); // Should remain unchanged
+    assert_eq!(epoch, 2);
+    assert_eq!(stake_limit, 2000);
+    assert_eq!(cooldown, 172800);
+    assert_eq!(total_staked, 0); // Should remain unchanged
+    assert_eq!(total_cooling_down, 0); // Should remain unchanged
 
     sui::test_utils::destroy(admin_cap);
     config::destroy_for_test(global_config);
@@ -141,7 +141,7 @@ fun test_cooldown_period_at_max() {
 
     // Verify parameters
     let (_, _, cooldown, _, _) = deusd_lp_staking::get_stake_parameters<TestCoin>(&staking_management);
-    assert_eq(cooldown, max_cooldown);
+    assert_eq!(cooldown, max_cooldown);
 
     sui::test_utils::destroy(admin_cap);
     config::destroy_for_test(global_config);
@@ -222,18 +222,18 @@ fun test_stake_tokens() {
     let (staked_amount, cooling_down_amount, cooldown_start) =
         deusd_lp_staking::get_stake_data<TestCoin>(&staking_management, tx_context::sender(&ctx));
 
-    assert_eq(staked_amount, 100);
-    assert_eq(cooling_down_amount, 0);
-    assert_eq(cooldown_start, 0);
+    assert_eq!(staked_amount, 100);
+    assert_eq!(cooling_down_amount, 0);
+    assert_eq!(cooldown_start, 0);
 
     // Verify contract balance
-    assert_eq(deusd_lp_staking::get_balance<TestCoin>(&staking_management), 100);
+    assert_eq!(deusd_lp_staking::get_balance<TestCoin>(&staking_management), 100);
 
     // Verify total staked updated
     let (_, _, _, total_staked, total_cooling_down) =
         deusd_lp_staking::get_stake_parameters<TestCoin>(&staking_management);
-    assert_eq(total_staked, 100);
-    assert_eq(total_cooling_down, 0);
+    assert_eq!(total_staked, 100);
+    assert_eq!(total_cooling_down, 0);
 
     sui::test_utils::destroy(admin_cap);
     config::destroy_for_test(global_config);
@@ -269,11 +269,11 @@ fun test_multiple_stakes_same_user() {
     let (staked_amount, cooling_down_amount, _) =
         deusd_lp_staking::get_stake_data<TestCoin>(&staking_management, tx_context::sender(&ctx));
 
-    assert_eq(staked_amount, 80); // 50 + 30
-    assert_eq(cooling_down_amount, 0);
+    assert_eq!(staked_amount, 80); // 50 + 30
+    assert_eq!(cooling_down_amount, 0);
 
     // Verify contract balance
-    assert_eq(deusd_lp_staking::get_balance<TestCoin>(&staking_management), 80);
+    assert_eq!(deusd_lp_staking::get_balance<TestCoin>(&staking_management), 80);
 
     sui::test_utils::destroy(admin_cap);
     config::destroy_for_test(global_config);
@@ -313,15 +313,15 @@ fun test_multiple_token_types() {
     deusd_lp_staking::stake(&mut staking_management, &global_config, test_coin2, &mut ctx);
 
     // Verify separate balances
-    assert_eq(deusd_lp_staking::get_balance<TestCoin>(&staking_management), 100);
-    assert_eq(deusd_lp_staking::get_balance<TestCoin2>(&staking_management), 50);
+    assert_eq!(deusd_lp_staking::get_balance<TestCoin>(&staking_management), 100);
+    assert_eq!(deusd_lp_staking::get_balance<TestCoin2>(&staking_management), 50);
 
     // Verify separate stake data
     let (staked1, _, _) = deusd_lp_staking::get_stake_data<TestCoin>(&staking_management, tx_context::sender(&ctx));
     let (staked2, _, _) = deusd_lp_staking::get_stake_data<TestCoin2>(&staking_management, tx_context::sender(&ctx));
 
-    assert_eq(staked1, 100);
-    assert_eq(staked2, 50);
+    assert_eq!(staked1, 100);
+    assert_eq!(staked2, 50);
 
     sui::test_utils::destroy(admin_cap);
     config::destroy_for_test(global_config);
@@ -452,15 +452,15 @@ fun test_unstake_tokens() {
     let (staked_amount, cooling_down_amount, cooldown_start) =
         deusd_lp_staking::get_stake_data<TestCoin>(&staking_management, tx_context::sender(&ctx));
 
-    assert_eq(staked_amount, 40); // 100 - 60
-    assert_eq(cooling_down_amount, 60);
-    assert_eq(cooldown_start, 0); // Clock starts at 0
+    assert_eq!(staked_amount, 40); // 100 - 60
+    assert_eq!(cooling_down_amount, 60);
+    assert_eq!(cooldown_start, 0); // Clock starts at 0
 
     // Verify totals updated
     let (_, _, _, total_staked, total_cooling_down) =
         deusd_lp_staking::get_stake_parameters<TestCoin>(&staking_management);
-    assert_eq(total_staked, 40);
-    assert_eq(total_cooling_down, 60);
+    assert_eq!(total_staked, 40);
+    assert_eq!(total_cooling_down, 60);
 
     sui::test_utils::destroy(admin_cap);
     config::destroy_for_test(global_config);
@@ -483,8 +483,8 @@ fun test_partial_unstake_and_withdraw() {
     // Verify state after partial unstake
     let (staked_amount, cooling_down_amount, _) =
         deusd_lp_staking::get_stake_data<TestCoin>(&staking_management, tx_context::sender(&ctx));
-    assert_eq(staked_amount, 70); // 100 - 30
-    assert_eq(cooling_down_amount, 30);
+    assert_eq!(staked_amount, 70); // 100 - 30
+    assert_eq!(cooling_down_amount, 30);
 
     // Advance clock past cooldown
     clock::increment_for_testing(&mut clock_obj, 86401 * 1000); // 1 day + 1 second
@@ -495,11 +495,11 @@ fun test_partial_unstake_and_withdraw() {
     // Verify final state
     let (final_staked, final_cooling_down, _) =
         deusd_lp_staking::get_stake_data<TestCoin>(&staking_management, tx_context::sender(&ctx));
-    assert_eq(final_staked, 70);
-    assert_eq(final_cooling_down, 10); // 30 - 20
+    assert_eq!(final_staked, 70);
+    assert_eq!(final_cooling_down, 10); // 30 - 20
 
     // Verify contract balance decreased
-    assert_eq(deusd_lp_staking::get_balance<TestCoin>(&staking_management), 80); // 100 - 20
+    assert_eq!(deusd_lp_staking::get_balance<TestCoin>(&staking_management), 80); // 100 - 20
 
     sui::test_utils::destroy(admin_cap);
     config::destroy_for_test(global_config);
@@ -529,9 +529,9 @@ fun test_multiple_unstake_operations() {
     let (staked_amount, cooling_down_amount, cooldown_start) =
         deusd_lp_staking::get_stake_data<TestCoin>(&staking_management, tx_context::sender(&ctx));
 
-    assert_eq(staked_amount, 50); // 100 - 30 - 20
-    assert_eq(cooling_down_amount, 50); // 30 + 20
-    assert_eq(cooldown_start, 1); // Should be updated to latest unstake time
+    assert_eq!(staked_amount, 50); // 100 - 30 - 20
+    assert_eq!(cooling_down_amount, 50); // 30 + 20
+    assert_eq!(cooldown_start, 1); // Should be updated to latest unstake time
 
     sui::test_utils::destroy(admin_cap);
     config::destroy_for_test(global_config);
@@ -649,17 +649,17 @@ fun test_withdraw_tokens() {
     let (staked_amount, cooling_down_amount, _) =
         deusd_lp_staking::get_stake_data<TestCoin>(&staking_management, tx_context::sender(&ctx));
 
-    assert_eq(staked_amount, 50);
-    assert_eq(cooling_down_amount, 0); // Withdrawn
+    assert_eq!(staked_amount, 50);
+    assert_eq!(cooling_down_amount, 0); // Withdrawn
 
     // Verify totals updated
     let (_, _, _, total_staked, total_cooling_down) =
         deusd_lp_staking::get_stake_parameters<TestCoin>(&staking_management);
-    assert_eq(total_staked, 50);
-    assert_eq(total_cooling_down, 0);
+    assert_eq!(total_staked, 50);
+    assert_eq!(total_cooling_down, 0);
 
     // Verify contract balance decreased
-    assert_eq(deusd_lp_staking::get_balance<TestCoin>(&staking_management), 50);
+    assert_eq!(deusd_lp_staking::get_balance<TestCoin>(&staking_management), 50);
 
     sui::test_utils::destroy(admin_cap);
     config::destroy_for_test(global_config);
@@ -823,9 +823,9 @@ fun test_get_stake_data_nonexistent_user() {
     let (staked_amount, cooling_down_amount, cooldown_start) =
         deusd_lp_staking::get_stake_data<TestCoin>(&staking_management, @0x123);
 
-    assert_eq(staked_amount, 0);
-    assert_eq(cooling_down_amount, 0);
-    assert_eq(cooldown_start, 0);
+    assert_eq!(staked_amount, 0);
+    assert_eq!(cooling_down_amount, 0);
+    assert_eq!(cooldown_start, 0);
 
     sui::test_utils::destroy(admin_cap);
     config::destroy_for_test(global_config);
@@ -844,11 +844,11 @@ fun test_get_stake_parameters_nonexistent_token() {
     let (epoch, stake_limit, cooldown, total_staked, total_cooling_down) =
         deusd_lp_staking::get_stake_parameters<TestCoin>(&staking_management);
 
-    assert_eq(epoch, 0);
-    assert_eq(stake_limit, 0);
-    assert_eq(cooldown, 0);
-    assert_eq(total_staked, 0);
-    assert_eq(total_cooling_down, 0);
+    assert_eq!(epoch, 0);
+    assert_eq!(stake_limit, 0);
+    assert_eq!(cooldown, 0);
+    assert_eq!(total_staked, 0);
+    assert_eq!(total_cooling_down, 0);
 
     sui::test_utils::destroy(admin_cap);
     config::destroy_for_test(global_config);
@@ -865,7 +865,7 @@ fun test_get_balance_no_tokens() {
 
     // Get balance when no tokens have been staked
     let balance = deusd_lp_staking::get_balance<TestCoin>(&staking_management);
-    assert_eq(balance, 0);
+    assert_eq!(balance, 0);
 
     sui::test_utils::destroy(admin_cap);
     config::destroy_for_test(global_config);
@@ -895,7 +895,7 @@ fun test_get_balance_has_tokens() {
 
     // Verify that balance store now exists and has the correct amount
     let balance = deusd_lp_staking::get_balance<TestCoin>(&staking_management);
-    assert_eq(balance, 100);
+    assert_eq!(balance, 100);
 
     sui::test_utils::destroy(admin_cap);
     config::destroy_for_test(global_config);
@@ -1015,21 +1015,21 @@ fun test_multiple_users_stake_same_token() {
     let (staked2, cooling2, _) = deusd_lp_staking::get_stake_data<TestCoin>(&staking_management, BOB2);
     let (staked3, cooling3, _) = deusd_lp_staking::get_stake_data<TestCoin>(&staking_management, BOB3);
 
-    assert_eq(staked1, 100);
-    assert_eq(cooling1, 0);
-    assert_eq(staked2, 200);
-    assert_eq(cooling2, 0);
-    assert_eq(staked3, 150);
-    assert_eq(cooling3, 0);
+    assert_eq!(staked1, 100);
+    assert_eq!(cooling1, 0);
+    assert_eq!(staked2, 200);
+    assert_eq!(cooling2, 0);
+    assert_eq!(staked3, 150);
+    assert_eq!(cooling3, 0);
 
     // Verify total stakes
     let (_, _, _, total_staked, total_cooling_down) =
         deusd_lp_staking::get_stake_parameters<TestCoin>(&staking_management);
-    assert_eq(total_staked, 450); // 100 + 200 + 150
-    assert_eq(total_cooling_down, 0);
+    assert_eq!(total_staked, 450); // 100 + 200 + 150
+    assert_eq!(total_cooling_down, 0);
 
     // Verify contract balance
-    assert_eq(deusd_lp_staking::get_balance<TestCoin>(&staking_management), 450);
+    assert_eq!(deusd_lp_staking::get_balance<TestCoin>(&staking_management), 450);
 
     sui::test_utils::destroy(admin_cap);
     config::destroy_for_test(global_config);
@@ -1083,21 +1083,21 @@ fun test_multiple_users_unstake_different_amounts() {
     let (staked2, cooling2, _) = deusd_lp_staking::get_stake_data<TestCoin>(&staking_management, BOB2);
     let (staked3, cooling3, _) = deusd_lp_staking::get_stake_data<TestCoin>(&staking_management, BOB3);
 
-    assert_eq(staked1, 50);  // 100 - 50
-    assert_eq(cooling1, 50);
-    assert_eq(staked2, 100); // 200 - 100
-    assert_eq(cooling2, 100);
-    assert_eq(staked3, 100); // 300 - 200
-    assert_eq(cooling3, 200);
+    assert_eq!(staked1, 50);  // 100 - 50
+    assert_eq!(cooling1, 50);
+    assert_eq!(staked2, 100); // 200 - 100
+    assert_eq!(cooling2, 100);
+    assert_eq!(staked3, 100); // 300 - 200
+    assert_eq!(cooling3, 200);
 
     // Verify totals
     let (_, _, _, total_staked, total_cooling_down) =
         deusd_lp_staking::get_stake_parameters<TestCoin>(&staking_management);
-    assert_eq(total_staked, 250);    // 50 + 100 + 100
-    assert_eq(total_cooling_down, 350); // 50 + 100 + 200
+    assert_eq!(total_staked, 250);    // 50 + 100 + 100
+    assert_eq!(total_cooling_down, 350); // 50 + 100 + 200
 
     // Contract balance should remain unchanged
-    assert_eq(deusd_lp_staking::get_balance<TestCoin>(&staking_management), 600);
+    assert_eq!(deusd_lp_staking::get_balance<TestCoin>(&staking_management), 600);
 
     sui::test_utils::destroy(admin_cap);
     config::destroy_for_test(global_config);
@@ -1149,19 +1149,19 @@ fun test_multiple_users_withdraw_after_cooldown() {
     let (staked1, cooling1, _) = deusd_lp_staking::get_stake_data<TestCoin>(&staking_management, BOB1);
     let (staked2, cooling2, _) = deusd_lp_staking::get_stake_data<TestCoin>(&staking_management, BOB2);
 
-    assert_eq(staked1, 40);  // 100 - 60 (unstaked)
-    assert_eq(cooling1, 20); // 60 - 40 (withdrawn)
-    assert_eq(staked2, 120); // 200 - 80 (unstaked)
-    assert_eq(cooling2, 20); // 80 - 60 (withdrawn)
+    assert_eq!(staked1, 40);  // 100 - 60 (unstaked)
+    assert_eq!(cooling1, 20); // 60 - 40 (withdrawn)
+    assert_eq!(staked2, 120); // 200 - 80 (unstaked)
+    assert_eq!(cooling2, 20); // 80 - 60 (withdrawn)
 
     // Verify totals
     let (_, _, _, total_staked, total_cooling_down) =
         deusd_lp_staking::get_stake_parameters<TestCoin>(&staking_management);
-    assert_eq(total_staked, 160);    // 40 + 120
-    assert_eq(total_cooling_down, 40); // 20 + 20
+    assert_eq!(total_staked, 160);    // 40 + 120
+    assert_eq!(total_cooling_down, 40); // 20 + 20
 
     // Contract balance should be reduced by withdrawn amounts
-    assert_eq(deusd_lp_staking::get_balance<TestCoin>(&staking_management), 200); // 300 - 100 (withdrawn)
+    assert_eq!(deusd_lp_staking::get_balance<TestCoin>(&staking_management), 200); // 300 - 100 (withdrawn)
 
     sui::test_utils::destroy(admin_cap);
     config::destroy_for_test(global_config);
