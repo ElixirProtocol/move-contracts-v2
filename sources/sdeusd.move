@@ -16,7 +16,7 @@ use sui::event;
 use sui::table::{Self, Table};
 use elixir::clock_utils;
 use elixir::set::{Self, Set};
-use elixir::config::GlobalConfig;
+use elixir::config::{Self, GlobalConfig};
 use elixir::admin_cap::AdminCap;
 use elixir::deusd::DEUSD;
 use elixir::math_u64;
@@ -150,6 +150,16 @@ public struct UserUnblacklisted has copy, drop, store {
     is_full_blacklisting: bool,
 }
 
+public struct CooldownUnrestrictedStakerAdded has copy, drop, store {
+    sender: address,
+    staker: address,
+}
+
+public struct CooldownUnrestrictedStakerRemoved has copy, drop, store {
+    sender: address,
+    staker: address,
+}
+
 public struct WithdrawUnusedRewards has copy, drop, store {
     to: address,
     amount: u64,
@@ -266,6 +276,30 @@ public fun remove_from_blacklist(
         user: target,
         is_full_blacklisting,
     });
+}
+
+public fun add_cooldown_unrestricted_staker(
+    global_config: &mut GlobalConfig,
+    staker: address,
+    ctx: &mut TxContext,
+) {
+    global_config.check_package_version();
+    assert!(global_config.has_role(ctx.sender(), roles::role_cooldown_unrestricted_staker_manager()), ENotAuthorized);
+
+    // Note: we use the role config instead of adding a set to sdeUSD management (as we do for the blacklist)
+    // because this feature was added after deployment and we want to avoid any migration.
+    config::add_role_internal(global_config, staker, roles::role_cooldown_unrestricted_staker());
+}
+
+public fun remove_cooldown_unrestricted_staker(
+    global_config: &mut GlobalConfig,
+    staker: address,
+    ctx: &mut TxContext,
+) {
+    global_config.check_package_version();
+    assert!(global_config.has_role(ctx.sender(), roles::role_cooldown_unrestricted_staker_manager()), ENotAuthorized);
+
+    config::remove_role_internal(global_config, staker, roles::role_cooldown_unrestricted_staker());
 }
 
 /// Deposits deUSD and mints sdeUSD shares to the receiver. Fails if sender or receiver is soft restricted.
@@ -419,7 +453,7 @@ public fun cooldown_assets(
 
     let shares = preview_withdraw(management, assets, clock);
 
-    update_user_cooldown(management, sender, assets, clock);
+    update_user_cooldown(management, global_config, sender, assets, clock);
 
     withdraw_to_silo(
         management,
@@ -447,7 +481,7 @@ public fun cooldown_shares(
     let shares = shares_coin.value();
     let assets = preview_redeem(management, shares, clock);
 
-    update_user_cooldown(management, sender, assets, clock);
+    update_user_cooldown(management, global_config, sender, assets, clock);
 
     withdraw_to_silo(
         management,
@@ -670,6 +704,14 @@ public fun is_full_restricted(management: &SdeUSDManagement, user: address): boo
     is_full_restricted_staker(management, user)
 }
 
+/// Check if a user is cooldown unrestricted staker
+public fun is_cooldown_unrestricted_staker(
+    global_config: &GlobalConfig,
+    user: address
+): bool {
+    global_config.has_role(user, roles::role_cooldown_unrestricted_staker())
+}
+
 // === Helper Functions ===
 
 fun is_restricted_staker(management: &SdeUSDManagement, user: address): bool {
@@ -852,17 +894,24 @@ fun withdraw_to_silo(
 
 fun update_user_cooldown(
     management: &mut SdeUSDManagement,
+    global_config: &GlobalConfig,
     user: address,
     amount: u64,
     clock: &Clock,
 ) {
+    let cooldown_duration = if (config::has_role(global_config, user, roles::role_cooldown_unrestricted_staker())) {
+        0
+    } else {
+        management.cooldown_duration
+    };
+
     if (management.cooldowns.contains(user)) {
         let cooldown = management.cooldowns.borrow_mut(user);
-        cooldown.cooldown_end = clock_utils::timestamp_seconds(clock) + management.cooldown_duration;
+        cooldown.cooldown_end = clock_utils::timestamp_seconds(clock) + cooldown_duration;
         cooldown.underlying_amount = cooldown.underlying_amount + amount;
     } else {
         management.cooldowns.add(user, UserCooldown {
-            cooldown_end: clock_utils::timestamp_seconds(clock) + management.cooldown_duration,
+            cooldown_end: clock_utils::timestamp_seconds(clock) + cooldown_duration,
             underlying_amount: amount,
         })
     };

@@ -47,6 +47,10 @@ Allow operator to transfer rewards into th `sd
 
 - [External minting and burning deUSD](./docs/external_mint_burn.md)
 
+## Usage documentation
+
+- [deUSD staking](./docs/deusd_staking.md)
+
 ## Development
 
 **Note:** If you run into with any issues, try to run `make clean` to clean up the build cache and retry.

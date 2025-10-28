@@ -87,3 +87,15 @@ burn-deusd-with-cap:
 	sui client call --package $(PACKAGE_ADDRESS) --module deusd --function burn_with_cap \
 		--args \
 			$(treasury_cap_id) $(DEUSD_CONFIG_ID) $(DEUSD_TREASURY_CAP_CONFIG_ID) $(GLOBAL_CONFIG_ID) $(coin_id) $(from)
+
+# Run by cooldown unrestricted staker manager
+# Cooldown unrestricted staker manager is set by using add-role function with role = 6
+add-cooldown-unrestricted-staker:
+	sui client call --package $(PACKAGE_ADDRESS) --module sdeusd --function add_cooldown_unrestricted_staker \
+		--args \
+			$(GLOBAL_CONFIG_ID) $(staker)
+
+remove-cooldown-unrestricted-staker:
+	sui client call --package $(PACKAGE_ADDRESS) --module sdeusd --function remove_cooldown_unrestricted_staker \
+		--args \
+			$(GLOBAL_CONFIG_ID) $(staker)

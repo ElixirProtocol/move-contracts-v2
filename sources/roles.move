@@ -8,6 +8,8 @@ const ROLE_COLLATERAL_MANAGER: u8 = 2;
 const ROLE_GATE_KEEPER: u8 = 3;
 const ROLE_REWARDER: u8 = 4;
 const ROLE_BLACKLIST_MANAGER: u8 = 5;
+const ROLE_COOLDOWN_UNRESTRICTED_STAKER_MANAGER: u8 = 6;
+const ROLE_COOLDOWN_UNRESTRICTED_STAKER: u8 = 7;
 
 // === Public Functions ===
 
@@ -33,4 +35,12 @@ public fun role_rewarder(): u8 {
 
 public fun role_blacklist_manager(): u8 {
     ROLE_BLACKLIST_MANAGER
+}
+
+public fun role_cooldown_unrestricted_staker_manager(): u8 {
+    ROLE_COOLDOWN_UNRESTRICTED_STAKER_MANAGER
+}
+
+public fun role_cooldown_unrestricted_staker(): u8 {
+    ROLE_COOLDOWN_UNRESTRICTED_STAKER
 }
