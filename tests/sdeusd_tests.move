@@ -2602,6 +2602,85 @@ fun test_redeem_with_rewards_affects_ratio() {
     clean_test(ts, global_config, admin_cap, deusd_config, management);
 }
 
+// === Add/Remove Cooldown Unrestricted Staker Tests ===
+
+#[test]
+fun test_add_cooldown_unrestricted_staker_success() {
+    let (mut ts, mut global_config, admin_cap, mut deusd_config, mut management) = setup_test();
+
+    ts.next_tx(ADMIN);
+
+    // Grant cooldown unrestricted staker manager role
+    config::add_role(&admin_cap, &mut global_config, BOB, roles::role_cooldown_unrestricted_staker_manager());
+
+    ts.next_tx(BOB);
+    // Add ALICE as cooldown unrestricted staker
+    sdeusd::add_cooldown_unrestricted_staker(&mut global_config, ALICE, ts.ctx());
+    assert!(sdeusd::is_cooldown_unrestricted_staker(&global_config, ALICE));
+
+    ts.next_tx(BOB);
+    // Add BOB as cooldown unrestricted staker
+    sdeusd::add_cooldown_unrestricted_staker(&mut global_config, BOB, ts.ctx());
+    assert!(sdeusd::is_cooldown_unrestricted_staker(&global_config, BOB));
+
+    clean_test(ts, global_config, admin_cap, deusd_config, management);
+}
+
+#[test]
+#[expected_failure(abort_code = sdeusd::ENotAuthorized)]
+fun test_add_cooldown_unrestricted_staker_fails_if_not_cooldown_unrestricted_staker_manager() {
+    let (mut ts, mut global_config, admin_cap, mut deusd_config, mut management) = setup_test();
+
+    ts.next_tx(ADMIN);
+
+    // Try to add cooldown unrestricted staker without proper role
+    sdeusd::add_cooldown_unrestricted_staker(&mut global_config, ALICE, ts.ctx());
+
+    clean_test(ts, global_config, admin_cap, deusd_config, management);
+}
+
+#[test]
+fun test_remove_cooldown_unrestricted_staker_success() {
+    let (mut ts, mut global_config, admin_cap, mut deusd_config, mut management) = setup_test();
+
+    ts.next_tx(ADMIN);
+    // Grant cooldown unrestricted staker manager role
+    config::add_role(&admin_cap, &mut global_config, BOB, roles::role_cooldown_unrestricted_staker_manager());
+
+    ts.next_tx(BOB);
+    // Add ALICE as cooldown unrestricted staker
+    sdeusd::add_cooldown_unrestricted_staker(&mut global_config, ALICE, ts.ctx());
+    assert!(sdeusd::is_cooldown_unrestricted_staker(&global_config, ALICE));
+
+    ts.next_tx(BOB);
+    // Now remove ALICE from cooldown unrestricted stakers
+    sdeusd::remove_cooldown_unrestricted_staker(&mut global_config, ALICE, ts.ctx());
+    assert!(!sdeusd::is_cooldown_unrestricted_staker(&global_config, ALICE));
+
+    clean_test(ts, global_config, admin_cap, deusd_config, management);
+}
+
+#[test]
+#[expected_failure(abort_code = sdeusd::ENotAuthorized)]
+fun test_remove_cooldown_unrestricted_staker_fails_if_not_cooldown_unrestricted_staker_manager() {
+    let (mut ts, mut global_config, admin_cap, mut deusd_config, mut management) = setup_test();
+
+    ts.next_tx(ADMIN);
+    // Grant cooldown unrestricted staker manager role
+    config::add_role(&admin_cap, &mut global_config, BOB, roles::role_cooldown_unrestricted_staker_manager());
+
+    ts.next_tx(BOB);
+    // Add ALICE as cooldown unrestricted staker
+    sdeusd::add_cooldown_unrestricted_staker(&mut global_config, ALICE, ts.ctx());
+    assert!(sdeusd::is_cooldown_unrestricted_staker(&global_config, ALICE));
+
+    ts.next_tx(ADMIN);
+    // Try to remove cooldown unrestricted staker without proper role
+    sdeusd::remove_cooldown_unrestricted_staker(&mut global_config, ALICE, ts.ctx());
+
+    clean_test(ts, global_config, admin_cap, deusd_config, management);
+}
+
 // === Cooldown Tests ===
 
 #[test]
@@ -2644,6 +2723,187 @@ fun test_cooldown_assets_success() {
     let (cooldown_end, cooldown_amount) = sdeusd::get_user_cooldown_info(&management, ALICE);
     assert_eq!(cooldown_amount, assets_to_cooldown);
     assert!(cooldown_end > 0);
+
+    shares_coin.burn_for_testing();
+    clock::destroy_for_testing(clock);
+    clean_test(ts, global_config, admin_cap, deusd_config, management);
+}
+
+#[test]
+fun test_cooldown_assets_success_if_cooldown_unrestricted_staker() {
+    let (mut ts, mut global_config, admin_cap, mut deusd_config, mut management) = setup_test();
+
+    // Add ALICE as cooldown unrestricted staker
+    {
+        ts.next_tx(ADMIN);
+        config::add_role(&admin_cap, & mut global_config, BOB, roles::role_cooldown_unrestricted_staker_manager());
+
+        ts.next_tx(BOB);
+        sdeusd::add_cooldown_unrestricted_staker(&mut global_config, ALICE, ts.ctx());
+        assert!(sdeusd::is_cooldown_unrestricted_staker(&global_config, ALICE));
+    };
+
+    ts.next_tx(ADMIN);
+    let clock = clock::create_for_testing(ts.ctx());
+
+    ts.next_tx(ALICE);
+    // First deposit to get shares
+    let deusd_coin = mint_deusd(&mut deusd_config, 1000_000_000, &mut ts);
+    sdeusd::deposit(
+        &mut management,
+        &global_config,
+        deusd_coin,
+        ALICE,
+        &clock,
+        ts.ctx()
+    );
+
+    ts.next_tx(ALICE);
+    let mut shares_coin = ts.take_from_address<Coin<SDEUSD>>(ALICE);
+
+    // Start cooldown for 500 assets
+    let assets_to_cooldown = 500_000_000;
+    sdeusd::cooldown_assets(
+        &mut management,
+        &global_config,
+        assets_to_cooldown,
+        &mut shares_coin,
+        &clock,
+        ts.ctx()
+    );
+
+    // Check that shares were burned and cooldown was set
+    assert_eq!(shares_coin.value(), 500_000_000);
+
+    let (cooldown_end, cooldown_amount) = sdeusd::get_user_cooldown_info(&management, ALICE);
+    assert_eq!(cooldown_amount, assets_to_cooldown);
+    assert_eq!(cooldown_end, clock_utils::timestamp_seconds(&clock));
+
+    shares_coin.burn_for_testing();
+    clock::destroy_for_testing(clock);
+    clean_test(ts, global_config, admin_cap, deusd_config, management);
+}
+
+#[test]
+fun test_cooldown_assets_success_after_removing_cooldown_unrestricted_staker() {
+    let (mut ts, mut global_config, admin_cap, mut deusd_config, mut management) = setup_test();
+
+    // Add ALICE as cooldown unrestricted staker, then remove
+    {
+        ts.next_tx(ADMIN);
+        config::add_role(&admin_cap, & mut global_config, BOB, roles::role_cooldown_unrestricted_staker_manager());
+
+        ts.next_tx(BOB);
+        sdeusd::add_cooldown_unrestricted_staker(&mut global_config, ALICE, ts.ctx());
+        assert!(sdeusd::is_cooldown_unrestricted_staker(&global_config, ALICE));
+
+        ts.next_tx(BOB);
+        sdeusd::remove_cooldown_unrestricted_staker(&mut global_config, ALICE, ts.ctx());
+        assert!(!sdeusd::is_cooldown_unrestricted_staker(&global_config, ALICE));
+    };
+
+    ts.next_tx(ADMIN);
+    let clock = clock::create_for_testing(ts.ctx());
+
+    ts.next_tx(ALICE);
+    // First deposit to get shares
+    let deusd_coin = mint_deusd(&mut deusd_config, 1000_000_000, &mut ts);
+    sdeusd::deposit(
+        &mut management,
+        &global_config,
+        deusd_coin,
+        ALICE,
+        &clock,
+        ts.ctx()
+    );
+
+    ts.next_tx(ALICE);
+    let mut shares_coin = ts.take_from_address<Coin<SDEUSD>>(ALICE);
+
+    // Start cooldown for 500 assets
+    let assets_to_cooldown = 500_000_000;
+    sdeusd::cooldown_assets(
+        &mut management,
+        &global_config,
+        assets_to_cooldown,
+        &mut shares_coin,
+        &clock,
+        ts.ctx()
+    );
+
+    // Check that shares were burned and cooldown was set
+    assert_eq!(shares_coin.value(), 500_000_000);
+
+    let (cooldown_end, cooldown_amount) = sdeusd::get_user_cooldown_info(&management, ALICE);
+    assert_eq!(cooldown_amount, assets_to_cooldown);
+    assert_eq!(cooldown_end, clock_utils::timestamp_seconds(&clock) + sdeusd::cooldown_duration(&management));
+
+    shares_coin.burn_for_testing();
+    clock::destroy_for_testing(clock);
+    clean_test(ts, global_config, admin_cap, deusd_config, management);
+}
+
+#[test]
+fun test_cooldown_assets_success_if_cooldown_assets_again_after_added_cooldown_unrestricted_staker() {
+    let (mut ts, mut global_config, admin_cap, mut deusd_config, mut management) = setup_test();
+
+    ts.next_tx(ADMIN);
+    let clock = clock::create_for_testing(ts.ctx());
+
+    ts.next_tx(ALICE);
+    // First deposit to get shares
+    let deusd_coin = mint_deusd(&mut deusd_config, 1000_000_000, &mut ts);
+    sdeusd::deposit(
+        &mut management,
+        &global_config,
+        deusd_coin,
+        ALICE,
+        &clock,
+        ts.ctx()
+    );
+
+    ts.next_tx(ALICE);
+    let mut shares_coin = ts.take_from_address<Coin<SDEUSD>>(ALICE);
+
+    // Start cooldown for 500 assets
+    let assets_to_cooldown = 500_000_000;
+    sdeusd::cooldown_assets(
+        &mut management,
+        &global_config,
+        assets_to_cooldown,
+        &mut shares_coin,
+        &clock,
+        ts.ctx()
+    );
+
+    // Check that shares were burned and cooldown was set
+    assert_eq!(shares_coin.value(), 500_000_000);
+    let (cooldown_end, cooldown_amount) = sdeusd::get_user_cooldown_info(&management, ALICE);
+    assert_eq!(cooldown_amount, assets_to_cooldown);
+    assert_eq!(cooldown_end, clock_utils::timestamp_seconds(&clock) + sdeusd::cooldown_duration(&management));
+
+    // Now add ALICE as cooldown unrestricted staker
+    ts.next_tx(ADMIN);
+    config::add_role(&admin_cap, & mut global_config, BOB, roles::role_cooldown_unrestricted_staker_manager());
+
+    ts.next_tx(BOB);
+    sdeusd::add_cooldown_unrestricted_staker(&mut global_config, ALICE, ts.ctx());
+    assert!(sdeusd::is_cooldown_unrestricted_staker(&global_config, ALICE));
+
+    // Now cooldown again - should reset cooldown_end to current time
+    ts.next_tx(ALICE);
+    sdeusd::cooldown_assets(
+        &mut management,
+        &global_config,
+        assets_to_cooldown,
+        &mut shares_coin,
+        &clock,
+        ts.ctx()
+    );
+
+    let (cooldown_end, cooldown_amount) = sdeusd::get_user_cooldown_info(&management, ALICE);
+    assert_eq!(cooldown_amount, assets_to_cooldown * 2);
+    assert_eq!(cooldown_end, clock_utils::timestamp_seconds(&clock)); // should be reset to current time
 
     shares_coin.burn_for_testing();
     clock::destroy_for_testing(clock);
@@ -2916,6 +3176,59 @@ fun test_cooldown_shares_success() {
 
     let (cooldown_end, cooldown_amount) = sdeusd::get_user_cooldown_info(&management, ALICE);
     assert!(cooldown_end > 0);
+    assert_eq!(cooldown_amount, 500_000_000);
+
+    shares_coin.burn_for_testing();
+    shares_coin_to_cooldown.destroy_zero();
+    clock::destroy_for_testing(clock);
+    clean_test(ts, global_config, admin_cap, deusd_config, management);
+}
+
+#[test]
+fun test_cooldown_shares_success_if_cooldown_unrestricted_staker() {
+    let (mut ts, mut global_config, admin_cap, mut deusd_config, mut management) = setup_test();
+
+    // Add ALICE as cooldown unrestricted staker
+    {
+        ts.next_tx(ADMIN);
+        config::add_role(&admin_cap, & mut global_config, BOB, roles::role_cooldown_unrestricted_staker_manager());
+
+        ts.next_tx(BOB);
+        sdeusd::add_cooldown_unrestricted_staker(&mut global_config, ALICE, ts.ctx());
+        assert!(sdeusd::is_cooldown_unrestricted_staker(&global_config, ALICE));
+    };
+
+    ts.next_tx(ALICE);
+    let clock = clock::create_for_testing(ts.ctx());
+
+    // First deposit
+    let deusd_coin = mint_deusd(&mut deusd_config, 1000_000_000, &mut ts);
+    sdeusd::deposit(
+        &mut management,
+        &global_config,
+        deusd_coin,
+        ALICE,
+        &clock,
+        ts.ctx()
+    );
+
+    ts.next_tx(ALICE);
+    let mut shares_coin = ts.take_from_address<Coin<SDEUSD>>(ALICE);
+
+    let mut shares_coin_to_cooldown = shares_coin.split(500_000_000, ts.ctx());
+    sdeusd::cooldown_shares(
+        &mut management,
+        &global_config,
+        &mut shares_coin_to_cooldown,
+        &clock,
+        ts.ctx()
+    );
+
+    // Check that shares were burned and cooldown was set
+    assert_eq!(shares_coin_to_cooldown.value(), 0); // Remaining shares
+
+    let (cooldown_end, cooldown_amount) = sdeusd::get_user_cooldown_info(&management, ALICE);
+    assert_eq!(cooldown_end, clock_utils::timestamp_seconds(&clock));
     assert_eq!(cooldown_amount, 500_000_000);
 
     shares_coin.burn_for_testing();
@@ -3208,6 +3521,74 @@ fun test_unstake_success() {
 
     ts.next_tx(ALICE);
     // Unstake
+    sdeusd::unstake(
+        &mut management,
+        &global_config,
+        BOB, // Receive at different address
+        &clock,
+        ts.ctx()
+    );
+
+    ts.next_tx(ALICE);
+    let unstaked_coin = ts.take_from_address<Coin<DEUSD>>(BOB);
+    assert_eq!(unstaked_coin.value(), assets_to_cooldown);
+
+    // Check that cooldown was cleared
+    let (cooldown_end, cooldown_amount) = sdeusd::get_user_cooldown_info(&management, ALICE);
+    assert_eq!(cooldown_amount, 0);
+    assert_eq!(cooldown_end, 0);
+
+    shares_coin.burn_for_testing();
+    unstaked_coin.burn_for_testing();
+    clock::destroy_for_testing(clock);
+    clean_test(ts, global_config, admin_cap, deusd_config, management);
+}
+
+#[test]
+fun test_unstake_success_if_cooldown_unrestricted_staker() {
+    let (mut ts, mut global_config, admin_cap, mut deusd_config, mut management) = setup_test();
+
+    // Add ALICE as cooldown unrestricted staker
+    {
+        ts.next_tx(ADMIN);
+        config::add_role(&admin_cap, &mut global_config, BOB, roles::role_cooldown_unrestricted_staker_manager());
+
+        ts.next_tx(BOB);
+        sdeusd::add_cooldown_unrestricted_staker(&mut global_config, ALICE, ts.ctx());
+        assert!(sdeusd::is_cooldown_unrestricted_staker(&global_config, ALICE));
+    };
+
+    ts.next_tx(ADMIN);
+    let mut clock = clock::create_for_testing(ts.ctx());
+
+    ts.next_tx(ALICE);
+    // First deposit
+    let deusd_coin = mint_deusd(&mut deusd_config, 1000_000_000, &mut ts);
+    sdeusd::deposit(
+        &mut management,
+        &global_config,
+        deusd_coin,
+        ALICE,
+        &clock,
+        ts.ctx()
+    );
+
+    ts.next_tx(ALICE);
+    let mut shares_coin = ts.take_from_address<Coin<SDEUSD>>(ALICE);
+
+    // Start cooldown
+    let assets_to_cooldown = 500_000_000;
+    sdeusd::cooldown_assets(
+        &mut management,
+        &global_config,
+        assets_to_cooldown,
+        &mut shares_coin,
+        &clock,
+        ts.ctx()
+    );
+
+    ts.next_tx(ALICE);
+    // Unstake immediately as cooldown unrestricted staker
     sdeusd::unstake(
         &mut management,
         &global_config,
