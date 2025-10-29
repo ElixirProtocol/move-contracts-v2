@@ -5,6 +5,9 @@ include .env
 clean:
 	rm -rf build/
 
+upgrade-package:
+	sui client upgrade --upgrade-capability $(UPGRADE_CAP_ID) --verify-deps
+
 upgrade-package-version:
 	sui client call --package $(PACKAGE_ADDRESS) --module config --function upgrade_package_version \
 		--args \
@@ -52,7 +55,7 @@ remove-role:
 			$(address) $(role)
 
 add-supported-asset:
-	sui client call --package $(PACKAGE_ADDRESS) --module deusd_minting --function remove_supported_asset \
+	sui client call --package $(PACKAGE_ADDRESS) --module deusd_minting --function add_supported_asset \
 		--type-args \
 			$(asset_type) \
 		--args \
@@ -94,6 +97,17 @@ add-cooldown-unrestricted-staker:
 	sui client call --package $(PACKAGE_ADDRESS) --module sdeusd --function add_cooldown_unrestricted_staker \
 		--args \
 			$(GLOBAL_CONFIG_ID) $(staker)
+
+transfer-rewards:
+	sui client call --package $(PACKAGE_ADDRESS) --module sdeusd --function transfer_in_rewards \
+		--args \
+			$(SDEUSD_MANAGEMENT_ID) $(GLOBAL_CONFIG_ID) \
+			$(coins) 0x6
+
+convert-to-assets:
+	sui client call --package $(PACKAGE_ADDRESS) --module sdeusd --function convert_to_assets \
+		--args \
+			$(SDEUSD_MANAGEMENT_ID) $(shares) false 0x6 --dev-inspect \
 
 remove-cooldown-unrestricted-staker:
 	sui client call --package $(PACKAGE_ADDRESS) --module sdeusd --function remove_cooldown_unrestricted_staker \

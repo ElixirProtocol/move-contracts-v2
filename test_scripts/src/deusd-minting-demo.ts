@@ -28,16 +28,16 @@ async function main() {
       {
         orderType: OrderType.MINT,
         expiry: BigInt(Math.floor(Date.now() / 1000) + 60 * 10), // 10 minutes from now
-        nonce: BigInt(4), // update nonce with each request
+        nonce: BigInt(5), // update nonce with each request
         benefactor: BENEFACTOR_ADDRESS,
         beneficiary: BENEFACTOR_ADDRESS, // use same address as BENEFACTOR_ADDRESS for testing
         collateralType: COLLATERAL_TYPE,
-        collateralAmount: BigInt(90000000),
-        deusdAmount: BigInt(90000000),
+        collateralAmount: BigInt(11142621),
+        deusdAmount: BigInt(11142621),
       },
       {
-        addresses: [BENEFACTOR_ADDRESS, BENEFACTOR_ADDRESS],
-        ratios: ["6000", "4000"],
+        addresses: [BENEFACTOR_ADDRESS],
+        ratios: ["10000"],
       },
     );
     console.log("Mint order result:", mintOrderResult);

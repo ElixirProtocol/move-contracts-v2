@@ -11,36 +11,47 @@ This repository contains the following modules organized into core functionality
 ### Core Modules
 
 #### `admin_cap.move`
+
 Administrative capability module that provides secure access control for protocol management functions.
 
 #### `config.move`
+
 Global configuration management module that handles package versioning, role-based access control integration.
 
 #### `roles.move`
+
 Role definition module that establishes role constants for the access control system, including minter, redeemer, collateral manager, gatekeeper, rewarder, and blacklist manager roles, ...
 
 #### `acl.move`
+
 Access Control List for efficiently member roles management.
 
 #### `deusd.move`
+
 Implement `deUSD` token.
 
 #### `wdeusd_vault.move`
+
 Implement `wdeUSD` vault to facilitate bridging `deUSD` from `Ethereum` to `Sui`.
 
 #### `deusd_minting.move`
+
 Main minting and redemption module that processes collateral deposits and deUSD issuance.
 
 #### `locked_funds.move`
+
 Allow users to lock their collateral/`deUSD` tokens for minting/burning `deUSD`.
 
 #### `deusd_lp_staking.move`
+
 Allow liquidity providers to staking their LP tokens to receive rewards.
 
 #### `sdeusd.move`
-Staked deUSD implementation following ERC4626 vault standard. 
+
+Staked deUSD implementation following ERC4626 vault standard.
 
 #### `staking_rewards_distributor.move`
+
 Allow operator to transfer rewards into th `sd
 
 ## Integration documentation
@@ -56,16 +67,19 @@ Allow operator to transfer rewards into th `sd
 **Note:** If you run into with any issues, try to run `make clean` to clean up the build cache and retry.
 
 ### Building the Project
+
 ```bash
 sui move build -d
 ```
 
 ### Running Tests
+
 ```bash
 sui move test
 ```
 
 ### Deploying to Network
+
 - Update the `initial_rewarder` in the `Move.toml` file with appreciate value.
 
 ```bash
@@ -90,7 +104,7 @@ After publishing, check the publishing transaction to get the corresponding conf
 
 ### Upgrade the package
 
-Follow the guide in the previous section to upgrade the package. 
+Follow the guide in the previous section to upgrade the package.
 Remember to update the new value of `PACKAGE_VERSION` in the `config.move` module and commit this changes before upgrading.
 After upgrading, check the upgrading transaction to get the new package ID and update the `PACKAGE_ID` in the `.env` file.
 
@@ -120,7 +134,8 @@ make initialize-minting
 
 ### Initialize wdeusd vault contract
 
-Requirements: 
+Requirements:
+
 - The `wdeUSD` coin must be created by Sui bridge with 6 decimals before initializing the vault. Then update `WDEUSD_COIN_METADATA_ID` and `WDEUSD_TYPE` in the `.env` file.
 
 Run the following command to initialize the vault contract:
@@ -131,8 +146,8 @@ make initialize-wdeusd-vault
 
 ### Delete and re-initialize `deUSD` config
 
-This is required if you want to transfer the `deUSD`'s treasury cap to another account to allow the new account 
-to mint/burn `deUSD` directly, not used in normal operations because the contract will not be able to mint/burn `deUSD` 
+This is required if you want to transfer the `deUSD`'s treasury cap to another account to allow the new account
+to mint/burn `deUSD` directly, not used in normal operations because the contract will not be able to mint/burn `deUSD`
 util the new `deUSD` config is initialized.
 
 #### Delete `deUSD` config
@@ -145,7 +160,7 @@ Run the following command to delete the `deUSD` config:
 make delete-deusd-config caps_owner=${owners_of_treasury_cap_account_address}
 ```
 
-**Note**: this command will transfer both `TreasuryCap` and `DenyCapV2` to the `caps_owner` address. 
+**Note**: this command will transfer both `TreasuryCap` and `DenyCapV2` to the `caps_owner` address.
 You can find the object IDs of `TreasuryCap` and `DenyCapV2` by checking the content of the `DeUSDConfig` before deleting it.
 
 #### Re-initialize `deUSD` config
@@ -173,8 +188,10 @@ make create-deusd-treasury-cap to=${owner_account_address}
 ```
 
 #### Active/de-active a created `DeUSDTreasuryCap`
+
 This function should be used if a `DeUSDTreasuryCap` is compromised.
 
 ```bash
 make set-deusd-treasury-cap-status treasury_cap_id=${deusd_treasury_cap_id} is_active=false
 ```
+
