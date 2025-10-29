@@ -58,5 +58,5 @@ published-version = "1"
 [env.mainnet]
 chain-id = "35834a8a"
 original-published-id = "0xf6b468748dced8435f4407d0ecb0457b921a2e89266a60862e36dbf243c71841"
-latest-published-id = "0x8fe826eb9c269edfa7eeeb4fd87e000a527129629b5067d9084a377449ae9394"
-published-version = "2"
+latest-published-id = "0xea2d427d2d2476a2638224b4ca58321bbb2168431aef0f4b320d1ce254e935ea"
+published-version = "3"

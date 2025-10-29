@@ -98,6 +98,17 @@ add-cooldown-unrestricted-staker:
 		--args \
 			$(GLOBAL_CONFIG_ID) $(staker)
 
+transfer-rewards:
+	sui client call --package $(PACKAGE_ADDRESS) --module sdeusd --function transfer_in_rewards \
+		--args \
+			$(SDEUSD_MANAGEMENT_ID) $(GLOBAL_CONFIG_ID) \
+			$(coins) 0x6
+
+convert-to-assets:
+	sui client call --package $(PACKAGE_ADDRESS) --module sdeusd --function convert_to_assets \
+		--args \
+			$(SDEUSD_MANAGEMENT_ID) $(shares) false 0x6 --dev-inspect \
+
 remove-cooldown-unrestricted-staker:
 	sui client call --package $(PACKAGE_ADDRESS) --module sdeusd --function remove_cooldown_unrestricted_staker \
 		--args \
